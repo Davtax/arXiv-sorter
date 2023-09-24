@@ -1,8 +1,12 @@
 from unidecode import unidecode
 from typing import List
+import os
 
 
 def read_user_file(file_name: str) -> List[str]:
+    if not os.path.exists(file_name):
+        open(file_name, 'x').close()
+
     with open(file_name, 'r', encoding='utf-8') as f:
         lines = f.read()
 
