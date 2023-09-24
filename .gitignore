@@ -1,5 +1,6 @@
 .idea/
 build/
 *.spec
+__pycache__/
 
 abstracts/
