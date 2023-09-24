@@ -3,7 +3,7 @@ import time
 from typing import List
 from datetime import date
 
-base_url = 'http://export.arxiv.org/api/query?'
+base_url = 'https://export.arxiv.org/api/query?'
 
 n_max = 100
 t_sleep = 3  # seconds
