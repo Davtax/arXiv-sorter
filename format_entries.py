@@ -1,18 +1,11 @@
 from feedparser import FeedParserDict
-from typing import List
-
-# Define the strings to be replaced in the markdown file
-title_enclosed = ['<span style="color:red"><u>', '</u></span>']
-abstract_enclosed = ['<span style="color:red">**', '**</span>']
-author_enclosed = ['<span style="color:green"><u>', '</u></span>']
-group_enclosed = ['<span style="color:blue">**', '**</span>']
 
 
 def _fix_title(entry: FeedParserDict):
     title = entry.title
 
     if entry.updated != entry.published:
-        title += ' <span style="color:yellow">(UPDATED)</span>'
+        title += ' *(UPDATED)*'
 
     entry.title = title
 
@@ -28,7 +21,7 @@ def _fix_authors(entry: FeedParserDict):
     authors = entry.authors
     authors = ', '.join([author.name for author in authors])
 
-    entry.author = authors
+    entry.authors = authors
 
 
 def _fix_equations(entry: FeedParserDict):
@@ -66,11 +59,6 @@ def fix_entry(entry: FeedParserDict):
     _fix_abstract(entry)
     _fix_authors(entry)
     _fix_equations(entry)
-
-
-def sort_articles(entries: List[FeedParserDict], keywords: List[str], authors: List[str]) -> List[FeedParserDict]:
-    # TODO
-    pass
 
 
 def write_article(entry: FeedParserDict, f, index: int, n_total: int):
