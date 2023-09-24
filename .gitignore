@@ -2,5 +2,6 @@
 build/
 *.spec
 __pycache__/
+dist/
 
 abstracts/
