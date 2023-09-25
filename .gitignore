@@ -2,6 +2,7 @@
 build/
 *.spec
 __pycache__/
+dist/
 
 abstracts/
 arXiv-sorter.exe
