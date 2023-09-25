@@ -5,6 +5,9 @@ from dates_functions import obtain_data
 def _fix_title(entry: FeedParserDict):
     title = entry.title
 
+    title = title.replace('\n', ' ')
+    title = title.replace('  ', ' ')
+
     if entry.updated != entry.published:
         title += ' *(UPDATED)*'
 
@@ -83,4 +86,4 @@ def write_article(entry: FeedParserDict, f, index: int, n_total: int):
     f.write(f'{entry.id}\n\n')
     f.write(f'<span style="font-size:0.9em;">*Updated: {entry.updated}*</span>\n\n')
     f.write('---')
-    f.write('\n\n')
+    f.write('\n')
