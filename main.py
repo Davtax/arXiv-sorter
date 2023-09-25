@@ -48,7 +48,7 @@ while not data_found:
                 [write_article(entries[index], f, index, n_total) for index in range(n_total)]
 
                 ct = datetime.now()
-                f.write(f'\n\n*Last updated: {ct.strftime("%d %B %Y %H:%M:%S")}*')
+                f.write(f'\n*This file was created at: {ct.strftime("%d %B %Y %H:%M:%S")}*')
         else:
             sleep(t_sleep)
 
