@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import os
 
 
@@ -23,3 +23,13 @@ def check_last_date() -> date:
         last_date = date.today() - timedelta(days=2)
 
     return last_date
+
+
+def obtain_data(data: str) -> datetime:
+    data = data.split('T')
+    date = data[0].split('-')
+    time = data[1].split(':')
+
+    date = datetime(int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2][:2]))
+
+    return date
