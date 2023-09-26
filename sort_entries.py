@@ -138,7 +138,10 @@ def sort_articles(entries: List[FeedParserDict], keywords: List[str], authors: L
         abstract, keyword_index_abstract = _find_keywords(entries[i].summary, keywords)
         authors_list, author_index = _find_authors(entries[i].authors, authors)
 
-        keyword_index = min(keyword_index_title, keyword_index_abstract)
+        keyword_index = min(
+            value for value in [keyword_index_title, keyword_index_abstract, max_index] if value is not None)
+        if keyword_index == max_index:
+            keyword_index = None
 
         if keyword_index is not None:
             indices.append(keyword_index)
