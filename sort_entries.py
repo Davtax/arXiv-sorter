@@ -86,13 +86,13 @@ def _find_overlaps(indices):
     return indices
 
 
-def _find_title(title: str, keywords: List[str]) -> str:
-    indices, _ = _find_text(title, keywords)
+def _find_title(title: str, keywords: List[str]) -> Tuple[str, int]:
+    indices, keyword_index = _find_text(title, keywords)
     indices = _find_overlaps(indices)
 
     for index_0, index_f, _ in indices[::-1]:
         title = _replace_text(title, index_0, index_f, TitleEnclosure)
-    return title
+    return title, keyword_index
 
 
 def _find_keywords(abstract: str, keywords: List[str]) -> Tuple[str, int]:
@@ -134,9 +134,11 @@ def sort_articles(entries: List[FeedParserDict], keywords: List[str], authors: L
     indices = []
     max_index = len(keywords) + len(authors) + 1
     for i in range(len(entries)):
-        title = _find_title(entries[i].title, keywords)
-        abstract, keyword_index = _find_keywords(entries[i].summary, keywords)
+        title, keyword_index_title = _find_title(entries[i].title, keywords)
+        abstract, keyword_index_abstract = _find_keywords(entries[i].summary, keywords)
         authors_list, author_index = _find_authors(entries[i].authors, authors)
+
+        keyword_index = min(keyword_index_title, keyword_index_abstract)
 
         if keyword_index is not None:
             indices.append(keyword_index)
