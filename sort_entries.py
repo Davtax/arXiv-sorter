@@ -131,12 +131,11 @@ def _find_authors(authors_list: str, authors: List[str]) -> Tuple[str, int]:
 
 
 def sort_articles(entries: List[FeedParserDict], keywords: List[str], authors: List[str]) -> List[FeedParserDict]:
-    indices = []
     max_index = len(keywords) + len(authors) + 1
-    for i in range(len(entries)):
-        title, keyword_index_title = _find_title(entries[i].title, keywords)
-        abstract, keyword_index_abstract = _find_keywords(entries[i].summary, keywords)
-        authors_list, author_index = _find_authors(entries[i].authors, authors)
+    for entry in entries:
+        title, keyword_index_title = _find_title(entry.title, keywords)
+        abstract, keyword_index_abstract = _find_keywords(entry.summary, keywords)
+        authors_list, author_index = _find_authors(entry.authors, authors)
 
         keyword_index = min(
             value for value in [keyword_index_title, keyword_index_abstract, max_index] if value is not None)
@@ -144,15 +143,17 @@ def sort_articles(entries: List[FeedParserDict], keywords: List[str], authors: L
             keyword_index = None
 
         if keyword_index is not None:
-            indices.append(keyword_index)
+            entry['index'] = keyword_index
         elif author_index is not None:
-            indices.append(len(keywords) + author_index)
+            entry['index'] = len(keywords) + author_index
         else:
-            indices.append(max_index)
+            entry['index'] = max_index
 
-        entries[i].title = title
-        entries[i].summary = abstract
-        entries[i].authors = authors_list
+        if entry['updated_bool'] and entry['index'] == max_index:
+            entry['index'] += 1
 
-    indices_sorted = [i[0] for i in sorted(enumerate(indices), key=lambda x: x[1])]
-    return [entries[i] for i in indices_sorted]
+        entry.title = title
+        entry.summary = abstract
+        entry.authors = authors_list
+
+    return sorted(entries, key=lambda x: x['index'])
