@@ -16,11 +16,6 @@ categories = read_user_file('categories.txt')
 if not os.path.exists('abstracts'):
     os.mkdir('abstracts')
 
-if len(os.listdir('abstracts')) == 0:
-    previous_data = False
-else:
-    previous_data = True
-
 data_0 = check_last_date() + timedelta(days=1)
 data_f = date.today()
 
@@ -48,13 +43,11 @@ while not data_found:
                 [write_article(entries[index], f, index, n_total) for index in range(n_total)]
 
                 ct = datetime.now()
-                f.write(f'\n\n*Last updated: {ct.strftime("%d %B %Y %H:%M:%S")}*')
+                f.write(f'\n*This file was created at: {ct.strftime("%d %B %Y %H:%M:%S")}*')
         else:
             sleep(t_sleep)
 
         print('\n')
-    if previous_data:  # If data existed before, only search between the last date and today
-        break
-    elif not previous_data:  # If data didn't exist before, search until the first date with data
-        data_f = data_0
-        data_0 -= timedelta(days=1)
+
+    data_f = data_0
+    data_0 -= timedelta(days=1)
