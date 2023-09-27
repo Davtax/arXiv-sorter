@@ -7,9 +7,13 @@ def _fix_title(entry: FeedParserDict):
 
     title = title.replace('\n', ' ')
     title = title.replace('  ', ' ')
+    title = title.replace('`', "'")
 
     if entry.updated != entry.published:
         title += ' *(UPDATED)*'
+        entry['updated_bool'] = True
+    else:
+        entry['updated_bool'] = False
 
     entry.title = title
 
@@ -18,6 +22,8 @@ def _fix_abstract(entry: FeedParserDict):
     abstract = entry.summary
     abstract = abstract.replace('\n', ' ')
     abstract = abstract.replace('  ', ' ')
+    abstract = abstract.replace('`', "'")
+
     entry.summary = abstract
 
 
