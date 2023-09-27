@@ -27,9 +27,9 @@ def check_last_date() -> date:
 
 def obtain_data(data: str) -> datetime:
     data = data.split('T')
-    date = data[0].split('-')
+    date_str = data[0].split('-')
     time = data[1].split(':')
 
-    date = datetime(int(date[0]), int(date[1]), int(date[2]), int(time[0]), int(time[1]), int(time[2][:2]))
+    date_str = datetime(int(date_str[0]), int(date_str[1]), int(date_str[2]), int(time[0]), int(time[1]), int(time[2][:2]))
 
-    return date
+    return date_str
