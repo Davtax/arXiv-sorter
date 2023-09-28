@@ -1,5 +1,5 @@
 from feedparser import FeedParserDict
-from dates_functions import obtain_data
+from dates_functions import obtain_date
 
 
 def _fix_title(entry: FeedParserDict):
@@ -67,7 +67,7 @@ def _fix_equations(entry: FeedParserDict):
 def _fix_date(entry: FeedParserDict):
     date = entry.updated
 
-    ct = obtain_data(date)
+    ct = obtain_date(date)
     entry.updated = ct.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
 
