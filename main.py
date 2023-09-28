@@ -19,7 +19,7 @@ date_f = datetime.now()
 
 data_found = False
 while not data_found:
-    print('Parsing arXiv API feed between ' + str(date_0.date()) + ' and ' + str(date_f.date()) + '\n')
+    print('Requesting arXiv API feed between ' + str(date_0.date()) + ' and ' + str(date_f.date()) + '\n')
     entries_dates, dates = search_entries(categories, date_0, date_f)
     for entries, date in zip(entries_dates, dates):
         if len(entries) == 0:
