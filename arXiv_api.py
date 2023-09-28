@@ -53,10 +53,10 @@ def search_entries(categories: List[str], date_0: datetime, date_f: datetime) ->
         else:
             counter += n_max
 
-    return sort_entries(total_entries, date_0, date_f)
+    return _sort_entries(total_entries, date_0, date_f)
 
 
-def sort_entries(entries: List[feedparser.FeedParserDict], date_0: datetime, date_f: datetime) -> Tuple[
+def _sort_entries(entries: List[feedparser.FeedParserDict], date_0: datetime, date_f: datetime) -> Tuple[
     List[List[feedparser.FeedParserDict]], List[datetime]]:
     total_entries_date = []
     dates = []
