@@ -7,9 +7,12 @@ base_url = 'https://export.arxiv.org/api/query?'
 
 n_max = 100
 t_sleep = 3  # seconds
+t_previous_request = 0
 
 
 def search_entries(categories: List[str], date_0: date, date_f: date) -> List[feedparser.FeedParserDict]:
+    global t_previous_request
+
     # Categories
     search_query = 'cat:('
 
@@ -31,6 +34,11 @@ def search_entries(categories: List[str], date_0: date, date_f: date) -> List[fe
         n_entries = f'&start={counter}&max_results={n_max}'
         sort = '&sortBy=lastUpdatedDate&sortOrder=ascending'
 
+        elapsed_time = time.time() - t_previous_request
+        if elapsed_time < t_sleep:
+            time.sleep(t_sleep - elapsed_time)
+
+        t_previous_request = time.time()
         entries = feedparser.parse(base_url + query + n_entries + sort).entries
 
         total_entries += entries
@@ -38,6 +46,5 @@ def search_entries(categories: List[str], date_0: date, date_f: date) -> List[fe
             break
         else:
             counter += n_max
-            time.sleep(t_sleep)
 
     return total_entries

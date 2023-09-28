@@ -19,8 +19,6 @@ if not os.path.exists('abstracts'):
 data_0 = check_last_date() + timedelta(days=1)
 data_f = date.today()
 
-t_sleep = 1  # seconds
-
 data_found = False
 while not data_found:
     for single_date in daterange(data_0, data_f):
