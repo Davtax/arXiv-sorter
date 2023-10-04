@@ -34,34 +34,36 @@ def _fix_authors(entry: FeedParserDict):
     entry.authors = authors
 
 
-def _fix_equations(entry: FeedParserDict):
-    # TODO: Check if this is still working with the new feedparser
-    abstract = entry.summary
-
-    index_0 = abstract.find('$')
+def _fix_equation_inner(text: str) -> str:
+    index_0 = text.find('$')
     while True:
-        if abstract[index_0 + 1] == ' ':
-            abstract = abstract[:index_0 + 1] + abstract[index_0 + 2:]
+        if text[index_0 + 1] == ' ':
+            text = text[:index_0 + 1] + text[index_0 + 2:]
 
-        index_1 = abstract.find('$', index_0 + 1)
+        index_1 = text.find('$', index_0 + 1)
 
-        if abstract[index_1 - 1] == ' ':
-            abstract = abstract[:index_1 - 1] + abstract[index_1:]
+        if text[index_1 - 1] == ' ':
+            text = text[:index_1 - 1] + text[index_1:]
             index_1 += -1
 
-        if abstract[index_1 + 1].isnumeric():
-            abstract = abstract[:index_1 + 1] + ' ' + abstract[index_1 + 1:]
+        if text[index_1 + 1].isnumeric():
+            text = text[:index_1 + 1] + ' ' + text[index_1 + 1:]
 
-        index_0 = abstract.find('$', index_1 + 1)
+        index_0 = text.find('$', index_1 + 1)
 
         if index_0 == -1 or index_1 == -1:
             break
 
-    abstract = abstract.replace('&lt;', '<')
-    abstract = abstract.replace('&gt;', '>')
+    text = text.replace('&lt;', '<')
+    text = text.replace('&gt;', '>')
 
-    abstract = abstract.replace('  ', ' ')
-    entry.summary = abstract
+    text = text.replace('  ', ' ')
+    return text
+
+
+def _fix_equations(entry: FeedParserDict):
+    entry.summary = _fix_equation_inner(entry.summary)
+    entry.title = _fix_equation_inner(entry.title)
 
 
 def _fix_date(entry: FeedParserDict):
