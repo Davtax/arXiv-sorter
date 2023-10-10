@@ -2,11 +2,19 @@ from feedparser import FeedParserDict
 from dates_functions import obtain_date
 
 
+def _remove_white_space(text: str) -> str:
+    index = text.find('  ')
+    while index != -1:
+        text = text.replace('  ', ' ')
+        index = text.find('  ')
+    return text
+
+
 def _fix_title(entry: FeedParserDict):
     title = entry.title
 
     title = title.replace('\n', ' ')
-    title = title.replace('  ', ' ')
+    title = _remove_white_space(title)
     title = title.replace('`', "'")
 
     if entry.updated != entry.published:
@@ -21,7 +29,7 @@ def _fix_title(entry: FeedParserDict):
 def _fix_abstract(entry: FeedParserDict):
     abstract = entry.summary
     abstract = abstract.replace('\n', ' ')
-    abstract = abstract.replace('  ', ' ')
+    abstract = _remove_white_space(abstract)
     abstract = abstract.replace('`', "'")
 
     entry.summary = abstract
@@ -36,28 +44,30 @@ def _fix_authors(entry: FeedParserDict):
 
 def _fix_equation_inner(text: str) -> str:
     index_0 = text.find('$')
-    while True:
+    while index_0 != -1:
         if text[index_0 + 1] == ' ':
             text = text[:index_0 + 1] + text[index_0 + 2:]
 
         index_1 = text.find('$', index_0 + 1)
+        if index_1 == -1:
+            break
 
         if text[index_1 - 1] == ' ':
             text = text[:index_1 - 1] + text[index_1:]
             index_1 += -1
 
-        if text[index_1 + 1].isnumeric():
-            text = text[:index_1 + 1] + ' ' + text[index_1 + 1:]
+        try:
+            if text[index_1 + 1].isnumeric():
+                text = text[:index_1 + 1] + ' ' + text[index_1 + 1:]
+        except IndexError:
+            pass
 
         index_0 = text.find('$', index_1 + 1)
-
-        if index_0 == -1 or index_1 == -1:
-            break
 
     text = text.replace('&lt;', '<')
     text = text.replace('&gt;', '>')
 
-    text = text.replace('  ', ' ')
+    text = _remove_white_space(text)
     return text
 
 
