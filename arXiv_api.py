@@ -31,7 +31,11 @@ def search_entries(categories: List[str], date_0: datetime, date_f: datetime) ->
     # Dates
     date_0_str = f'{date_0.year:04d}{date_0.month:02d}{date_0.day:02d}{date_0.hour:02d}{date_0.minute:02d}'
     date_f_str = f'{date_f.year:04d}{date_f.month:02d}{date_f.day:02d}{date_f.hour:02d}{date_f.minute:02d}'
-    query = f'search_query={search_query}+AND+lastUpdatedDate:[{date_0_str}+TO+{date_f_str}]'
+
+    query = f'search_query=lastUpdatedDate:[{date_0_str}+TO+{date_f_str}]'
+
+    if len(categories) != 0:
+        query += f'+AND+{search_query}'
 
     # Search
     total_entries = []
