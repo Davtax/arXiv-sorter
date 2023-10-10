@@ -8,8 +8,8 @@ from format_entries import fix_entry, write_article
 from sort_entries import sort_articles
 
 keywords = read_user_file('keywords.txt')
-authors = read_user_file('authors.txt')
-categories = read_user_file('categories.txt')
+authors = read_user_file('authors.txt', sort=True)
+categories = read_user_file('categories.txt', sort=True)
 
 if not os.path.exists('abstracts'):
     os.mkdir('abstracts')
