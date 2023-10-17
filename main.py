@@ -44,3 +44,6 @@ while not data_found:
 
     date_f = date_0
     date_0 -= timedelta(days=1)
+
+print('Done with version 0.0.3')
+input('Press ENTER to exit')
