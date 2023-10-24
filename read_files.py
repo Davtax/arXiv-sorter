@@ -3,7 +3,7 @@ from typing import List
 import os
 
 
-def read_user_file(file_name: str) -> List[str]:
+def read_user_file(file_name: str, sort: bool = False) -> List[str]:
     if not os.path.exists(file_name):
         open(file_name, 'x').close()
 
@@ -11,6 +11,11 @@ def read_user_file(file_name: str) -> List[str]:
         lines = f.read()
 
     lines = lines.split('\n')
+    if sort:
+        lines.sort()
+
+        with open(file_name, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines))
 
     unique_lines = []
     for i in range(len(lines)):
