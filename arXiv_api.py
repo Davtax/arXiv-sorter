@@ -67,9 +67,17 @@ def _sort_entries(entries: List[feedparser.FeedParserDict], date_0: datetime, da
 
     counter = 0
     for j, single_date in enumerate(daterange(date_0, date_f)):
+
+        if single_date.weekday() < 4:  # Monday, Tuesday, Wednesday and Thursday
+            shift = timedelta(days=1)
+        elif single_date.weekday() == 4:  # Friday
+            shift = timedelta(days=3)
+        else:  # Saturday and Sunday
+            continue
+
         total_entries_date.append([])
         for i in range(counter, len(entries)):
-            if date_0 + timedelta(days=j) <= obtain_date(entries[i].updated) < date_0 + timedelta(days=j + 1):
+            if single_date <= obtain_date(entries[i].updated) < single_date + shift:
                 total_entries_date[j].append(entries[i])
             else:
                 counter = i
