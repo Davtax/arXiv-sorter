@@ -11,35 +11,68 @@ OverlapEnclosure = ['<span style="color:green"><B><u>', '</u></B></span>']
 
 
 def _replace_text(text: str, index_0, index_f, enclosure: List[str]) -> str:
+    """
+    Replace the text between index_0 and index_f with a given enclosure and the beginning and end of the text.
+    """
     text = text[:index_0] + enclosure[0] + text[index_0:index_f] + enclosure[1] + text[index_f:]
 
     return text
 
 
+def _find_single_keyword(text: str, keyword: str) -> List[Tuple[int, int, str]]:
+    """
+    Find the keyword in the text and return the indices where it is found.
+    """
+    index = text.find(keyword)
+    indices_temp = []
+    while index != -1:
+        indices_temp.append((index, index + len(keyword), 'single'))
+        index = text.find(keyword, index + 1)
+
+    return indices_temp
+
+
+def _find_group_keywords(text: str, keywords: List[str]) -> List[Tuple[int, int, str]]:
+    """
+    Find the keywords when appear at the same time and return the indices where they are found.
+    """
+    indices_total = []
+    indices_group = []
+    for keyword_i in keywords:
+        index = text.find(keyword_i)
+        if index == -1:
+            break
+        indices_temp = []
+        while index != -1:
+            indices_temp.append((index, index + len(keyword_i), 'group'))
+            index = text.find(keyword_i, index + 1)
+        indices_group.append(indices_temp)
+    if len(indices_group) == len(keywords):
+        indices_total += [item for sublist in indices_group for item in sublist]
+
+    return indices_total
+
+
 def _find_text(text: str, keywords: List[str]) -> Tuple[List[Tuple[int, int, str]], int]:
+    """
+    Find the keywords in the text and return the indices where they are found. The indices are sorted by the
+    appearance of the keywords in the text.
+    The text is normalized in lower case.
+    """
     keyword_index = len(keywords) + 1
     text = text.lower()
     indices = []
     for i, keyword in enumerate(keywords):
         if type(keyword) is str:  # Single keyword
-            index = text.find(keyword)
-            while index != -1:
+            indices_temp = _find_single_keyword(text, keyword)
+            if indices_temp:
+                indices += indices_temp
                 keyword_index = min(keyword_index, i)
-                indices.append((index, index + len(keyword), 'single'))
-                index = text.find(keyword, index + 1)
         elif type(keyword) is list:  # Group of keywords
-            indices_group = []
-            for keyword_i in keyword:
-                index = text.find(keyword_i)
-                if index == -1:
-                    break
-                indices_temp = []
-                while index != -1:
-                    indices_temp.append((index, index + len(keyword_i), 'group'))
-                    index = text.find(keyword_i, index + 1)
-                indices_group.append(indices_temp)
-            if len(indices_group) == len(keyword):
-                indices += [item for sublist in indices_group for item in sublist]
+            indices_temp = _find_group_keywords(text, keyword)
+            if indices_temp:
+                indices += indices_temp
+                keyword_index = min(keyword_index, i)
 
     indices = sorted(indices, key=lambda x: x[0])
 
@@ -50,7 +83,9 @@ def _find_text(text: str, keywords: List[str]) -> Tuple[List[Tuple[int, int, str
 
 
 def _find_overlaps(indices):
-    # Check if keyword is inside another keyword
+    """
+    Check if keyword is inside another keyword.
+    """
     indices_to_remove = []
     for i in range(len(indices)):
         if i in indices_to_remove:
@@ -72,9 +107,9 @@ def _find_overlaps(indices):
                 index_kept = i
             elif index_0_i >= index_0_j and index_f_i <= index_f_j:  # Keyword i is inside keyword j
                 indices_to_remove.append(i)
-                index_kept = j
+                index_kept = j  # TODO: Check if this condition is necessary
 
-            if index_kept is not None:
+            if index_kept is not None:  # TODO: Check if this condition is necessary
                 temp = list(indices[index_kept])
                 if kind_i == kind_j:
                     temp[2] = kind_i
@@ -86,56 +121,33 @@ def _find_overlaps(indices):
     return indices
 
 
-def _find_title(title: str, keywords: List[str]) -> Tuple[str, int]:
-    indices, keyword_index = _find_text(title, keywords)
-    indices = _find_overlaps(indices)
+def _find_and_add(text, keywords, enclosure):
+    """
+    Find the keywords in the text and add them with the given enclosure.
+    """
+    indices, keyword_index = _find_text(text, keywords)
+    indices = _find_overlaps(indices)  # Fix the indices if there are overlaps
 
-    for index_0, index_f, _ in indices[::-1]:
-        title = _replace_text(title, index_0, index_f, TitleEnclosure)
-    return title, keyword_index
-
-
-def _find_keywords(abstract: str, keywords: List[str]) -> Tuple[str, int]:
-    indices, keyword_index = _find_text(abstract, keywords)
-    indices = _find_overlaps(indices)
-
-    for index_0, index_f, kind in indices[::-1]:
-        if kind == 'single':
-            enclosure = AbstractEnclosure
-        elif kind == 'group':
-            enclosure = GroupEnclosure
-        elif kind == 'overlap':
-            enclosure = OverlapEnclosure
+    for index_0, index_f, kind in indices[::-1]:  # Reverse order to avoid problems with the indices
+        if type(enclosure) is dict:
+            enclosure_str = enclosure[kind]
         else:
-            raise ValueError(f'Unknown keyword kind: {kind}')
+            enclosure_str = enclosure
 
-        abstract = _replace_text(abstract, index_0, index_f, enclosure)
-
-    return abstract, keyword_index
-
-
-def _find_authors(authors_list: str, authors: List[str]) -> Tuple[str, int]:
-    author_index = len(authors) + 1
-    for i, author in enumerate(authors):
-        index_0 = unidecode(authors_list.lower()).find(author)
-
-        if index_0 != -1:
-            index_f = index_0 + len(author)
-            authors_list = _replace_text(authors_list, index_0, index_f, AuthorEnclosure)
-            author_index = min(author_index, i)
-
-    if author_index == len(authors) + 1:
-        author_index = None
-
-    return authors_list, author_index
+        text = _replace_text(text, index_0, index_f, enclosure_str)
+    return text, keyword_index
 
 
 def sort_articles(entries: List[FeedParserDict], keywords: List[str], authors: List[str]) -> List[FeedParserDict]:
     max_index = len(keywords) + len(authors) + 1
     for entry in entries:
-        title, keyword_index_title = _find_title(entry.title, keywords)
-        abstract, keyword_index_abstract = _find_keywords(entry.summary, keywords)
-        authors_list, author_index = _find_authors(entry.authors, authors)
+        title_enclosure = 'TitleEnclosure'
+        abstract_enclosure = {'single': AbstractEnclosure, 'group': GroupEnclosure, 'overlap': OverlapEnclosure}
+        authors_enclosure = 'AuthorEnclosure'
+
+        title, keyword_index_title = _find_and_add(entry.title, keywords, title_enclosure)
+        abstract, keyword_index_abstract = _find_and_add(entry.summary, keywords, abstract_enclosure)
+        authors_list, author_index = _find_and_add(entry.authors, authors, authors_enclosure)
 
         keyword_index = min(
             value for value in [keyword_index_title, keyword_index_abstract, max_index] if value is not None)
