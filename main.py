@@ -1,8 +1,7 @@
 import os
-from datetime import datetime, timedelta
-from pathlib import Path
-from platform import system
 import sys
+from datetime import datetime, timedelta
+from platform import system
 
 from arXiv_api import search_entries
 from dates_functions import check_last_date
@@ -11,7 +10,9 @@ from read_files import read_user_file
 from sort_entries import sort_articles
 
 if system() == 'Darwin':
-    os.chdir(Path(os.path.dirname(sys.argv[0])))
+    os.chdir(os.path.dirname(sys.argv[0]))
+
+input(os.listdir())
 
 version = '0.0.5'
 
