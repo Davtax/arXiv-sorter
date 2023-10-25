@@ -1,14 +1,17 @@
 import os
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
+from pathlib import Path
+from platform import system
+import sys
 
-from dates_functions import check_last_date
 from arXiv_api import search_entries
-from read_files import read_user_file
+from dates_functions import check_last_date
 from format_entries import fix_entry, write_article
+from read_files import read_user_file
 from sort_entries import sort_articles
 
-# path = '/Users/david/Library/CloudStorage/OneDrive-UAM/arXiv-sorter/'
-# os.chdir(path)
+if system() == 'Darwin':
+    os.chdir(Path(os.path.dirname(sys.argv[0])))
 
 version = '0.0.5'
 
