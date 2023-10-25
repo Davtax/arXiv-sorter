@@ -78,7 +78,7 @@ def _sort_entries(entries: List[feedparser.FeedParserDict], date_0: datetime, da
         total_entries_date.append([])
         for i in range(counter, len(entries)):
             if single_date <= obtain_date(entries[i].updated) < single_date + shift:
-                total_entries_date[j].append(entries[i])
+                total_entries_date[-1].append(entries[i])
             else:
                 counter = i
                 break
