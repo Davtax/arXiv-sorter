@@ -10,6 +10,8 @@ from sort_entries import sort_articles
 # path = '/Users/david/Library/CloudStorage/OneDrive-UAM/arXiv-sorter/'
 # os.chdir(path)
 
+version = '0.0.5'
+
 keywords = read_user_file('keywords.txt')
 authors = read_user_file('authors.txt', sort=True)
 categories = read_user_file('categories.txt', sort=True)
@@ -48,5 +50,5 @@ while not data_found:
     date_f = date_0
     date_0 -= timedelta(days=1)
 
-print('Done with version 0.0.4')
+print(f'Done with version {version}')
 input('Press ENTER to exit')
