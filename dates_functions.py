@@ -30,6 +30,7 @@ def obtain_date(date: str) -> datetime:
     date_str = date[0].split('-')
     time = date[1].split(':')
 
-    date_str = datetime(int(date_str[0]), int(date_str[1]), int(date_str[2]), int(time[0]), int(time[1]), int(time[2][:2]))
+    date_str = datetime(int(date_str[0]), int(date_str[1]), int(date_str[2]), int(time[0]), int(time[1]),
+                        int(time[2][:2]))
 
     return date_str

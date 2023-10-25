@@ -17,6 +17,10 @@ def read_user_file(file_name: str, sort: bool = False) -> List[str]:
         with open(file_name, 'w', encoding='utf-8') as f:
             f.write('\n'.join(lines))
 
+    return obtain_unique_lines(lines)
+
+
+def obtain_unique_lines(lines: List[str]) -> List[str]:
     unique_lines = []
     for i in range(len(lines)):
         line = unidecode(lines[i].lower()).strip()  # Normalize unicode characters (e.g. accents) and remove spaces
