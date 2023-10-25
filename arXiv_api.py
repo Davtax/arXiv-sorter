@@ -7,55 +7,57 @@ from dates_functions import daterange, obtain_date
 
 base_url = 'https://export.arxiv.org/api/query?'
 
-n_max = 1000
+n_max = 1000  # Maximum number of entries per request
 t_sleep = 3  # seconds
-t_previous_request = 0
+t_previous_request = 0  # UTC seconds from the previous request
 
 
 def search_entries(categories: List[str], date_0: datetime, date_f: datetime) -> Tuple[
     List[List[feedparser.FeedParserDict]], List[datetime]]:
+    """
+    Ask the arXiv API for the entries in the given categories and dates. The entries are sorted by date, with each
+    element of the list containing the entries of a given day.
+    """
     global t_previous_request
 
     date_0 = date_0.replace(hour=18, minute=0, second=0, microsecond=0)
     date_f = date_f.replace(hour=18, minute=0, second=0, microsecond=0)
 
-    # Categories
-    search_query = 'cat:('
-
-    for i in range(len(categories)):
-        search_query += categories[i] + '*'
-        if i < len(categories) - 1:
-            search_query += '+OR+'
-    search_query += ')'
-
     # Dates
     date_0_str = f'{date_0.year:04d}{date_0.month:02d}{date_0.day:02d}{date_0.hour:02d}{date_0.minute:02d}'
     date_f_str = f'{date_f.year:04d}{date_f.month:02d}{date_f.day:02d}{date_f.hour:02d}{date_f.minute:02d}'
 
+    # Search by updated date, not published date
     query = f'search_query=lastUpdatedDate:[{date_0_str}+TO+{date_f_str}]'
 
-    if len(categories) != 0:
+    # Categories
+    search_query = 'cat:('
+
+    for i in range(len(categories)):
+        search_query += categories[i] + '*'  # Search in all subcategories
+        if i < len(categories) - 1:
+            search_query += '+OR+'
+    search_query += ')'
+
+    if len(categories) != 0:  # If there are no categories, the search query is only by date
         query += f'+AND+{search_query}'
 
-    # Search
+    # Keep asking for entries until there are no more entries in the range of dates
     total_entries = []
-    counter = 0
     while True:
-        n_entries = f'&start={counter}&max_results={n_max}'
+        n_entries = f'&start={len(total_entries)}&max_results={n_max}'
         sort = '&sortBy=lastUpdatedDate&sortOrder=ascending'
 
-        elapsed_time = time.time() - t_previous_request
+        elapsed_time = time.time() - t_previous_request  # Wait at least t_sleep seconds between requests
         if elapsed_time < t_sleep:
             time.sleep(t_sleep - elapsed_time)
 
         t_previous_request = time.time()
-        entries = feedparser.parse(base_url + query + n_entries + sort).entries
+        entries = feedparser.parse(base_url + query + n_entries + sort).entries  # Get entries
 
         total_entries += entries
-        if len(entries) == 0 or len(entries) < n_max:
+        if len(entries) == 0 or len(entries) < n_max:  # If there are no more entries, stop
             break
-        else:
-            counter += n_max
 
     return _sort_entries(total_entries, date_0, date_f)
 
@@ -65,9 +67,10 @@ def _sort_entries(entries: List[feedparser.FeedParserDict], date_0: datetime, da
     total_entries_date = []
     dates = []
 
-    counter = 0
+    counter = 0  # Counter to keep track of the entries already sorted
     for j, single_date in enumerate(daterange(date_0, date_f)):
 
+        # Entries from weekdays are separated, and entries from weekends are grouped together
         if single_date.weekday() < 4:  # Monday, Tuesday, Wednesday and Thursday
             shift = timedelta(days=1)
         elif single_date.weekday() == 4:  # Friday
