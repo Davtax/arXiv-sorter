@@ -12,7 +12,7 @@ from sort_entries import sort_articles
 if system() == 'Darwin':  # If macOS
     os.chdir(os.path.dirname(sys.argv[0]))  # Change working directory to script directory
 
-version = '0.0.5'
+version = '0.0.6'
 
 # Read user files
 keywords = read_user_file('keywords.txt')
