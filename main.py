@@ -47,6 +47,21 @@ while not data_found:  # Keep searching until data is found
         print('Sorting entries...')
         entries = sort_articles(entries, keywords, authors)
 
+        last_new_index = None
+        for i in range(len(entries)):
+            entries[i]['last_new'] = False
+            try:
+                if not entries[i]['updated_bool'] and entries[i + 1]['updated_bool']:
+                    last_new_index = i
+            except IndexError:
+                if last_new_index is None:
+                    last_new_index = i
+
+        if last_new_index is not None:
+            entries[last_new_index]['last_new'] = True
+
+        print(entries[last_new_index])
+
         print('Writing entries...\n')
         n_total = len(entries)
         with open(f'abstracts/{date.date()}.md', 'w', encoding='utf-8') as f:

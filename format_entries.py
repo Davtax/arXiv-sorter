@@ -132,5 +132,7 @@ def write_article(entry: FeedParserDict, f, index: int, n_total: int):
     f.write(f'Abstract: {entry.summary}\n\n')
     f.write(f'{entry.id}\n\n')
     f.write(f'<span style="font-size:0.9em;">*Updated: {entry.updated}*</span>\n\n')
-    f.write('---')
-    f.write('\n')
+    f.write('---\n')
+
+    if entry.last_new:
+        f.write('\n---\n')
