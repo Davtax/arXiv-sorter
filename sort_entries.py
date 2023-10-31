@@ -141,9 +141,9 @@ def _find_and_add(text, keywords, enclosure):
 def sort_articles(entries: List[FeedParserDict], keywords: List[str], authors: List[str]) -> List[FeedParserDict]:
     max_index = len(keywords) + len(authors) + 1
     for entry in entries:
-        title_enclosure = 'TitleEnclosure'
+        title_enclosure = TitleEnclosure
         abstract_enclosure = {'single': AbstractEnclosure, 'group': GroupEnclosure, 'overlap': OverlapEnclosure}
-        authors_enclosure = 'AuthorEnclosure'
+        authors_enclosure = AuthorEnclosure
 
         title, keyword_index_title = _find_and_add(entry.title, keywords, title_enclosure)
         abstract, keyword_index_abstract = _find_and_add(entry.summary, keywords, abstract_enclosure)
