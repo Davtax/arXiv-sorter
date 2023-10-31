@@ -2,17 +2,27 @@ import os
 import sys
 from datetime import datetime, timedelta
 from platform import system
+from time import sleep
 
 from arXiv_api import search_entries
 from dates_functions import check_last_date
 from format_entries import fix_entry, write_article
 from read_files import read_user_file
 from sort_entries import sort_articles
+from update import check_version
 
 if system() == 'Darwin':  # If macOS
+    platform = 'mac'
     os.chdir(os.path.dirname(sys.argv[0]))  # Change working directory to script directory
+elif system() == 'Windows':  # If Windows
+    platform = 'windows'
+elif system() == 'Linux':  # If Linux
+    platform = 'linux'
+else:
+    exit('Unknown platform')
 
 version = '0.0.6'
+check_version(version, platform)
 
 # Read user files
 keywords = read_user_file('keywords.txt')
@@ -60,8 +70,6 @@ while not data_found:  # Keep searching until data is found
         if last_new_index is not None:
             entries[last_new_index]['last_new'] = True
 
-        print(entries[last_new_index])
-
         print('Writing entries...\n')
         n_total = len(entries)
         with open(f'abstracts/{date.date()}.md', 'w', encoding='utf-8') as f:
@@ -78,4 +86,15 @@ while not data_found:  # Keep searching until data is found
         date_0 -= timedelta(days=date_0.weekday() - 4)
 
 print(f'Done with version {version}')
-input('Press ENTER to exit')
+
+n_seconds = 3
+step = 1
+for i in range(0, n_seconds, step):
+    print(f'Waiting {n_seconds - i} seconds before closing...', end='\r')
+    sleep(step)
+print('\n')
+
+for file in os.listdir():
+    if '.old' in file:
+        print(f'Removing {file}')
+        os.remove(file)
