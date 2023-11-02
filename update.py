@@ -28,6 +28,7 @@ def check_version(previous_version: str, platform: str):
     Check in GitHub if there is a new version available. If so, download and execute it.
     """
     response = requests.get(URL)
+    print(response.json())
     new_version = response.json()['tag_name']
 
     if previous_version < new_version:
