@@ -49,6 +49,8 @@ jobs:
           name: release_url.txt
       - name: Save URL
         run: $release_url = cat release_url.txt
+      - name: Show URL
+        run: echo "$release_url"
       - name: Checkout
         uses: actions/checkout@v2
         with:
