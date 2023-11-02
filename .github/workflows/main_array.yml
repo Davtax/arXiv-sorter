@@ -63,7 +63,7 @@ jobs:
         #        run: find artifacts -mindepth 2 -type f -exec mv -i '{}' ./ ';'
         run: |
           ls -lhR
-          mv artifacts/arXiv-sorter*/*/* ./
+          mv artifacts/*/* ./
       - name: Check files
         run: ls -lhR
 
