@@ -54,16 +54,23 @@ jobs:
 
       - name: Load binaries
         uses: actions/download-artifact@v3
-        with:
-          path: ./artifacts
 
       - name: Check files
         run: ls -lh artifacts
 
-      - name: Upload Release Assets
-        uses: shogo82148/actions-upload-release-asset@v1
+#      - name: Upload Release Assets
+#        uses: shogo82148/actions-upload-release-asset@v1
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          upload_url: ${{ steps.create_release.outputs.upload_url }}
+#          asset_path: arXiv-sorter-macOS-latest
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/arXiv-sorter-macOS-latest
+          asset_path: ./arXiv-sorter-macOS-latest
+          asset_name: arXiv-sorter-macOS
+          asset_content_type: application/bin
