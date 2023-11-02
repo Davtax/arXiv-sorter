@@ -101,9 +101,9 @@ jobs:
         uses: actions/download-artifact@v3
 
       - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
+        uses: shogo82148/actions-upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.get_last_release.outputs.upload_url }}
           asset_path: arXiv-sorter-*
