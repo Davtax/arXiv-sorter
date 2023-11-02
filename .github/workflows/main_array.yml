@@ -34,7 +34,7 @@ jobs:
 
 
   create_release:
-    needs: [ build_linux, build_windows, build_macos ]
+    needs: [ build ]
     name: Create release
     runs-on: ubuntu-latest
     steps:
