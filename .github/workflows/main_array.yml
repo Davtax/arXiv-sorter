@@ -51,9 +51,10 @@ jobs:
 
       - name: Load binaries
         uses: actions/download-artifact@v3
+        path: ./artifacts
 
       - name: Check files
-        run: ls
+        run: ls -lh artifacts
 
       - name: Upload Release Assets
         uses: shogo82148/actions-upload-release-asset@v1
