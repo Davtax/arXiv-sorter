@@ -1,18 +1,24 @@
-name: Build Workflow
-
-# on:
-#   push:
-# #    branches: master
-
 on:
-  workflow_dispatch:
+  push:
+    branches: dev
 
+#on:
+#  workflow_dispatch:
+
+#on:
+#  release:
+#    types: [created]
+
+name: Create Binaries
 jobs:
   build:
+    name: Build Windows
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Install Python
         uses: actions/setup-python@v4
         with:
@@ -20,4 +26,7 @@ jobs:
       - name: Install requirements
         run: pip install -r requirements.txt PyInstaller
       - name: Run PyInstaller
-        run: python -m PyInstaller main.py
+        run: PyInstaller --onefile -n arXiv-sorter-windows.exe main.py
+
+      - name: Files
+        run: ls
