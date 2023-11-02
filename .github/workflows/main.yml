@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Install Python
@@ -28,17 +28,19 @@ jobs:
       - name: Run PyInstaller
         run: pyinstaller --onefile -n arXiv-sorter-linux main.py
       - name: Upload binaries
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: arXiv-sorter-linux
           path: dist/arXiv-sorter-linux
+      - name: Test
+        run: dist/arXiv-sorter-linux
 
   build_windows:
     name: Build Windows
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Install Python
@@ -50,17 +52,19 @@ jobs:
       - name: Run PyInstaller
         run: pyinstaller --onefile -n arXiv-sorter-windows.exe main.py
       - name: Upload binaries
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: arXiv-sorter-windows.exe
           path: dist/arXiv-sorter-windows.exe
+      - name: Test
+        run: dist/arXiv-sorter-windows.exe
 
   build_macos:
     name: Build MacOc
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Install Python
@@ -72,10 +76,12 @@ jobs:
       - name: Run PyInstaller
         run: pyinstaller --onefile -n arXiv-sorter-macos main.py
       - name: Upload binaries
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: arXiv-sorter-macos
           path: dist/arXiv-sorter-macos
+      - name: Test
+        run: dist/arXiv-sorter-macos
 
 
   create_release:
