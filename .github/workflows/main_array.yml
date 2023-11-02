@@ -30,7 +30,9 @@ jobs:
           name: arXiv-sorter-${{ matrix.os }}
           path: dist/arXiv-sorter-${{ matrix.os }}*
       - name: Test
-        run: dist/arXiv-sorter
+        run: |
+          dist/arXiv-sorter-${{ matrix.os }}
+          ls dist
 
 
   create_release:
