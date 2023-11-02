@@ -54,7 +54,8 @@ jobs:
 
       - name: Load binaries
         uses: actions/download-artifact@v3
-        path: ./artifacts
+        with:
+          path: ./artifacts
 
       - name: Check files
         run: ls -lh artifacts
@@ -65,4 +66,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./arXiv-sorter-*
+          asset_path: artifacts/arXiv-sorter-*
