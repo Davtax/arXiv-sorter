@@ -21,13 +21,23 @@ elif system() == 'Linux':  # If Linux
 else:
     exit('Unknown platform')
 
+verbose = True
 version = '0.0.6'
 check_version(version, platform)
+
+if verbose:
+    print(f'The current dir is: {os.getcwd()}')
+    print(os.listdir())
 
 # Read user files
 keywords = read_user_file('keywords.txt')
 authors = read_user_file('authors.txt', sort=True)
 categories = read_user_file('categories.txt', sort=True)
+
+if verbose:
+    print('Keywords: ' + str(keywords))
+    print('Authors: ' + str(authors))
+    print('Categories: ' + str(categories) + '\n')
 
 if not os.path.exists('abstracts'):  # Create folder for abstracts if it doesn't exist
     os.mkdir('abstracts')
@@ -43,7 +53,7 @@ data_found = False
 while not data_found:  # Keep searching until data is found
     print('Requesting arXiv API feed between ' + str(date_0.date()) + ' and ' + str(date_f.date()) + '\n')
 
-    entries_dates, dates = search_entries(categories, date_0, date_f)
+    entries_dates, dates = search_entries(categories, date_0, date_f, _verbose=verbose)
     for entries, date in zip(entries_dates, dates):  # Iterate over each day
         if len(entries) == 0:
             continue
