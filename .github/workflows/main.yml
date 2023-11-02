@@ -24,6 +24,7 @@ jobs:
           release_name: New release
           draft: true
           prerelease: false
+          tag_name: v0.0.0
       - name: Save URL
         run: echo "RELEASE_URL=${{ steps.create_release.outputs.upload_url }}" >> $GITHUB_ENV
 
