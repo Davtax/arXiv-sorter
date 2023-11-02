@@ -26,17 +26,29 @@ jobs:
           prerelease: false
           tag_name: v0.0.0
       - name: Save URL
-        run: echo ${{ steps.create_release.outputs.upload_url }} >> "$GITHUB_OUTPUT"
+        #        run: echo ${{ steps.create_release.outputs.upload_url }} >> "$GITHUB_OUTPUT"
+        run: echo "${{ steps.create_release.outputs.upload_url }}" >> release_url.txt
       - name: Show URL
-        run: echo ${{ steps.create_release.outputs.upload_url }}
+        run: echo "${{ steps.create_release.outputs.upload_url }}"
+      - name: Upload URL
+        uses: actions/upload-artifact@v2
+        with:
+          name: release_url.txt
+          path: release_url.txt
 
   build:
     needs: [ create_release ]
     name: Build Windows
     runs-on: windows-latest
     steps:
+      #      - name: Load URL
+      #        run: echo $GITHUB_OUTPUT
       - name: Load URL
-        run: echo $GITHUB_OUTPUT
+        uses: actions/download-artifact@v2
+        with:
+          name: release_url.txt
+      - name: Read URL
+        run: Get-Content release_url.txt
       - name: Checkout
         uses: actions/checkout@v2
         with:
