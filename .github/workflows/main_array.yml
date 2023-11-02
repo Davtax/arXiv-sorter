@@ -28,7 +28,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: arXiv-sorter-${{ matrix.os }}
-          path: dist/arXiv-sorter-${{ matrix.os }}*
+          path: dist/
       - name: Test
         run: |
           dist/arXiv-sorter-${{ matrix.os }}
@@ -61,7 +61,7 @@ jobs:
 
       - name: Flatten binaries
         #        run: find artifacts -mindepth 2 -type f -exec mv -i '{}' ./ ';'
-        run: mv artifacts/arXiv-sorter*/* ./
+        run: mv artifacts/arXiv-sorter*/*/* ./
       - name: Check files
         run: ls -lhR
 
