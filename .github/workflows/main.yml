@@ -30,15 +30,15 @@ jobs:
       - name: Install requirements
         run: pip install -r requirements.txt PyInstaller
       - name: Run PyInstaller
-        run: pyinstaller --onefile -n arXiv-sorter-{{ $matrix.name }} main.py
+        run: pyinstaller --onefile -n arXiv-sorter-${{ matrix.name }} main.py
       - name: Upload binaries
         uses: actions/upload-artifact@v3
         with:
-          name: arXiv-sorter-{{ $matrix.name }}
+          name: arXiv-sorter-${{ matrix.name }}
           path: dist/
       - name: Test
         run: |
-          dist/arXiv-sorter-{{ $matrix.name }}
+          dist/arXiv-sorter-${{ matrix.name }}
 
 
   create_release:
