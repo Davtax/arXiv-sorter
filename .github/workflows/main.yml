@@ -1,12 +1,22 @@
 on:
   push:
-    branches: [ master ]
+    branches: [ dev ]
 
 name: Create Binaries
 jobs:
-  build_linux:
-    name: Build Ubuntu
-    runs-on: ubuntu-latest
+  build:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macOS-latest ]
+        include:
+          - os: ubuntu-latest
+            name: Ubuntu
+          - os: windows-latest
+            name: Windows
+          - os: macOS-latest
+            name: macOS
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,67 +30,19 @@ jobs:
       - name: Install requirements
         run: pip install -r requirements.txt PyInstaller
       - name: Run PyInstaller
-        run: pyinstaller --onefile -n arXiv-sorter-linux main.py
+        run: pyinstaller --onefile -n arXiv-sorter-{{ $matrix.name }} main.py
       - name: Upload binaries
         uses: actions/upload-artifact@v3
         with:
-          name: arXiv-sorter-linux
-          path: dist/arXiv-sorter-linux
+          name: arXiv-sorter-{{ $matrix.name }}
+          path: dist/
       - name: Test
-        run: dist/arXiv-sorter-linux
+        run: |
+          dist/arXiv-sorter-{{ $matrix.name }}
 
-  build_windows:
-    name: Build Windows
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          cache: 'pip' # caching pip dependencies
-      - name: Install requirements
-        run: pip install -r requirements.txt PyInstaller
-      - name: Run PyInstaller
-        run: pyinstaller --onefile -n arXiv-sorter-windows.exe main.py
-      - name: Upload binaries
-        uses: actions/upload-artifact@v3
-        with:
-          name: arXiv-sorter-windows.exe
-          path: dist/arXiv-sorter-windows.exe
-      - name: Test
-        run: dist/arXiv-sorter-windows.exe
-
-  build_macos:
-    name: Build MacOc
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          cache: 'pip' # caching pip dependencies
-      - name: Install requirements
-        run: pip install -r requirements.txt PyInstaller
-      - name: Run PyInstaller
-        run: pyinstaller --onefile -n arXiv-sorter-macos main.py
-      - name: Upload binaries
-        uses: actions/upload-artifact@v3
-        with:
-          name: arXiv-sorter-macos
-          path: dist/arXiv-sorter-macos
-      - name: Test
-        run: dist/arXiv-sorter-macos
 
   create_release:
-    needs: [ build_linux, build_windows, build_macos ]
+    needs: [ build ]
     name: Create release
     runs-on: ubuntu-latest
     steps:
@@ -97,9 +59,11 @@ jobs:
 
       - name: Load binaries
         uses: actions/download-artifact@v3
+        with:
+          path: artifacts
 
-      - name: Check files
-        run: ls
+      - name: Flatten binaries
+        run: mv artifacts/*/* ./
 
       - name: Upload Release Assets
         uses: shogo82148/actions-upload-release-asset@v1
@@ -107,4 +71,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./arXiv-sorter-*
+          asset_path: arXiv-sorter-*
