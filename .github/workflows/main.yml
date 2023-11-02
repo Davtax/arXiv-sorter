@@ -99,6 +99,9 @@ jobs:
       - name: Load binaries
         uses: actions/download-artifact@v3
 
+      - name: Check files
+        uses: ls
+
       - name: Upload Release Assets
         uses: shogo82148/actions-upload-release-asset@v1
         env:
