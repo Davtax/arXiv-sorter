@@ -11,7 +11,31 @@ on:
 
 name: Create Binaries
 jobs:
+  build_linux:
+    name: Build Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install requirements
+        run: pip install -r requirements.txt PyInstaller
+      - name: Run PyInstaller
+        run: pyinstaller --onefile -n arXiv-sorter-linux main.py
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: arXiv-sorter-linux
+          path: dist/arXiv-sorter-linux
+
+
   create_release:
+    needs: [build_linux]
     name: Create release
     runs-on: ubuntu-latest
     steps:
@@ -25,65 +49,16 @@ jobs:
           draft: true
           prerelease: false
           tag_name: v0.0.0
-      - name: Save URL
-        #        run: echo ${{ steps.create_release.outputs.upload_url }} >> "$GITHUB_OUTPUT"
-        run: echo "${{ steps.create_release.outputs.upload_url }}" >> release_url.txt
-      - name: Show URL
-        run: echo "${{ steps.create_release.outputs.upload_url }}"
-      - name: Upload URL
-        uses: actions/upload-artifact@v2
-        with:
-          name: release_url.txt
-          path: release_url.txt
-
-  build:
-    needs: [ create_release ]
-    name: Build Ubuntu
-    runs-on: ubuntu-latest
-    steps:
-      #      - name: Load URL
-      #        run: echo $GITHUB_OUTPUT
-      - name: Load URL
+      - name: Load binaries
         uses: actions/download-artifact@v2
         with:
-          name: release_url.txt
-      - name: Show URL file
-        run: cat release_url.txt
-      - name: Save URL
-        run: release_url=$(cat release_url.txt)
-      - name: Show URL
-        run: echo "$release_url"
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Install Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      - name: Install requirements
-        run: pip install -r requirements.txt PyInstaller
-      - name: Run PyInstaller
-        run: PyInstaller --onefile -n arXiv-sorter-linux main.py
-
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: $release_url
-          asset_path: .\dist\arXiv-sorter-linux.exe
-          asset_name: arXiv-sorter-linux.exe
-          asset_content_type: application/bin
+          name: arXiv-sorter-linux
 
 #  build:
 #    needs: [ create_release ]
 #    name: Build Windows
 #    runs-on: windows-latest
 #    steps:
-#      #      - name: Load URL
-#      #        run: echo $GITHUB_OUTPUT
 #      - name: Load URL
 #        uses: actions/download-artifact@v2
 #        with:
