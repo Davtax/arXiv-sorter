@@ -33,9 +33,53 @@ jobs:
           name: arXiv-sorter-linux
           path: dist/arXiv-sorter-linux
 
+  build_windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install requirements
+        run: pip install -r requirements.txt PyInstaller
+      - name: Run PyInstaller
+        run: pyinstaller --onefile -n arXiv-sorter-windows.exe main.py
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: arXiv-sorter-windows.exe
+          path: dist/arXiv-sorter-windows.exe
+
+  build_macos:
+    name: Build MacOc
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install requirements
+        run: pip install -r requirements.txt PyInstaller
+      - name: Run PyInstaller
+        run: pyinstaller --onefile -n arXiv-sorter-macos main.py
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: arXiv-sorter-macos
+          path: dist/arXiv-sorter-macos
+
 
   create_release:
-    needs: [build_linux]
+    needs: [ build_linux, build_windows ]
     name: Create release
     runs-on: ubuntu-latest
     steps:
@@ -49,12 +93,12 @@ jobs:
           draft: true
           prerelease: false
           tag_name: v0.0.0
-      - name: Load binaries
+
+      - name: Load binaries Linux
         uses: actions/download-artifact@v2
         with:
           name: arXiv-sorter-linux
-
-      - name: Upload Release Asset
+      - name: Upload Release Asset Linux
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
         env:
@@ -65,40 +109,32 @@ jobs:
           asset_name: arXiv-sorter-linux
           asset_content_type: application/bin
 
+      - name: Load binaries MacOs
+        uses: actions/download-artifact@v2
+        with:
+          name: arXiv-sorter-macos
+      - name: Upload Release Asset MacOs
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: arXiv-sorter-macos
+          asset_name: arXiv-sorter-macos
+          asset_content_type: application/bin
 
-#  build:
-#    needs: [ create_release ]
-#    name: Build Windows
-#    runs-on: windows-latest
-#    steps:
-#      - name: Load URL
-#        uses: actions/download-artifact@v2
-#        with:
-#          name: release_url.txt
-#      - name: Save URL
-#        run: $release_url = cat release_url.txt
-#      - name: Show URL
-#        run: echo "$release_url"
-#      - name: Checkout
-#        uses: actions/checkout@v2
-#        with:
-#          fetch-depth: 0
-#      - name: Install Python
-#        uses: actions/setup-python@v4
-#        with:
-#          python-version: '3.10'
-#      - name: Install requirements
-#        run: pip install -r requirements.txt PyInstaller
-#      - name: Run PyInstaller
-#        run: PyInstaller --onefile -n arXiv-sorter-windows.exe main.py
-#
-#      - name: Upload Release Asset
-#        id: upload-release-asset
-#        uses: actions/upload-release-asset@v1
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: $release_url
-#          asset_path: .\dist\arXiv-sorter-windows.exe
-#          asset_name: arXiv-sorter-windows.exe
-#          asset_content_type: application/exe
+      - name: Load binaries Windows
+        uses: actions/download-artifact@v2
+        with:
+          name: arXiv-sorter-windows.exe
+      - name: Upload Release Asset Windows
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: arXiv-sorter-windows.exe
+          asset_name: arXiv-sorter-windows.exe
+          asset_content_type: application/bin
