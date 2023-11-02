@@ -61,7 +61,9 @@ jobs:
 
       - name: Flatten binaries
         #        run: find artifacts -mindepth 2 -type f -exec mv -i '{}' ./ ';'
-        run: mv artifacts/arXiv-sorter*/*/* ./
+        run: |
+          ls -lhR
+          mv artifacts/arXiv-sorter*/*/* ./
       - name: Check files
         run: ls -lhR
 
