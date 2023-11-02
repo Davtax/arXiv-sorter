@@ -1,13 +1,10 @@
+#on:
+#  push:
+#    branches: [ dev ]
+
 on:
-  push:
-    branches: dev
-
-#on:
-#  workflow_dispatch:
-
-#on:
-#  release:
-#    types: [created]
+  release:
+    types: [ created ]
 
 name: Create Binaries
 jobs:
@@ -89,35 +86,31 @@ jobs:
     name: Create release
     runs-on: ubuntu-latest
     steps:
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          release_name: New release
-          draft: true
-          prerelease: false
-          tag_name: v0.0.0
+      #      - name: Create Release
+      #        id: create_release
+      #        uses: actions/create-release@v1
+      #        env:
+      #          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #        with:
+      #          release_name: New release
+      #          draft: true
+      #          prerelease: false
+      #          tag_name: v0.0.0
 
-      - name: Load binaries Linux
-        uses: actions/download-artifact@v2
+      - name: Get last release
+        id: get_last_release
+        uses: thebritican/fetch-latest-release@v1
         with:
-          name: arXiv-sorter-linux
-      - name: Load binaries MacOs
-        uses: actions/download-artifact@v2
-        with:
-          name: arXiv-sorter-macos
-      - name: Load binaries Windows
-        uses: actions/download-artifact@v2
-        with:
-          name: arXiv-sorter-windows.exe
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+
+      - name: Load binaries
+        uses: actions/download-artifact@v3
 
       - name: Upload Release Assets
         uses: shogo82148/actions-upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.get_last_release.outputs.upload_url }}
           asset_path: arXiv-sorter-*
-#          asset_path: [ arXiv-sorter-linux, arXiv-sorter-windows.exe, arXiv-sorter-macos ]
