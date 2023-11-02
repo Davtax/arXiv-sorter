@@ -49,6 +49,9 @@ jobs:
           prerelease: false
           tag_name: v0.0.0
 
+      - name: Show release
+        run: echo ${{ steps.create_release.outputs.html_url }}
+
       - name: Load binaries
         uses: actions/download-artifact@v3
         path: ./artifacts
