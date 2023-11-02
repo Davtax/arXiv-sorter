@@ -47,6 +47,8 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: release_url.txt
+      - name: Show URL file
+        run: cat release_url.txt
       - name: Save URL
         run: release_url=$(cat release_url.txt)
       - name: Show URL
@@ -62,7 +64,7 @@ jobs:
       - name: Install requirements
         run: pip install -r requirements.txt PyInstaller
       - name: Run PyInstaller
-        run: PyInstaller --onefile -n arXiv-sorter-windows.exe main.py
+        run: PyInstaller --onefile -n arXiv-sorter-linux main.py
 
       - name: Upload Release Asset
         id: upload-release-asset
@@ -71,9 +73,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: $release_url
-          asset_path: .\dist\arXiv-sorter-windows.exe
-          asset_name: arXiv-sorter-windows.exe
-          asset_content_type: application/exe
+          asset_path: .\dist\arXiv-sorter-linux.exe
+          asset_name: arXiv-sorter-linux.exe
+          asset_content_type: application/bin
 
 #  build:
 #    needs: [ create_release ]
