@@ -56,7 +56,7 @@ jobs:
         uses: actions/download-artifact@v3
 
       - name: Check files
-        run: ls -lh artifacts
+        run: ls -lh
 
 #      - name: Upload Release Assets
 #        uses: shogo82148/actions-upload-release-asset@v1
