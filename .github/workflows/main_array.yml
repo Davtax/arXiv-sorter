@@ -28,7 +28,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: arXiv-sorter-${{ matrix.os }}
-          path: dist/arXiv-sorter
+          path: dist/arXiv-sorter*
       - name: Test
         run: dist/arXiv-sorter
 
@@ -66,4 +66,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/arXiv-sorter-*
+          asset_path: artifacts/arXiv-sorter-macOS-latest
