@@ -1,10 +1,10 @@
-#on:
-#  push:
-#    branches: [ dev ]
-
 on:
-  release:
-    types: [ created ]
+  push:
+    branches: [ dev ]
+
+#on:
+#  release:
+#    types: [ created ]
 
 name: Create Binaries
 jobs:
