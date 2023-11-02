@@ -23,12 +23,12 @@ jobs:
       - name: Install requirements
         run: pip install -r requirements.txt PyInstaller
       - name: Run PyInstaller
-        run: pyinstaller --onefile -n arXiv-sorter main.py
+        run: pyinstaller --onefile -n arXiv-sorter-${{ matrix.os }} main.py
       - name: Upload binaries
         uses: actions/upload-artifact@v3
         with:
           name: arXiv-sorter-${{ matrix.os }}
-          path: dist/arXiv-sorter*
+          path: dist/arXiv-sorter-${{ matrix.os }}*
       - name: Test
         run: dist/arXiv-sorter
 
@@ -58,19 +58,19 @@ jobs:
           path: artifacts
 
       - name: Flatten binaries
-        run: find artifacts -mindepth 2 -type f -exec mv -i '{}' ./ ';'
-
+        #        run: find artifacts -mindepth 2 -type f -exec mv -i '{}' ./ ';'
+        run: mv artifacts/arXiv-sorter*/* ./
       - name: Check files
         run: ls -lhR
 
-#      - name: Upload Release Assets
-#        uses: shogo82148/actions-upload-release-asset@v1
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: ${{ steps.create_release.outputs.upload_url }}
-#          asset_path: arXiv-sorter-macOS-latest
-#           overwrite: True
+      #      - name: Upload Release Assets
+      #        uses: shogo82148/actions-upload-release-asset@v1
+      #        env:
+      #          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #        with:
+      #          upload_url: ${{ steps.create_release.outputs.upload_url }}
+      #          asset_path: arXiv-sorter-macOS-latest
+      #           overwrite: True
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
