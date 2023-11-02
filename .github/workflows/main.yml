@@ -79,7 +79,6 @@ jobs:
       - name: Test
         run: dist/arXiv-sorter-macos
 
-
   create_release:
     needs: [ build_linux, build_windows, build_macos ]
     name: Create release
