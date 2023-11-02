@@ -99,9 +99,17 @@ jobs:
 
       - name: Get last release
         id: get_last_release
-        uses: thebritican/fetch-latest-release@v1
+        uses: thebritican/fetch-latest-release
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+#      - name: Get last release
+#        id: get_last_release
+#        uses: pozetroninc/github-action-get-latest-release@master
+#        with:
+#          owner: JohnSully
+#          repo: KeyDB
+#          excludes: prerelease, draft
 
 
       - name: Load binaries
