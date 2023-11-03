@@ -29,6 +29,8 @@ jobs:
           cache: 'pip' # caching pip dependencies
       - name: Install requirements
         run: pip install -r requirements.txt PyInstaller
+      - name: Test python
+        run: python main.py -v -d searches_test -t 0
       - name: Run PyInstaller
         run: pyinstaller --onefile -n arXiv-sorter-${{ matrix.name }} main.py
       - name: Upload binaries
@@ -36,10 +38,8 @@ jobs:
         with:
           name: arXiv-sorter-${{ matrix.name }}
           path: dist/
-      - name: Test
-        run: |
-          dist/arXiv-sorter-${{ matrix.name }}
-
+      - name: Test binaries
+        run: dist/arXiv-sorter-${{ matrix.name }} -v -d searches_test -t 0
 
   create_release:
     needs: [ build ]
