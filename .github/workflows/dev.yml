@@ -1,8 +1,8 @@
 on:
   push:
-    branches: [ main ]
+    branches: [ dev ]
 
-name: Create Binaries
+name: Create Binaries dev
 jobs:
   build:
     name: Test on ${{ matrix.os }}

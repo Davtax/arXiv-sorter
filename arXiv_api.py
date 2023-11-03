@@ -1,7 +1,9 @@
-import feedparser
 import time
-from typing import List, Tuple
 from datetime import datetime, timedelta
+from typing import List, Tuple
+
+import feedparser
+import requests
 
 from dates_functions import daterange, obtain_date
 
@@ -53,17 +55,18 @@ def search_entries(categories: List[str], date_0: datetime, date_f: datetime, _v
             time.sleep(t_sleep - elapsed_time)
 
         t_previous_request = time.time()
-        entries = feedparser.parse(base_url + query + n_entries + sort).entries  # Get entries
+
+        # Do not know why, but it is necessary for Mac to use requests, and then feedparser
+        response = requests.get(base_url + query + n_entries + sort)
+        response = feedparser.parse(response.text)  # Ask for entries
+        entries = response.entries  # Get entries
+
         if _verbose:
-            print(
-                f'The request is: {base_url + query + n_entries + sort}, and the number of entries is: {len(entries)}')
+            print(f'The response feed is: {response.feed} \n')
 
         total_entries += entries
         if len(entries) == 0 or len(entries) < n_max:  # If there are no more entries, stop
             break
-
-    if _verbose:
-        print(f'Found {len(total_entries)} entries between {date_0.date()} and {date_f.date()}')
 
     return _sort_entries(total_entries, date_0, date_f)
 
