@@ -12,3 +12,7 @@ searchs/
 authors.txt
 categories.txt
 keywords.txt
+
+!searchs_test/authors.txt
+!searchs_test/categories.txt
+!searchs_test/keywords.txt

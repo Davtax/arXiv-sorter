@@ -1,0 +1,7 @@
+quantum dot
+
+spin-qubit
+spin qubit
+
+spin-orbit
+spin orbit
