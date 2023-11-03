@@ -3,7 +3,7 @@ import argparse
 import difflib
 
 parser = argparse.ArgumentParser()
-parser.add_argument('files')
+parser.add_argument('fileA')
 parser.add_argument('fileB')
 parser.add_argument('fileC')
 
