@@ -53,6 +53,8 @@ def search_entries(categories: List[str], date_0: datetime, date_f: datetime, _v
             time.sleep(t_sleep - elapsed_time)
 
         t_previous_request = time.time()
+        if _verbose:
+            print(f'The request is: {base_url + query + n_entries + sort}')
         entries = feedparser.parse(base_url + query + n_entries + sort).entries  # Get entries
 
         total_entries += entries
