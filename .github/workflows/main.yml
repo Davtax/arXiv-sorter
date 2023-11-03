@@ -54,12 +54,10 @@ jobs:
       - name: Show files
         run: ls -laRh
 
-      - name: Make differences
+      - name: Differences
         run: |
           filename=$(ls artifacts/arXiv-sorter-Ubuntu/abstracts/)
           echo $filename
-      - name: Differences
-        run: |
           diff1=$(cmp artifacts/arXiv-sorter-Ubuntu/abstracts/$filename artifacts/arXiv-sorter-Windows/abstracts/$filename)
           echo diff1
       - name: Flatten binaries
