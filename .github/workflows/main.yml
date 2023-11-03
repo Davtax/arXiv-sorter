@@ -1,6 +1,6 @@
 on:
   push:
-    branches: [ dev ]
+    branches: [ main ]
 
 name: Create Binaries
 jobs:
