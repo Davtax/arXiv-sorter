@@ -46,19 +46,35 @@ jobs:
     name: Create release
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip' # caching pip dependencies
       - name: Load binaries
         uses: actions/download-artifact@v3
 
       - name: Show files
         run: ls -laRh
 
-      - name: Differences
+      #      - name: Differences
+      #        run: |
+      #          filename=$(ls arXiv-sorter-Ubuntu/abstracts/)
+      #          echo $filename
+      #          cmp arXiv-sorter-Ubuntu/abstracts/2023-11-01.md arXiv-sorter-Windows/abstracts/2023-11-01.md
+      #          diff1=$(cmp arXiv-sorter-Ubuntu/abstracts/2023-11-01.md arXiv-sorter-Windows/abstracts/2023-11-01.md)
+      #          echo $diff1
+      - name: Test python
         run: |
           filename=$(ls arXiv-sorter-Ubuntu/abstracts/)
-          echo $filename
-          cmp arXiv-sorter-Ubuntu/abstracts/2023-11-01.md arXiv-sorter-Windows/abstracts/2023-11-01.md
-#          diff1=$(cmp arXiv-sorter-Ubuntu/abstracts/2023-11-01.md arXiv-sorter-Windows/abstracts/2023-11-01.md)
-#          echo $diff1
+          fileA=arXiv-sorter-Ubuntu/abstracts/$filename
+          fileB=arXiv-sorter-Windows/abstracts/$filename
+          fileC=arXiv-sorter-macOS/abstracts/$filename
+          python tests/same_files.py $fileA $fileB $fileC
 
       - name: Create Release
         id: create_release
