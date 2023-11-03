@@ -53,6 +53,9 @@ jobs:
         with:
           path: artifacts
 
+      - name: Show files
+        run: ls -laRh
+
       - name: Make differences
         run: |
           filename=$(ls artifacts/arXiv-sorter-Ubuntu/ | grep -v 'arXiv-sorter')
