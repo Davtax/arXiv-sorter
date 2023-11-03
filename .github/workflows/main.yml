@@ -1,23 +1,95 @@
-name: Build Workflow
-
-# on:
-#   push:
-# #    branches: master
-
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main ]
 
+name: Create Binaries
 jobs:
   build:
-    runs-on: windows-latest
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macOS-latest ]
+        include:
+          - os: ubuntu-latest
+            name: Ubuntu
+          - os: windows-latest
+            name: Windows
+          - os: macOS-latest
+            name: macOS
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Install Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+          cache: 'pip' # caching pip dependencies
       - name: Install requirements
         run: pip install -r requirements.txt PyInstaller
+      - name: Test python
+        run: python main.py -v -d searches_test -t 0 -f
       - name: Run PyInstaller
-        run: python -m PyInstaller main.py
+        run: pyinstaller --onefile -n arXiv-sorter-${{ matrix.name }} main.py
+      - name: Test binaries
+        run: dist/arXiv-sorter-${{ matrix.name }} -v -d ../searches_test -t 0 -f
+      - name: Upload binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: arXiv-sorter-${{ matrix.name }}
+          path: dist/
+
+  create_release:
+    needs: [ build ]
+    name: Create release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip' # caching pip dependencies
+      - name: Load binaries
+        uses: actions/download-artifact@v3
+
+      - name: Show files
+        run: ls -laRh
+
+      #      - name: Differences
+      #        run: |
+      #          filename=$(ls arXiv-sorter-Ubuntu/abstracts/)
+      #          echo $filename
+      #          cmp arXiv-sorter-Ubuntu/abstracts/2023-11-01.md arXiv-sorter-Windows/abstracts/2023-11-01.md
+      #          diff1=$(cmp arXiv-sorter-Ubuntu/abstracts/2023-11-01.md arXiv-sorter-Windows/abstracts/2023-11-01.md)
+      #          echo $diff1
+      - name: Test python
+        run: |
+          filename=$(ls arXiv-sorter-Ubuntu/abstracts/)
+          fileA=arXiv-sorter-Ubuntu/abstracts/$filename
+          fileB=arXiv-sorter-Windows/abstracts/$filename
+          fileC=arXiv-sorter-macOS/abstracts/$filename
+          python tests/same_files.py $fileA $fileB $fileC
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_name: New release
+          draft: true
+          prerelease: false
+          tag_name: v0.0.0
+      - name: Upload Release Assets
+        uses: shogo82148/actions-upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./*/arXiv-sorter-*

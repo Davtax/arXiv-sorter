@@ -5,6 +5,14 @@ __pycache__/
 dist/
 
 abstracts/
-arXiv-sorter.exe
 
 .DS_Store
+
+searches/
+authors.txt
+categories.txt
+keywords.txt
+
+!searches_test/authors.txt
+!searches_test/categories.txt
+!searches_test/keywords.txt
