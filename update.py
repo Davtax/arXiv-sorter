@@ -2,6 +2,7 @@ import os
 import sys
 from platform import system
 from subprocess import Popen
+from packaging import version
 
 import requests
 
@@ -51,7 +52,7 @@ def check_version(previous_version: str, _verbose: bool = False):
 
     new_version = response.json()['tag_name']
 
-    if previous_version < new_version:
+    if version.parse(previous_version) < version.parse(new_version):
         print('New version available: ' + new_version)
 
         if '.py' not in sys.argv[0] and question('Do you want to update arXiv-sorter?'):
