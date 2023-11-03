@@ -18,12 +18,16 @@ parser.add_argument('-v', '--verbose', action='store_true', help='increase outpu
 parser.add_argument('-d', '--directory', help='specify relative keywords directory', default='./')
 parser.add_argument('-t', '--time', help='specify closing time', default=3, type=int)
 parser.add_argument('-f', '--final', action='store_false', help='remove final date string in MarkDown file')
+parser.add_argument('-a', '--abstracts', help='specify abstracts directory', default='./abstracts/')
 args = parser.parse_args()
 
 verbose = args.verbose
 keyword_dir = args.directory
 if keyword_dir[-1] != '/':
     keyword_dir += '/'
+
+if args.abstracts[-1] != '/':
+    args.abstracts += '/'
 
 current_dir = os.path.dirname(sys.argv[0])
 
@@ -48,8 +52,8 @@ if verbose:
     print('Authors: ' + str(authors))
     print('Categories: ' + str(categories) + '\n')
 
-if not os.path.exists('abstracts'):  # Create folder for abstracts if it doesn't exist
-    os.mkdir('abstracts')
+if not os.path.exists(args.abstracts):  # Create folder for abstracts if it doesn't exist
+    os.mkdir(args.abstracts)
 
 # Search between last date with data and today
 date_0 = check_last_date() + timedelta(days=1)
@@ -92,7 +96,7 @@ while not data_found:  # Keep searching until data is found
 
         print('Writing entries...')
         n_total = len(entries)
-        with open(f'abstracts/{date.date()}.md', 'w', encoding='utf-8') as f:
+        with open(f'{args.abstracts}{date.date()}.md', 'w', encoding='utf-8') as f:
             [write_article(entries[index], f, index, n_total) for index in range(n_total)]
 
             if args.final:
