@@ -58,7 +58,7 @@ jobs:
         run: |
           filename=$(ls artifacts/arXiv-sorter-Ubuntu/abstracts/)
           echo $filename
-          diff1=$(cmp artifacts/arXiv-sorter-Ubuntu/abstracts/$filename artifacts/arXiv-sorter-Windows/abstracts/$filename)
+          diff1=$(cmp artifacts/arXiv-sorter-Ubuntu/abstracts/2023-11-01.md artifacts/arXiv-sorter-Windows/abstracts/2023-11-01.md)
           echo diff1
       - name: Flatten binaries
         run: |
