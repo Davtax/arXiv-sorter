@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
 parser.add_argument('-d', '--directory', help='specify relative keywords directory', default='./')
 parser.add_argument('-t', '--time', help='specify closing time', default=3, type=int)
+parser.add_argument('-f', '--final', action='store_false', help='specify final date')
 args = parser.parse_args()
 
 verbose = args.verbose
@@ -24,8 +25,10 @@ keyword_dir = args.directory
 if keyword_dir[-1] != '/':
     keyword_dir += '/'
 
-if '/' in sys.argv[0]:
-    os.chdir(os.path.dirname(sys.argv[0]))  # Change working directory to script directory
+current_dir = os.path.dirname(sys.argv[0])
+
+if current_dir != '':
+    os.chdir(current_dir)  # Change working directory to script directory
 check_version(version)
 
 if not os.path.isdir(keyword_dir):
@@ -56,7 +59,8 @@ date_f = datetime.now()
 
 data_found = False
 while not data_found:  # Keep searching until data is found
-    print('Requesting arXiv API feed between ' + str(date_0.date()) + ' and ' + str(date_f.date()) + '\n')
+    # print('\n')
+    print('Requesting arXiv API feed between ' + str(date_0.date()) + ' and ' + str(date_f.date()))
 
     entries_dates, dates = search_entries(categories, date_0, date_f, _verbose=verbose)
     for entries, date in zip(entries_dates, dates):  # Iterate over each day
@@ -85,13 +89,14 @@ while not data_found:  # Keep searching until data is found
         if last_new_index is not None:
             entries[last_new_index]['last_new'] = True
 
-        print('Writing entries...\n')
+        print('Writing entries...')
         n_total = len(entries)
         with open(f'abstracts/{date.date()}.md', 'w', encoding='utf-8') as f:
             [write_article(entries[index], f, index, n_total) for index in range(n_total)]
 
-            ct = datetime.now()
-            f.write(f'\n*This file was created at: {ct.strftime("%d %B %Y %H:%M:%S")}*')
+            if args.final:
+                ct = datetime.now()
+                f.write(f'\n*This file was created at: {ct.strftime("%d %B %Y %H:%M:%S")}*')
 
     # If data not found, search one day before previous date
     date_f = date_0
@@ -100,15 +105,19 @@ while not data_found:  # Keep searching until data is found
     if date_0.weekday() > 4:  # If date_0 is a weekend, search from Friday
         date_0 -= timedelta(days=date_0.weekday() - 4)
 
-print(f'Done with version {version}')
+    print('')
 
+print(f'Done with version {version} \n')
+
+# Show closing message
 n_seconds = args.time
 step = 1
 for i in range(0, n_seconds, step):
     print(f'Waiting {n_seconds - i} seconds before closing...', end='\r')
     sleep(step)
-print('\n')
+print('')
 
+# Remove files from previous version
 for file in os.listdir():
     if '.old' in file:
         print(f'Removing {file}')
