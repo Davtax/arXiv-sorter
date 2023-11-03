@@ -1,7 +1,8 @@
 import os
-from subprocess import Popen
-import requests
 import sys
+from subprocess import Popen
+
+import requests
 
 URL = 'https://api.github.com/repos/Davtax/arXiv-sorter/releases/latest'
 
@@ -23,12 +24,16 @@ def question(message) -> bool:
         return question(message)  # The function will repeat until a correct answer if provided
 
 
-def check_version(previous_version: str, platform: str):
+def check_version(previous_version: str, platform: str, _verbose: bool = False):
     """
     Check in GitHub if there is a new version available. If so, download and execute it.
     """
     response = requests.get(URL)
-    print(response.json())
+
+    if _verbose:
+        print('The GitHub response for the latest release is:')
+        print(response.json())
+
     new_version = response.json()['tag_name']
 
     if previous_version < new_version:
