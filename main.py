@@ -11,9 +11,12 @@ from read_files import read_user_file
 from sort_entries import sort_articles
 from update import check_version
 
+version = '0.0.6'
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
 parser.add_argument('-d', '--directory', help='specify relative keywords directory', default='./')
+parser.add_argument('-t', '--time', help='specify closing time', default=3, type=int)
 args = parser.parse_args()
 
 verbose = args.verbose
@@ -21,9 +24,8 @@ keyword_dir = args.directory
 if keyword_dir[-1] != '/':
     keyword_dir += '/'
 
-version = '0.0.6'
-
-os.chdir(os.path.dirname(sys.argv[0]))  # Change working directory to script directory
+if '/' in sys.argv[0]:
+    os.chdir(os.path.dirname(sys.argv[0]))  # Change working directory to script directory
 check_version(version)
 
 if not os.path.isdir(keyword_dir):
@@ -100,7 +102,7 @@ while not data_found:  # Keep searching until data is found
 
 print(f'Done with version {version}')
 
-n_seconds = 3
+n_seconds = args.time
 step = 1
 for i in range(0, n_seconds, step):
     print(f'Waiting {n_seconds - i} seconds before closing...', end='\r')
