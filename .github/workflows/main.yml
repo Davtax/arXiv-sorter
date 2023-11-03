@@ -61,10 +61,7 @@ jobs:
       - name: Differences
         run: |
           diff1=$(cmp artifacts/arXiv-sorter-Ubuntu/abstracts/$filename artifacts/arXiv-sorter-Windows/abstracts/$filename)
-          diff2=$(cmp artifacts/arXiv-sorter-Ubuntu/abstracts/$filename artifacts/arXiv-sorter-macOS/abstracts/$filename)
-          [ -z "$diff1" ] && echo "Empty" || echo "Not empty"
-          [ -z "$diff2" ] && echo "Empty" || echo "Not empty"
-
+          echo diff1
       - name: Flatten binaries
         run: |
           mv artifacts/*/* ./
