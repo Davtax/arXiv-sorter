@@ -33,13 +33,13 @@ jobs:
         run: python main.py -v -d searches_test -t 0 -f
       - name: Run PyInstaller
         run: pyinstaller --onefile -n arXiv-sorter-${{ matrix.name }} main.py
+      - name: Test binaries
+        run: dist/arXiv-sorter-${{ matrix.name }} -v -d ../searches_test -t 0 -f
       - name: Upload binaries
         uses: actions/upload-artifact@v3
         with:
           name: arXiv-sorter-${{ matrix.name }}
           path: dist/
-      - name: Test binaries
-        run: dist/arXiv-sorter-${{ matrix.name }} -v -d ../searches_test -t 0 -f
 
   create_release:
     needs: [ build ]
