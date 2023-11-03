@@ -2,9 +2,10 @@ import os
 import sys
 from platform import system
 from subprocess import Popen
-from packaging import version
+from time import sleep
 
 import requests
+from packaging import version
 
 URL = 'https://api.github.com/repos/Davtax/arXiv-sorter/releases/latest'
 
@@ -43,7 +44,14 @@ def check_version(previous_version: str, _verbose: bool = False):
     """
     Check in GitHub if there is a new version available. If so, download and execute it.
     """
-    response = requests.get(URL)
+    while True:
+        response = requests.get(URL)
+        if response.status_code == 200:
+            break
+        elif response.status_code == 403 or response.status_code == 429:
+            print('Too many requests to GitHub, waiting 30 seconds')
+            sleep(30)
+
     platform = get_system_name()
 
     if _verbose:
