@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import List, Tuple
 
 import feedparser
+import requests
 
 from dates_functions import daterange, obtain_date
 
@@ -58,7 +59,10 @@ def search_entries(categories: List[str], date_0: datetime, date_f: datetime, _v
         entries = parse.entries  # Get entries
 
         if _verbose:
-            print(f'The response feed: {parse.feed}')
+            response = requests.get(base_url + query + n_entries + sort)
+            response = feedparser.parse(response.text)
+            print(f'The response (with request) is: {response.feed}')
+            print(f'The response (with feedparser) is: {parse.feed}')
             print(
                 f'The request is: {base_url + query + n_entries + sort}, and the number of entries is: {len(entries)}')
 
