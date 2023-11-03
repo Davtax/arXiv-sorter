@@ -14,6 +14,7 @@ contentB = open(args.fileB, 'r').readlines()
 contentC = open(args.fileC, 'r').readlines()
 
 diff = difflib.ndiff(contentA, contentB)
+print('\n'.join(list(diff)))
 
 print(filecmp.cmp(args.fileA, args.fileB))
 print(filecmp.cmp(args.fileB, args.fileC))
