@@ -56,7 +56,10 @@ jobs:
 
       - name: Make differences
         run: |
-          filename=$(ls artifacts/arXiv-sorter-Ubuntu/abstracts)
+          filename=$(ls artifacts/arXiv-sorter-Ubuntu/abstracts/)
+          echo $filename
+      - name: Differences
+        run: |
           diff1=$(cmp artifacts/arXiv-sorter-Ubuntu/abstracts/$filename artifacts/arXiv-sorter-Windows/abstracts/$filename)
           diff2=$(cmp artifacts/arXiv-sorter-Ubuntu/abstracts/$filename artifacts/arXiv-sorter-macOS/abstracts/$filename)
           [ -z "$diff1" ] && echo "Empty" || echo "Not empty"
