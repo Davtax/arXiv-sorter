@@ -1,5 +1,6 @@
 import os
 import sys
+from platform import system
 from subprocess import Popen
 
 import requests
@@ -24,11 +25,25 @@ def question(message) -> bool:
         return question(message)  # The function will repeat until a correct answer if provided
 
 
-def check_version(previous_version: str, platform: str, _verbose: bool = False):
+def get_system_name() -> str:
+    if system() == 'Darwin':  # If macOS
+        platform = 'mac'
+    elif system() == 'Windows':  # If Windows
+        platform = 'windows'
+    elif system() == 'Linux':  # If Linux
+        platform = 'linux'
+    else:
+        exit(f'Unknown platform {system()}')
+
+    return platform
+
+
+def check_version(previous_version: str, _verbose: bool = False):
     """
     Check in GitHub if there is a new version available. If so, download and execute it.
     """
     response = requests.get(URL)
+    platform = get_system_name()
 
     if _verbose:
         print('The GitHub response for the latest release is:')

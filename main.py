@@ -1,7 +1,7 @@
+import argparse
 import os
 import sys
 from datetime import datetime, timedelta
-from platform import system
 from time import sleep
 
 from arXiv_api import search_entries
@@ -11,28 +11,31 @@ from read_files import read_user_file
 from sort_entries import sort_articles
 from update import check_version
 
-if system() == 'Darwin':  # If macOS
-    platform = 'mac'
-    os.chdir(os.path.dirname(sys.argv[0]))  # Change working directory to script directory
-elif system() == 'Windows':  # If Windows
-    platform = 'windows'
-elif system() == 'Linux':  # If Linux
-    platform = 'linux'
-else:
-    exit('Unknown platform')
+parser = argparse.ArgumentParser()
+parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
+parser.add_argument('-d', '--directory', help='specify relative keywords directory', default='./')
+args = parser.parse_args()
 
-verbose = True
+verbose = args.verbose
+keyword_dir = args.directory
+if keyword_dir[-1] != '/':
+    keyword_dir += '/'
+
 version = '0.0.6'
-check_version(version, platform)
+
+os.chdir(os.path.dirname(sys.argv[0]))  # Change working directory to script directory
+check_version(version)
+
+if not os.path.isdir(keyword_dir):
+    os.mkdir(keyword_dir)  # Create dir if it doesn't exist
 
 if verbose:
-    print(f'The current dir is: {os.getcwd()}')
-    print(os.listdir())
+    print(f'The current dir is: {os.getcwd()}, and the keywords dir is: {keyword_dir}')
 
 # Read user files
-keywords = read_user_file('keywords.txt')
-authors = read_user_file('authors.txt', sort=True)
-categories = read_user_file('categories.txt', sort=True)
+keywords = read_user_file(keyword_dir + 'keywords.txt')
+authors = read_user_file(keyword_dir + 'authors.txt', sort=True)
+categories = read_user_file(keyword_dir + 'categories.txt', sort=True)
 
 if verbose:
     print('Keywords: ' + str(keywords))
