@@ -61,13 +61,6 @@ jobs:
       - name: Show files
         run: ls -laRh
 
-      #      - name: Differences
-      #        run: |
-      #          filename=$(ls arXiv-sorter-Ubuntu/abstracts/)
-      #          echo $filename
-      #          cmp arXiv-sorter-Ubuntu/abstracts/2023-11-01.md arXiv-sorter-Windows/abstracts/2023-11-01.md
-      #          diff1=$(cmp arXiv-sorter-Ubuntu/abstracts/2023-11-01.md arXiv-sorter-Windows/abstracts/2023-11-01.md)
-      #          echo $diff1
       - name: Test python
         run: |
           filename=$(ls arXiv-sorter-Ubuntu/abstracts/)
