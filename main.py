@@ -40,7 +40,7 @@ if not os.path.isdir(keyword_dir):
     os.mkdir(keyword_dir)  # Create dir if it doesn't exist
 
 if verbose:
-    print(f'The current dir is: {os.getcwd()}, and the keywords dir is: {keyword_dir}')
+    print(f'The current dir is: {os.getcwd()}, and the keywords dir is: {keyword_dir} \n')
 
 # Read user files
 keywords = read_user_file(keyword_dir + 'keywords.txt')

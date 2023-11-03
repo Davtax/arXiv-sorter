@@ -56,7 +56,7 @@ def check_version(previous_version: str, _verbose: bool = False):
 
     if _verbose:
         print('The GitHub response for the latest release is:')
-        print(response.json())
+        print(response.json(), '\n')
 
     new_version = response.json()['tag_name']
 
