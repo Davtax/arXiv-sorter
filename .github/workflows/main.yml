@@ -35,6 +35,8 @@ jobs:
         run: pyinstaller --onefile -n arXiv-sorter-${{ matrix.name }} main.py
       - name: Test binaries
         run: dist/arXiv-sorter-${{ matrix.name }} -v -d ../searches_test -t 0 -f -a ../abstracts
+      - name: Copy abstracts
+        run: cp -r abstracts/. dist/
       - name: Upload binaries
         uses: actions/upload-artifact@v3
         with:
@@ -46,6 +48,24 @@ jobs:
     name: Create release
     runs-on: ubuntu-latest
     steps:
+      - name: Load binaries
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Make differences
+        run: |
+          filename=$(ls artifacts/arXiv-sorter-Ubuntu/ | grep -v 'arXiv-sorter')
+          diff1=$(cmp artifacts/arXiv-sorter-Ubuntu/$filename artifacts/arXiv-sorter-Windows/$filename)
+          diff2=$(cmp artifacts/arXiv-sorter-Ubuntu/$filename artifacts/arXiv-sorter-macOS/$filename)
+          [ -z "$diff1" ] && echo "Empty" || echo "Not empty"
+          [ -z "$diff2" ] && echo "Empty" || echo "Not empty"
+
+      - name: Flatten binaries
+        run: |
+          mv artifacts/*/* ./
+          ls -laRh
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -56,15 +76,6 @@ jobs:
           draft: true
           prerelease: false
           tag_name: v0.0.0
-
-      - name: Load binaries
-        uses: actions/download-artifact@v3
-        with:
-          path: artifacts
-
-      - name: Flatten binaries
-        run: mv artifacts/*/* ./
-
       - name: Upload Release Assets
         uses: shogo82148/actions-upload-release-asset@v1
         env:
