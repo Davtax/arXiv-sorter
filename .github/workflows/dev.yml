@@ -11,10 +11,6 @@ jobs:
       matrix:
         os: [ macOS-latest ]
         include:
-          - os: ubuntu-latest
-            name: Ubuntu
-          - os: windows-latest
-            name: Windows
           - os: macOS-latest
             name: macOS
     steps:

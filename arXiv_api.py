@@ -55,16 +55,15 @@ def search_entries(categories: List[str], date_0: datetime, date_f: datetime, _v
             time.sleep(t_sleep - elapsed_time)
 
         t_previous_request = time.time()
-        parse = feedparser.parse(base_url + query + n_entries + sort)  # Ask for entries
-        entries = parse.entries  # Get entries
+
+        # Do not know why, but it is necessary for Mac to use requests, and then feedparser
+        response = requests.get(base_url + query + n_entries + sort)
+        response = feedparser.parse(response)  # Ask for entries
+        entries = response.entries  # Get entries
 
         if _verbose:
-            response = requests.get(base_url + query + n_entries + sort)
             response = feedparser.parse(response.text)
-            print(f'The response (with request) is: {response.feed}')
-            print(f'The response (with feedparser) is: {parse.feed}')
-            print(
-                f'The request is: {base_url + query + n_entries + sort}, and the number of entries is: {len(entries)}')
+            print(f'The response feed is: {response.feed}')
 
         total_entries += entries
         if len(entries) == 0 or len(entries) < n_max:  # If there are no more entries, stop
