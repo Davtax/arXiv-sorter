@@ -54,16 +54,16 @@ jobs:
       - name: Show files
         run: ls -laRh
 
-      - name: Differences
-        run: |
-          filename=$(ls artifacts/arXiv-sorter-Ubuntu/abstracts/)
-          echo $filename
-          diff1=$(cmp artifacts/arXiv-sorter-Ubuntu/abstracts/2023-11-01.md artifacts/arXiv-sorter-Windows/abstracts/2023-11-01.md)
-          echo diff1
-      - name: Flatten binaries
-        run: |
-          mv artifacts/*/* ./
-          ls -laRh
+#      - name: Differences
+#        run: |
+#          filename=$(ls artifacts/arXiv-sorter-Ubuntu/abstracts/)
+#          echo $filename
+#          diff1=$(cmp artifacts/arXiv-sorter-Ubuntu/abstracts/2023-11-01.md artifacts/arXiv-sorter-Windows/abstracts/2023-11-01.md)
+#          echo $diff1
+#      - name: Flatten binaries
+#        run: |
+#          mv artifacts/*/* ./
+#          ls -laRh
 
       - name: Create Release
         id: create_release
@@ -81,4 +81,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: arXiv-sorter-*
+          asset_path: ./artifacts/*/arXiv-sorter-*
