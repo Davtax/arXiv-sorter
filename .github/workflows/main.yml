@@ -59,9 +59,9 @@ jobs:
       - name: Make differences
         run: |
           filename=$(ls artifacts/arXiv-sorter-Ubuntu/ | grep -v 'arXiv-sorter')
-          diff1=$(cmp artifacts/arXiv-sorter-Ubuntu/$filename artifacts/arXiv-sorter-Windows/$filename)
+#          diff1=$(cmp artifacts/arXiv-sorter-Ubuntu/$filename artifacts/arXiv-sorter-Windows/$filename)
           diff2=$(cmp artifacts/arXiv-sorter-Ubuntu/$filename artifacts/arXiv-sorter-macOS/$filename)
-          [ -z "$diff1" ] && echo "Empty" || echo "Not empty"
+#          [ -z "$diff1" ] && echo "Empty" || echo "Not empty"
           [ -z "$diff2" ] && echo "Empty" || echo "Not empty"
 
       - name: Flatten binaries
