@@ -1,32 +1,13 @@
-import filecmp
-import argparse
-import difflib
+import sys
 
-parser = argparse.ArgumentParser()
-parser.add_argument('fileA')
-parser.add_argument('fileB')
-parser.add_argument('fileC')
+names = sys.argv[1:]
 
-args = parser.parse_args()
+content = [open(name, 'r').readlines() for name in names]
+content = sorted(content, key=len)
 
-contentA = open(args.fileA, 'r').readlines()
-contentB = open(args.fileB, 'r').readlines()
-contentC = open(args.fileC, 'r').readlines()
+for i in range(len(content) - 1):
+    DF = [x for x in content[i] if x not in content[i + 1]]
+    print(DF)
 
-diff = difflib.ndiff(contentA, contentB)
-# print('\n'.join(list(diff)))
-
-DF = [x for x in contentA if x not in contentB]
-print(DF)
-
-DF = [x for x in contentB if x not in contentA]
-print(DF)
-
-DF = [x for x in contentB if x not in contentC]
-print(DF)
-
-DF = [x for x in contentC if x not in contentB]
-print(DF)
-
-print(filecmp.cmp(args.fileA, args.fileB, shallow=True))
-print(filecmp.cmp(args.fileB, args.fileC, shallow=True))
+    if DF:
+        sys.exit(1)
