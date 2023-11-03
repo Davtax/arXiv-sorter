@@ -8,11 +8,11 @@ abstracts/
 
 .DS_Store
 
-searchs/
+searches/
 authors.txt
 categories.txt
 keywords.txt
 
-!searchs_test/authors.txt
-!searchs_test/categories.txt
-!searchs_test/keywords.txt
+!searches_test/authors.txt
+!searches_test/categories.txt
+!searches_test/keywords.txt
