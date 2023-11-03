@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
 parser.add_argument('-d', '--directory', help='specify relative keywords directory', default='./')
 parser.add_argument('-t', '--time', help='specify closing time', default=3, type=int)
-parser.add_argument('-f', '--final', action='store_false', help='specify final date')
+parser.add_argument('-f', '--final', action='store_false', help='remove final date string in MarkDown file')
 args = parser.parse_args()
 
 verbose = args.verbose
