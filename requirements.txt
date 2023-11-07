@@ -2,3 +2,4 @@ feedparser
 unidecode
 requests
 packaging
+pytz
