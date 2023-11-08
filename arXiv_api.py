@@ -28,8 +28,8 @@ def search_entries(categories: List[str], date_0: datetime, date_f: datetime, _v
     deadline = datetime.now(tz=et).replace(hour=14, minute=0)
     deadline_utc = deadline.astimezone(tz=pytz.utc)
 
-    date_0 = date_0.replace(hour=deadline_utc.hour, minute=0)
-    date_f = date_f.replace(hour=deadline_utc.hour, minute=0)
+    date_0 = date_0.replace(hour=deadline_utc.hour, minute=0, second=0, microsecond=0)
+    date_f = date_f.replace(hour=deadline_utc.hour, minute=0, second=0, microsecond=0)
 
     # Dates
     date_0_str = f'{date_0.year:04d}{date_0.month:02d}{date_0.day:02d}{date_0.hour:02d}{date_0.minute:02d}'
