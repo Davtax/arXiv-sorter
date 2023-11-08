@@ -11,7 +11,7 @@ from read_files import read_user_file
 from sort_entries import sort_articles
 from update import check_version
 
-version = '0.0.9'
+version = '0.0.8'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
