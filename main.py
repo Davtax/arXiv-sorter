@@ -35,8 +35,8 @@ current_dir = os.path.dirname(sys.argv[0])
 if current_dir != '':
     os.chdir(current_dir)  # Change working directory to script directory
 
-if not args.update:
-    check_version(version, _verbose=verbose)
+# if not args.update:
+#     check_version(version, _verbose=verbose)
 
 if not os.path.isdir(keyword_dir):
     os.mkdir(keyword_dir)  # Create dir if it doesn't exist
