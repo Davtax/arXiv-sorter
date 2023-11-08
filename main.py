@@ -11,7 +11,7 @@ from read_files import read_user_file
 from sort_entries import sort_articles
 from update import check_version
 
-version = '0.0.7'
+version = '0.0.8'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
@@ -19,6 +19,7 @@ parser.add_argument('-d', '--directory', help='specify relative keywords directo
 parser.add_argument('-t', '--time', help='specify closing time', default=3, type=int)
 parser.add_argument('-f', '--final', action='store_false', help='remove final date string in MarkDown file')
 parser.add_argument('-a', '--abstracts', help='specify abstracts directory', default='./abstracts/')
+parser.add_argument('-u', '--update', action='store_true', help='avoid update arXiv-sorter')
 args = parser.parse_args()
 
 verbose = args.verbose
@@ -34,7 +35,8 @@ current_dir = os.path.dirname(sys.argv[0])
 if current_dir != '':
     os.chdir(current_dir)  # Change working directory to script directory
 
-check_version(version, _verbose=verbose)
+# if not args.update:
+#     check_version(version, _verbose=verbose)
 
 if not os.path.isdir(keyword_dir):
     os.mkdir(keyword_dir)  # Create dir if it doesn't exist

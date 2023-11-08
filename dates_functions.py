@@ -1,5 +1,6 @@
 from datetime import timedelta, datetime
 import os
+import pytz
 
 
 def daterange(start_date: datetime, end_date: datetime):
@@ -43,3 +44,9 @@ def obtain_date(date: str) -> datetime:
                         int(time[2][:2]))
 
     return date_str
+
+
+def current_time_zone():
+    et = pytz.timezone('US/Eastern')
+    utc = pytz.utc
+    return datetime.now(tz=utc).astimezone(et).tzinfo
