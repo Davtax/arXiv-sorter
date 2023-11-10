@@ -18,6 +18,7 @@ def check_last_date() -> datetime:
     if os.path.exists('abstracts'):
         files = os.listdir('abstracts')
         files = [file for file in files if file.find('.md') != -1]  # Remove non-markdown files
+        files = sorted(files)  # Sort files by name
 
         if len(files) == 0:
             last_date = datetime.now() - timedelta(days=2)  # The search is done one day after the last date
