@@ -6,7 +6,7 @@ import pytz
 import feedparser
 import requests
 
-from dates_functions import daterange, obtain_date, current_time_zone
+from app.dates_functions import daterange, obtain_date, current_time_zone
 
 base_url = 'https://export.arxiv.org/api/query?'
 

@@ -1,6 +1,8 @@
 from feedparser import FeedParserDict
+from typing import List
+from datetime import datetime
 
-from dates_functions import obtain_date
+from app.dates_functions import obtain_date
 
 
 def _remove_white_space(text: str) -> str:
@@ -136,3 +138,14 @@ def write_article(entry: FeedParserDict, f, index: int, n_total: int):
 
     if entry.last_new:
         f.write('\n---\n')
+
+
+def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir: str, final: bool):
+    print('Writing entries...')
+    n_total = len(entries)
+    with open(f'{abstracts_dir}{date.date()}.md', 'w', encoding='utf-8') as f:
+        [write_article(entries[index], f, index, n_total) for index in range(n_total)]
+
+        if final:
+            ct = datetime.now()
+            f.write(f'\n*This file was created at: {ct.strftime("%d %B %Y %H:%M:%S")}*')
