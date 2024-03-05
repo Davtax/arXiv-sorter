@@ -99,9 +99,13 @@ def _sort_entries(entries: List[feedparser.FeedParserDict], date_0: datetime, da
         for i in range(counter, len(entries)):
             if single_date <= obtain_date(entries[i].updated) < single_date + shift:
                 total_entries_date[-1].append(entries[i])
+                counter += 1
             else:
-                counter = i
                 break
         dates.append(single_date)
+
+    if counter < len(entries):
+        print('There are entries that were not sorted. Appending them to the last date.')
+        total_entries_date[-1] += entries[counter:]
 
     return total_entries_date, dates
