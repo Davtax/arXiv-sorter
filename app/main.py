@@ -29,19 +29,11 @@ def parse_args():
     return args
 
 
-def get_last_updated(entries: List[FeedParserDict]):
-    last_new_index = None
-    for i in range(len(entries)):
-        entries[i]['last_new'] = False
-        try:
-            if not entries[i]['updated_bool'] and entries[i + 1]['updated_bool']:
-                last_new_index = i
-        except IndexError:
-            if last_new_index is None:
-                last_new_index = i
-
-    if last_new_index is not None:
-        entries[last_new_index]['last_new'] = True
+def get_last_new(entries: List[FeedParserDict]):
+    for i, entry in enumerate(entries):
+        if entry['index'] == -1:
+            entries[i - 1]['last_new'] = True
+            break
 
 
 def clean_up():
@@ -117,7 +109,7 @@ def main():
             print('Sorting entries...')
             entries = sort_articles(entries, keywords, authors)
 
-            get_last_updated(entries)
+            get_last_new(entries)
 
             write_document(entries, date, args.abstracts, args.final)
             print()
