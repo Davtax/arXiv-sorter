@@ -6,7 +6,7 @@ import pytz
 import feedparser
 import requests
 
-from dates_functions import daterange, obtain_date, current_time_zone
+from app.dates_functions import daterange, obtain_date, current_time_zone
 
 base_url = 'https://export.arxiv.org/api/query?'
 
@@ -82,6 +82,8 @@ def _sort_entries(entries: List[feedparser.FeedParserDict], date_0: datetime, da
     total_entries_date = []
     dates = []
 
+    entries = sorted(entries, key=lambda x: x.updated)  # Sort entries by date (sometimes arXiv does not sort them)
+
     counter = 0  # Counter to keep track of the entries already sorted
     for j, single_date in enumerate(daterange(date_0, date_f)):
 
@@ -97,9 +99,13 @@ def _sort_entries(entries: List[feedparser.FeedParserDict], date_0: datetime, da
         for i in range(counter, len(entries)):
             if single_date <= obtain_date(entries[i].updated) < single_date + shift:
                 total_entries_date[-1].append(entries[i])
+                counter += 1
             else:
-                counter = i
                 break
         dates.append(single_date)
+
+    if counter < len(entries):
+        print('There are entries that were not sorted. Appending them to the last date.')
+        total_entries_date[-1] += entries[counter:]
 
     return total_entries_date, dates

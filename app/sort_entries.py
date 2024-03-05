@@ -53,7 +53,7 @@ def _find_group_keywords(text: str, keywords: List[str]) -> List[Tuple[int, int,
     return indices_total
 
 
-def _find_text(text: str, keywords: List[str]) -> Tuple[List[Tuple[int, int, str]], int]:
+def _find_text(text: str, keywords: List[str], normalize: bool = False) -> Tuple[List[Tuple[int, int, str]], int]:
     """
     Find the keywords in the text and return the indices where they are found. The indices are sorted by the
     appearance of the keywords in the text.
@@ -61,6 +61,9 @@ def _find_text(text: str, keywords: List[str]) -> Tuple[List[Tuple[int, int, str
     """
     keyword_index = len(keywords) + 1
     text = text.lower()
+    if normalize:
+        text = unidecode(text)
+        text = text.replace('-', ' ')
     indices = []
     for i, keyword in enumerate(keywords):
         if type(keyword) is str:  # Single keyword
@@ -121,11 +124,11 @@ def _find_overlaps(indices):
     return indices
 
 
-def _find_and_add(text, keywords, enclosure):
+def _find_and_add(text, keywords, enclosure, normalize: bool = False):
     """
     Find the keywords in the text and add them with the given enclosure.
     """
-    indices, keyword_index = _find_text(text, keywords)
+    indices, keyword_index = _find_text(text, keywords, normalize=normalize)
     indices = _find_overlaps(indices)  # Fix the indices if there are overlaps
 
     for index_0, index_f, kind in indices[::-1]:  # Reverse order to avoid problems with the indices
@@ -140,6 +143,7 @@ def _find_and_add(text, keywords, enclosure):
 
 def sort_articles(entries: List[FeedParserDict], keywords: List[str], authors: List[str]) -> List[FeedParserDict]:
     max_index = len(keywords) + len(authors) + 1
+
     for entry in entries:
         title_enclosure = TitleEnclosure
         abstract_enclosure = {'single': AbstractEnclosure, 'group': GroupEnclosure, 'overlap': OverlapEnclosure}
@@ -147,25 +151,25 @@ def sort_articles(entries: List[FeedParserDict], keywords: List[str], authors: L
 
         title, keyword_index_title = _find_and_add(entry.title, keywords, title_enclosure)
         abstract, keyword_index_abstract = _find_and_add(entry.summary, keywords, abstract_enclosure)
-        authors_list, author_index = _find_and_add(entry.authors, authors, authors_enclosure)
+        authors_list, author_index = _find_and_add(entry.authors, authors, authors_enclosure, normalize=True)
 
-        keyword_index = min(
+        index_keyword = min(
             value for value in [keyword_index_title, keyword_index_abstract, max_index] if value is not None)
-        if keyword_index == max_index:
-            keyword_index = None
+        index_author = min(value for value in [author_index, max_index] if value is not None)
 
-        if keyword_index is not None:
-            entry['index'] = keyword_index
-        elif author_index is not None:
-            entry['index'] = len(keywords) + author_index
-        else:
-            entry['index'] = max_index
+        if index_keyword != max_index and index_author != max_index:  # If both keyword and author are found
+            index = index_keyword  # Group by keyword
+        else:  # If only one of the two, or none, is found
+            index = min(index_keyword, index_author)
 
-        if entry['updated_bool'] and entry['index'] == max_index:
-            entry['index'] += 1
+        if entry.updated_bool and index == max_index:  # If the entry has been updated and no keyword or author is found
+            index += 1
+
+        entry['index'] = max_index - index
+        entry['last_new'] = False  # Initialize the last_new attribute, it will be updated later
 
         entry.title = title
         entry.summary = abstract
         entry.authors = authors_list
 
-    return sorted(entries, key=lambda x: x['index'])
+    return sorted(entries, key=lambda x: x['index'], reverse=True)

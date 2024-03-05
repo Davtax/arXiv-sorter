@@ -3,7 +3,7 @@ from typing import List
 import os
 
 
-def read_user_file(file_name: str, sort: bool = False) -> List[str]:
+def read_user_file(file_name: str, sort: bool = False, name_separator: bool = False) -> List[str]:
     """
     Read a file with keywords or authors and return a list of unique lines.
     """
@@ -24,10 +24,10 @@ def read_user_file(file_name: str, sort: bool = False) -> List[str]:
     lines = [line for line in lines if line]  # Remove empty lines
     lines = [line for line in lines if line[0] != '#']  # Remove comments
 
-    return _obtain_unique_lines(lines)
+    return _obtain_unique_lines(lines, name_separator=name_separator)
 
 
-def _obtain_unique_lines(lines: List[str]) -> List[str]:
+def _obtain_unique_lines(lines: List[str], name_separator: bool = False) -> List[str]:
     """
     Obtain the unique lines from a list of lines, after a normalization process. If multiple keywords are present, then
     they are grouped together in a list.
@@ -40,6 +40,9 @@ def _obtain_unique_lines(lines: List[str]) -> List[str]:
 
         if len(multiple_keywords) == 1:
             multiple_keywords = multiple_keywords[0]
+
+            if name_separator:
+                multiple_keywords = multiple_keywords.replace('-', ' ')
 
         if multiple_keywords not in unique_lines:
             unique_lines.append(multiple_keywords)

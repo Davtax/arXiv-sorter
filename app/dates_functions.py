@@ -15,9 +15,10 @@ def check_last_date() -> datetime:
     """
     Check the last date of the file in the abstracts folder by its name.
     """
-    if os.path.exists('abstracts'):
-        files = os.listdir('abstracts')
+    if os.path.exists('./abstracts'):
+        files = os.listdir('./abstracts')
         files = [file for file in files if file.find('.md') != -1]  # Remove non-markdown files
+        files = sorted(files)  # Sort files by name
 
         if len(files) == 0:
             last_date = datetime.now() - timedelta(days=2)  # The search is done one day after the last date
@@ -50,3 +51,16 @@ def current_time_zone():
     et = pytz.timezone('US/Eastern')
     utc = pytz.utc
     return datetime.now(tz=utc).astimezone(et).tzinfo
+
+
+def current_utc_timestamp():
+    return datetime.utcnow().timestamp()
+
+
+def shift_date(date_0: datetime, shift: int) -> datetime:
+    date_0 = date_0 + timedelta(days=shift)
+
+    if date_0.weekday() > 4:  # If date_0 is a weekend, search from Friday
+        date_0 -= timedelta(days=date_0.weekday() - 4)
+
+    return date_0
