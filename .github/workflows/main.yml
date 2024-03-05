@@ -36,7 +36,7 @@ jobs:
       - name: Test binaries
         run: dist/arXiv-sorter-${{ matrix.name }} -v -d ../searches_test -t 0 -f -u
       - name: Upload binaries
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: arXiv-sorter-${{ matrix.name }}
           path: dist/
@@ -51,12 +51,12 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: 'pip' # caching pip dependencies
       - name: Load binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Show files
         run: ls -laRh
