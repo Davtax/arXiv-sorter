@@ -82,6 +82,8 @@ def _sort_entries(entries: List[feedparser.FeedParserDict], date_0: datetime, da
     total_entries_date = []
     dates = []
 
+    entries = sorted(entries, key=lambda x: x.updated)  # Sort entries by date (sometimes arXiv does not sort them)
+
     counter = 0  # Counter to keep track of the entries already sorted
     for j, single_date in enumerate(daterange(date_0, date_f)):
 
