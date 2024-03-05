@@ -143,6 +143,7 @@ def _find_and_add(text, keywords, enclosure, normalize: bool = False):
 
 def sort_articles(entries: List[FeedParserDict], keywords: List[str], authors: List[str]) -> List[FeedParserDict]:
     max_index = len(keywords) + len(authors) + 1
+
     for entry in entries:
         title_enclosure = TitleEnclosure
         abstract_enclosure = {'single': AbstractEnclosure, 'group': GroupEnclosure, 'overlap': OverlapEnclosure}
@@ -152,23 +153,23 @@ def sort_articles(entries: List[FeedParserDict], keywords: List[str], authors: L
         abstract, keyword_index_abstract = _find_and_add(entry.summary, keywords, abstract_enclosure)
         authors_list, author_index = _find_and_add(entry.authors, authors, authors_enclosure, normalize=True)
 
-        keyword_index = min(
+        index_keyword = min(
             value for value in [keyword_index_title, keyword_index_abstract, max_index] if value is not None)
-        if keyword_index == max_index:
-            keyword_index = None
+        index_author = min(value for value in [author_index, max_index] if value is not None)
 
-        if keyword_index is not None:
-            entry['index'] = keyword_index
-        elif author_index is not None:
-            entry['index'] = len(keywords) + author_index
-        else:
-            entry['index'] = max_index
+        if index_keyword != max_index and index_author != max_index:  # If both keyword and author are found
+            index = index_keyword  # Group by keyword
+        else:  # If only one of the two, or none, is found
+            index = min(index_keyword, index_author)
 
-        if entry['updated_bool'] and entry['index'] == max_index:
-            entry['index'] += 1
+        if entry.updated_bool and index == max_index:  # If the entry has been updated and no keyword or author is found
+            index += 1
+
+        entry['index'] = max_index - index
+        entry['last_new'] = False  # Initialize the last_new attribute, it will be updated later
 
         entry.title = title
         entry.summary = abstract
         entry.authors = authors_list
 
-    return sorted(entries, key=lambda x: x['index'])
+    return sorted(entries, key=lambda x: x['index'], reverse=True)
