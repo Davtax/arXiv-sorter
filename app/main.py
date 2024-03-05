@@ -45,7 +45,7 @@ def clean_up():
 
 
 def main():
-    version = '0.0.8'
+    version = '0.0.9'
     print(f'Current arXiv-sorter version: v{version}')
 
     args = parse_args()
