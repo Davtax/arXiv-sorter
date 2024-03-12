@@ -1,4 +1,6 @@
 from time import sleep
+import grequests  # grequests before requests, to avoid conflict with requests (known bug)
+import requests
 
 
 def timing_message(total_time: int, message: str, step: int = 1):
@@ -23,3 +25,38 @@ def question(message) -> bool:
     else:  # If the answer is not correct
         print('I didn\'t understand your answer.')
         return question(message)  # The function will repeat until a correct answer if provided
+
+
+def get_image_urls(ids: list[str]) -> list[str]:
+    async_list = []
+    urls = [f'https://arxiv.org/html/{id_}' for id_ in ids]
+
+    for site in urls:
+        action_item = grequests.get(site)
+        async_list.append(action_item)
+
+    results = grequests.map(async_list)
+
+    image_urls = []
+    for id_, result in zip(ids, results):
+        path = get_image(result)
+        if path == '':
+            image_urls.append(None)
+        else:
+            image_urls.append(f'https://arxiv.org/html/{id_}/{path}')
+
+    return image_urls
+
+
+def get_image(response) -> str:
+    """
+    Get the png image from the url and return its source
+    """
+    fp = response.text
+    index_f = fp.find('.png')
+    index_0 = fp.rfind('src="', 0, index_f + 4)
+
+    if index_0 == -1 or index_f == -1:
+        return ''
+
+    return fp[index_0 + 5:index_f + 4]

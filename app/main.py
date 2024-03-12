@@ -45,7 +45,7 @@ def clean_up():
 
 
 def main():
-    version = '0.0.9'
+    version = '0.0.10'
     print(f'Current arXiv-sorter version: v{version}')
 
     args = parse_args()
@@ -111,8 +111,7 @@ def main():
 
             get_last_new(entries)
 
-            write_document(entries, date, args.abstracts, args.final)
-            print()
+            write_document(entries, date, args.abstracts, args.final, figure=True)
 
         # If data not found, search one day before previous date
         date_f = date_0

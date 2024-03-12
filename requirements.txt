@@ -3,3 +3,4 @@ unidecode
 requests
 packaging
 pytz
+grequests
