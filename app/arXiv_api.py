@@ -4,6 +4,7 @@ from typing import List, Tuple
 import pytz
 
 import feedparser
+import grequests
 import requests
 
 from app.dates_functions import daterange, obtain_date, current_time_zone
@@ -25,7 +26,7 @@ def search_entries(categories: List[str], date_0: datetime, date_f: datetime, _v
 
     #  The arXiv deadline is at 14:00 ET
     et = current_time_zone()
-    deadline = datetime.now(tz=et).replace(hour=14, minute=0)
+    deadline = datetime.now(tz=et).replace(hour=14, minute=0, second=0, microsecond=0)
     deadline_utc = deadline.astimezone(tz=pytz.utc)
 
     date_0 = date_0.replace(hour=deadline_utc.hour, minute=0, second=0, microsecond=0)
