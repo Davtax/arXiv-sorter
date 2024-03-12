@@ -3,7 +3,7 @@ from typing import List
 from datetime import datetime
 
 from app.dates_functions import obtain_date
-from app.utils import get_image_urls
+# from app.utils import get_image_urls
 
 
 def _remove_white_space(text: str) -> str:
@@ -155,7 +155,8 @@ def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir:
     if figure:
         print('Getting figures from web ...')
         ids = [entry.id.split("/")[-1] for entry in entries[:n_new]]
-        image_urls = get_image_urls(ids)
+        # image_urls = get_image_urls(ids)
+        image_urls = [None] * n_new
     else:
         image_urls = [None] * n_new
 
