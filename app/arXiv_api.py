@@ -4,7 +4,8 @@ from typing import List, Tuple
 import pytz
 
 import feedparser
-# import grequests
+
+import grequests  # grequests before requests, to avoid conflict with requests (known bug)
 import requests
 
 from app.dates_functions import daterange, obtain_date, current_time_zone

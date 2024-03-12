@@ -3,7 +3,7 @@ from typing import List
 from datetime import datetime
 
 from app.dates_functions import obtain_date
-# from app.utils import get_image_urls
+from app.utils import get_image_urls
 
 
 def _remove_white_space(text: str) -> str:
@@ -146,7 +146,6 @@ def write_article(entry: FeedParserDict, f, index: int, n_total: int, image_url=
 
 def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir: str, final: bool,
                    figure: bool = False):
-    from tqdm.auto import tqdm
     print('Writing entries...')
     n_total = len(entries)
 
@@ -155,15 +154,13 @@ def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir:
     if figure:
         print('Getting figures from web ...')
         ids = [entry.id.split("/")[-1] for entry in entries[:n_new]]
-        # image_urls = get_image_urls(ids)
-        image_urls = [None] * n_new
+        image_urls = get_image_urls(ids)
     else:
         image_urls = [None] * n_new
 
     with open(f'{abstracts_dir}{date.date()}.md', 'w', encoding='utf-8') as f:
-        pbar = tqdm(range(n_new), desc='Writing entries (new)', unit='entry', leave=False)
         [write_article(entries[index], f, index, n_new, image_url=image_urls[index]) for index in
-         pbar]  # Write new article (or with new keyword)
+         range(n_new)]  # Write new article (or with new keyword)
 
         [write_article(entries[index], f, index - n_new, n_total - n_new) for index in
          range(n_new, n_total)]  # Write updated articles

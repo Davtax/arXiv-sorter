@@ -1,6 +1,5 @@
 from time import sleep
-# import grequests  # grequests before requests, to avoid conflict with requests (known bug)
-import requests
+import grequests
 
 
 def timing_message(total_time: int, message: str, step: int = 1):
@@ -27,25 +26,25 @@ def question(message) -> bool:
         return question(message)  # The function will repeat until a correct answer if provided
 
 
-# def get_image_urls(ids: list[str]) -> list[str]:
-#     async_list = []
-#     urls = [f'https://arxiv.org/html/{id_}' for id_ in ids]
-#
-#     for site in urls:
-#         action_item = grequests.get(site)
-#         async_list.append(action_item)
-#
-#     results = grequests.map(async_list)
-#
-#     image_urls = []
-#     for id_, result in zip(ids, results):
-#         path = get_image(result)
-#         if path == '':
-#             image_urls.append(None)
-#         else:
-#             image_urls.append(f'https://arxiv.org/html/{id_}/{path}')
-#
-#     return image_urls
+def get_image_urls(ids: list[str]) -> list[str]:
+    async_list = []
+    urls = [f'https://arxiv.org/html/{id_}' for id_ in ids]
+
+    for site in urls:
+        action_item = grequests.get(site)
+        async_list.append(action_item)
+
+    results = grequests.map(async_list)
+
+    image_urls = []
+    for id_, result in zip(ids, results):
+        path = get_image(result)
+        if path == '':
+            image_urls.append(None)
+        else:
+            image_urls.append(f'https://arxiv.org/html/{id_}/{path}')
+
+    return image_urls
 
 
 def get_image(response) -> str:
