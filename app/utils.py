@@ -72,6 +72,9 @@ def get_image(response) -> str:
     """
     Get the png image from the url and return its source
     """
+    if response is None:
+        return ''
+    
     fp = response.text
     index_f = fp.find('.png')
     index_0 = fp.rfind('src="', 0, index_f + 4)
