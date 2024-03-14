@@ -1,4 +1,6 @@
-from time import sleep
+from time import sleep, time
+import sys
+import requests
 import grequests
 
 
@@ -26,15 +28,34 @@ def question(message) -> bool:
         return question(message)  # The function will repeat until a correct answer if provided
 
 
+class ProgressSession:
+    def __init__(self, urls):
+        self.pbar = Progressbar(len(urls), prefix='Progress:')
+        self.urls = urls
+
+    def update(self, r, *args, **kwargs):
+        if not r.is_redirect:
+            self.pbar.update()
+
+    def __enter__(self):
+        sess = requests.Session()
+        sess.hooks['response'].append(self.update)
+        return sess
+
+    def __exit__(self, *args):
+        self.pbar.close()
+
+
+def get_urls_async(urls):
+    with ProgressSession(urls) as sess:
+        rs = (grequests.get(url, session=sess) for url in urls)
+
+        return grequests.map(rs)
+
+
 def get_image_urls(ids: list[str]) -> list[str]:
-    async_list = []
     urls = [f'https://arxiv.org/html/{id_}' for id_ in ids]
-
-    for site in urls:
-        action_item = grequests.get(site)
-        async_list.append(action_item)
-
-    results = grequests.map(async_list)
+    results = get_urls_async(urls)
 
     image_urls = []
     for id_, result in zip(ids, results):
@@ -59,3 +80,34 @@ def get_image(response) -> str:
         return ''
 
     return fp[index_0 + 5:index_f + 4]
+
+
+class Progressbar:
+    def __init__(self, count: int, prefix: str = "", size: int = 60, out=sys.stdout):
+        self.count = count
+        self.current = 0
+        self.start = time()
+
+        self.size = size
+        self.prefix = prefix
+        self.out = out
+
+    def update(self, j=1):
+        self.current += j
+        x = int(self.size * self.current / self.count)
+        remaining = ((time() - self.start) / self.current) * (self.count - self.current)
+
+        rate = self.current / (time() - self.start)
+
+        mins, sec = divmod(remaining, 60)
+        time_str = f"{int(mins):02}:{int(sec):02}"
+
+        current_time = time() - self.start
+        mins_current, sec_current = divmod(current_time, 60)
+        time_str_current = f"{int(mins_current):02}:{int(sec_current):02}"
+
+        print(f"{self.prefix}[{u'█' * x}{('.' * (self.size - x))}] {self.current}/{self.count}"
+              f" [{time_str_current}<{time_str}, {rate:.2f} it/s]", end='\r', flush=True, file=self.out)
+
+    def close(self):
+        print("\n", flush=True, file=self.out)
