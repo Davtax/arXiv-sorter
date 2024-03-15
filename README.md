@@ -32,6 +32,11 @@ Usually, those manuscripts are not interesting to the user.
 
 When reading the markdown file in Obsidian, make sure to bee in the preview mode, and not in the edit mode.
 
+The images included in the markdown file are obtained via web scraping from the experimental
+feature [arXiv HTML](https://info.arxiv.org/about/accessible_HTML.html).
+However, not all the manuscripts are automatically converted to HTML, and the program will not be able to extract the
+image.
+
 > [!IMPORTANT]  
 > Since the program relies on the name of the markdown file to search for the latest file, do not rename the markdown
 > files.
