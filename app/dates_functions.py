@@ -53,7 +53,7 @@ def current_time_zone():
     return datetime.now(tz=utc).astimezone(et).tzinfo
 
 
-def current_utc_timestamp():
+def current_utc_timestamp() -> float:
     return datetime.utcnow().timestamp()
 
 

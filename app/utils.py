@@ -1,4 +1,5 @@
 from time import sleep, time
+from typing import List, Optional
 import sys
 import requests
 import grequests
@@ -11,7 +12,7 @@ def timing_message(total_time: int, message: str, step: int = 1):
     print('')
 
 
-def question(message) -> bool:
+def question(message: str) -> bool:
     """
     Make a question and return True or False depending on the answer of the user. There is only two possible answers
     y -> yes or	n -> no. If the answer is none of this two the question is repeated until a good answer is given.
@@ -29,7 +30,7 @@ def question(message) -> bool:
 
 
 class ProgressSession:
-    def __init__(self, urls):
+    def __init__(self, urls: List[str]):
         self.pbar = Progressbar(len(urls), prefix='Progress:')
         self.urls = urls
 
@@ -46,14 +47,14 @@ class ProgressSession:
         self.pbar.close()
 
 
-def get_urls_async(urls):
+def get_urls_async(urls: List[str]) -> List[requests.Response]:
     with ProgressSession(urls) as sess:
         rs = (grequests.get(url, session=sess) for url in urls)
 
         return grequests.map(rs)
 
 
-def get_image_urls(ids: list[str]) -> list[str]:
+def get_image_urls(ids: List[str]) -> List[str]:
     urls = [f'https://arxiv.org/html/{id_}' for id_ in ids]
     results = get_urls_async(urls)
 
@@ -68,13 +69,13 @@ def get_image_urls(ids: list[str]) -> list[str]:
     return image_urls
 
 
-def get_image(response) -> str:
+def get_image(response: requests.Response) -> str:
     """
     Get the png image from the url and return its source
     """
     if response is None:
         return ''
-    
+
     fp = response.text
     index_f = fp.find('.png')
     index_0 = fp.rfind('src="', 0, index_f + 4)
@@ -86,7 +87,7 @@ def get_image(response) -> str:
 
 
 class Progressbar:
-    def __init__(self, count: int, prefix: str = "", size: int = 40, out=sys.stdout):
+    def __init__(self, count: int, prefix: Optional[str] = "", size: Optional[int] = 40, out=sys.stdout):
         self.count = count
         self.current = 0
         self.start = time()
@@ -95,7 +96,7 @@ class Progressbar:
         self.prefix = prefix
         self.out = out
 
-    def update(self, j=1):
+    def update(self, j: Optional[int] = 1):
         self.current += j
         x = int(self.size * self.current / self.count)
         remaining = ((time() - self.start) / self.current) * (self.count - self.current)

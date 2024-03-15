@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from feedparser import FeedParserDict
 from unidecode import unidecode
 
@@ -10,7 +10,7 @@ GroupEnclosure = ['<span style="color:yellow"><B><u>', '</u></B></span>']
 OverlapEnclosure = ['<span style="color:green"><B><u>', '</u></B></span>']
 
 
-def _replace_text(text: str, index_0, index_f, enclosure: List[str]) -> str:
+def _replace_text(text: str, index_0: int, index_f: int, enclosure: List[str]) -> str:
     """
     Replace the text between index_0 and index_f with a given enclosure and the beginning and end of the text.
     """
@@ -85,7 +85,7 @@ def _find_text(text: str, keywords: List[str], normalize: bool = False) -> Tuple
     return indices, keyword_index
 
 
-def _find_overlaps(indices):
+def _find_overlaps(indices: List[Tuple[int, int, str]]) -> List[Tuple[int, int, str]]:
     """
     Check if keyword is inside another keyword.
     """
@@ -124,7 +124,8 @@ def _find_overlaps(indices):
     return indices
 
 
-def _find_and_add(text, keywords, enclosure, normalize: bool = False):
+def _find_and_add(text: str, keywords: List[str], enclosure: Union[dict, List[str]], normalize: bool = False) -> Tuple[
+    str, int]:
     """
     Find the keywords in the text and add them with the given enclosure.
     """
