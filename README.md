@@ -15,8 +15,9 @@ The user can specify keywords to search for in the title, abstract, and authors 
 If the manuscript contains the keywords, this manuscript will be sorted at the top of the markdown file.
 Furthermore, the matching keywords will be highlighted in the title and abstract of the manuscript.
 The color code for the highlighting is the following:
+
 - $\color{red}\textsf{Red}$ for the title
-- $\color{green}\textsf{Green}$  for the authors
+- $\color{green}\textsf{Green}$ for the authors
 - $\color{red}\textsf{Red}$ for the abstract
 - $\color{yellow}\textsf{Yellow}$ for a combination of keywords
 - $\color{green}\textsf{Green}$ for overlapping keywords
@@ -28,6 +29,12 @@ updated (not new), and does not contain any keywords.
 Those manuscripts are located at the bottom of the markdown file, and no images are included in the markdown file, to
 speed up the web scraping process.
 Usually, those manuscripts are not interesting to the user.
+
+When reading the markdown file in Obsidian, make sure to bee in the preview mode, and not in the edit mode.
+
+> [!IMPORTANT]  
+> Since the program relies on the name of the markdown file to search for the latest file, do not rename the markdown
+> files.
 
 ## Usage
 
