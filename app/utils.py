@@ -86,7 +86,7 @@ def get_image(response) -> str:
 
 
 class Progressbar:
-    def __init__(self, count: int, prefix: str = "", size: int = 60, out=sys.stdout):
+    def __init__(self, count: int, prefix: str = "", size: int = 40, out=sys.stdout):
         self.count = count
         self.current = 0
         self.start = time()
