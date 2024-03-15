@@ -13,6 +13,14 @@ In the markdown file, each entry for the manuscript contains the title, authors 
 manuscript, a link to the manuscript, and the date of submission.
 The user can specify keywords to search for in the title, abstract, and authors list of the manuscript.
 If the manuscript contains the keywords, this manuscript will be sorted at the top of the markdown file.
+Furthermore, the matching keywords will be highlighted in the title and abstract of the manuscript.
+The color code for the highlighting is the following:
+- <span style="color:red"> Red </span>  for the title
+- <span style="color:green"> Green </span> for the authors
+- <span style="color:Red"> Red </span> for the abstract
+- <span style="color:yellow"> Yellow </span> for a combination of keywords
+- <span style="color:green"> Green </span> for overlapping keywords
+
 Below the sorted manuscripts, the program will list all the manuscripts that do not contain the keywords, sorted by the
 date of submission.
 The number close to the title is the number of total manuscripts in the mailing list, excluding the ones that have been
