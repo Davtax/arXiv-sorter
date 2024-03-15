@@ -1,11 +1,11 @@
 # arXiv-sorter
 
 Sort the daily arXiv mail list by user keywords, and output the manuscripts in a nice markdown.
-The program is written in Python and compiled to a binary file using [PyInstaller](https://www.pyinstaller.org/).
+The program is written in Python and compiled into a binary file using [PyInstaller](https://www.pyinstaller.org/).
 
 The output file is a markdown file, which is intended to be used with the [Obsidian](https://obsidian.md/) note-taking
 app.
-The program create a file for each mailing list, with the named `YYYY-MM-DD.md`, where `YYYY-MM-DD` is the date of the
+The program creates a file for each mailing list, with the named `YYYY-MM-DD.md`, where `YYYY-MM-DD` is the date of the
 mail.
 The markdown file is located inside the abstracts folder, which is created in the same directory as the binary file.
 
@@ -15,28 +15,28 @@ The user can specify keywords to search for in the title, abstract, and authors 
 If the manuscript contains the keywords, this manuscript will be sorted at the top of the markdown file.
 Furthermore, the matching keywords will be highlighted in the title and abstract of the manuscript.
 The color code for the highlighting is the following:
-- <span style="color:red"> Red </span>  for the title
-- <span style="color:green"> Green </span> for the authors
-- <span style="color:Red"> Red </span> for the abstract
-- <span style="color:yellow"> Yellow </span> for a combination of keywords
-- <span style="color:green"> Green </span> for overlapping keywords
+- $\color{red}\textsf{Red}$ for the title
+- $\color{green}\textsf{Green}$  for the authors
+- $\color{red}\textsf{Red}$ for the abstract
+- $\color{yellow}\textsf{Yellow}$ for a combination of keywords
+- $\color{green}\textsf{Green}$ for overlapping keywords
 
 Below the sorted manuscripts, the program will list all the manuscripts that do not contain the keywords, sorted by the
 date of submission.
-The number close to the title is the number of total manuscripts in the mailing list, excluding the ones that have been
+The number close to the title is the number of total manuscripts on the mailing list, excluding the ones that have been
 updated (not new), and does not contain any keywords.
 Those manuscripts are located at the bottom of the markdown file, and no images are included in the markdown file, to
 speed up the web scraping process.
-Usually those manuscripts are not interesting for the user.
+Usually, those manuscripts are not interesting to the user.
 
 ## Usage
 
 1. Download the binary file from the [release page](https://github.com/Davtax/arXiv-sorter/releases).
 2. Place the binary file in the directory where you want to save the output file.
-3. (Only mac) Open the terminal and run the following command to give the binary file the permission to run
+3. (Only Mac) Open the terminal and run the following command to permit the binary file to run
    ```bash chmod 755 arXiv-sorter-macOS```.
 4. (Only the first time) Create the keyword files in the same directory as the binary file. The keyword files should be
-   named as `authors.txt`, `categories.txt` and `keywords.txt`. The content of the file should be the keywords you want
+   named `authors.txt`, `categories.txt`, and `keywords.txt`. The content of the file should be the keywords you want
    to search for, one keyword per line. If the program is run without the keyword files, the program will create the
    empty files.
 5. Run the binary files. The program will search for the latest file in the `abstracts` folder, and output the markdown
@@ -62,18 +62,18 @@ You can comment out a line by starting the line with the `#` character.
 
 After the program is run, the authors inside the `authors.txt` file will be sorted alphabetically.
 
-A list for all possible arXiv categories can be found [here](https://arxiv.org/category_taxonomy).
+A list of all possible arXiv categories can be found [here](https://arxiv.org/category_taxonomy).
 If you are interested in all the groups of a category, just write the category letters in the `categories.txt` file.
 
 ## CSS snippets
 
 The program can make use of the CSS snippets to format the markdown file inside Obsidian.
-The CSS snippets are located in (snippets)[] folder.
+The CSS snippets are located in the [snippets](https://github.com/Davtax/arXiv-sorter/tree/main/snippets) folder.
 To install the CSS snippets, copy the content of the CSS snippets to the `.obsidian/snippets` folder in the home
 directory.
 Then, open the Obsidian app, and enable the CSS snippets in the Settings/Appearance/CSS snippets option.
 
-This option is pure stylistic, and it is not necessary to run the program.
+This option is purely stylistic, and it is not necessary to run the program.
 
 ## Optional arguments
 
