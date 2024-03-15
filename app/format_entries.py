@@ -145,7 +145,7 @@ def write_article(entry: FeedParserDict, f, index: int, n_total: int, image_url=
 
 
 def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir: str, figure: bool = False):
-    print('Writing entries...')
+    print('Writing entries ...')
     n_total = len(entries)
 
     n_new = sum([1 for entry in entries if entry.index >= 0])

@@ -103,10 +103,10 @@ def main():
             data_found = True
             print(f'Found {len(entries)} entries for {date.date()}')
 
-            print('Formatting entries...')
+            print('Formatting entries ...')
             [fix_entry(entry) for entry in entries]
 
-            print('Sorting entries...')
+            print('Sorting entries ...')
             entries = sort_articles(entries, keywords, authors)
 
             get_last_new(entries)
