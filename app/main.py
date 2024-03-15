@@ -21,7 +21,6 @@ def parse_args():
     parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
     parser.add_argument('-d', '--directory', help='specify relative keywords directory', default='./')
     parser.add_argument('-t', '--time', help='specify closing time', default=3, type=int)
-    parser.add_argument('-f', '--final', action='store_false', help='remove final date string in MarkDown file')
     parser.add_argument('-a', '--abstracts', help='specify abstracts directory', default='./abstracts/')
     parser.add_argument('-u', '--update', action='store_true', help='avoid update arXiv-sorter')
     parser.add_argument('-i', '--image', action='store_false', help='remove images from abstracts')
@@ -112,7 +111,7 @@ def main():
 
             get_last_new(entries)
 
-            write_document(entries, date, args.abstracts, args.final, figure=args.image)
+            write_document(entries, date, args.abstracts, figure=args.image)
             print()
 
         # If data not found, search one day before previous date
