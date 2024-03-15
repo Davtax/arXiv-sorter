@@ -144,7 +144,8 @@ def write_article(entry: FeedParserDict, f, index: int, n_total: int, image_url=
         f.write('\n---\n')
 
 
-def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir: str, figure: bool = False):
+def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir: str, final: bool,
+                   figure: bool = False):
     print('Writing entries ...')
     n_total = len(entries)
 
@@ -164,5 +165,6 @@ def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir:
         [write_article(entries[index], f, index - n_new, n_total - n_new) for index in
          range(n_new, n_total)]  # Write updated articles
 
-        ct = datetime.now()
-        f.write(f'\n*This file was created at: {ct.strftime("%d %B %Y %H:%M:%S")}*')
+        if final:
+            ct = datetime.now()
+            f.write(f'\n*This file was created at: {ct.strftime("%d %B %Y %H:%M:%S")}*')
