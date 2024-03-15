@@ -133,7 +133,7 @@ def write_article(entry: FeedParserDict, f, index: int, n_total: int, image_url=
         f.write(f'Author: {entry.authors}\n\n')
 
     if image_url is not None:
-        f.write(f"<img src='{image_url}' align='right'  width='300'>\n\n")
+        f.write(f"<img src='{image_url}' align='right'  width='300' class='arXiv-sorter'>\n\n")
 
     f.write(f'Abstract: {entry.summary}\n\n')
     f.write(f'{entry.id}\n\n')
