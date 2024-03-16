@@ -1,4 +1,4 @@
-![GitHub Release](https://img.shields.io/github/v/release/Davtax/arXiv-sorter?display_name=release)
+![GitHub Release](https://img.shields.io/github/v/release/Davtax/arXiv-sorter?display_name=release&link=https%3A%2F%2Fgithub.com%2FDavtax%2FarXiv-sorter%2Freleases%2Flatest)
 
 
 # arXiv-sorter
@@ -10,11 +10,11 @@ The output file is a markdown file, which is intended to be used with the [Obsid
 app.
 The program creates a file for each mailing list, with the named `YYYY-MM-DD.md`, where `YYYY-MM-DD` is the date of the
 mail.
-The markdown file is located inside the abstracts folder, which is created in the same directory as the binary file.
+The markdown file is inside the abstracts folder, created in the same directory as the binary file.
 
 In the markdown file, each entry for the manuscript contains the title, authors list, abstract, the first figure of the
 manuscript, a link to the manuscript, and the date of submission.
-The user can specify keywords to search for in the title, abstract, and authors list of the manuscript.
+The user can specify keywords to search for in the manuscript's title, abstract, and authors list.
 If the manuscript contains the keywords, this manuscript will be sorted at the top of the markdown file.
 Furthermore, the matching keywords will be highlighted in the title and abstract of the manuscript.
 The color code for the highlighting is the following:
@@ -37,7 +37,7 @@ When reading the markdown file in Obsidian, make sure to bee in the preview mode
 
 The images included in the markdown file are obtained via web scraping from the experimental
 feature [arXiv HTML](https://info.arxiv.org/about/accessible_HTML.html).
-However, not all the manuscripts are automatically converted to HTML, and the program will not be able to extract the
+However, not all manuscripts are automatically converted to HTML, and the program will not be able to extract the
 image.
 
 > [!IMPORTANT]  
@@ -46,7 +46,7 @@ image.
 
 ## Usage
 
-1. (Only the first time) Install Obsidian, adn configure a new Obsidian vault (or use the default one).
+1. (Only the first time) Install Obsidian, and configure a new Obsidian vault (or use the default one).
 2. Download the corresponding zip file from the [release page](https://github.com/Davtax/arXiv-sorter/releases).
 3. Extract the zip file.
 4. Place the binary file in the directory where you want to save the output file.
@@ -57,7 +57,7 @@ image.
 6. Run the binary files. The program will search for the latest file in the `abstracts` folder, and output the markdown
    files between that date and the current date.
 
-The final directory tree should looks (if using defaut paths) somethig like:
+The final directory tree should look (if using default paths) something like:
 ```bash
 ├── arXiv-sorter
 │   ├── .obsidian
@@ -80,9 +80,9 @@ The final directory tree should looks (if using defaut paths) somethig like:
 > If you are using Windows, you can run the binary file as an administrator.
 
 > [!NOTE]  
-> On Mac, when downloading a new version, and unidentified developer warning pop-up.
+> On Mac, when downloading a new version, an unidentified developer warning pops up.
 > To solve that, Right click -> Open -> Open.
-> Once solved, the message will dissapear.
+> Once solved, the message will disappear.
 
 > [!WARNING]  
 > Sometimes the arXiv API does not respond, and the program will keep running indefinitely. In this case, you can close
