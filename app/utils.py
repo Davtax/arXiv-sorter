@@ -1,8 +1,10 @@
+import sys
+from os import get_terminal_size
 from time import sleep, time
 from typing import List, Optional
-import sys
-import requests
+
 import grequests
+import requests
 
 
 def timing_message(total_time: int, message: str, step: int = 1):
@@ -96,9 +98,13 @@ class Progressbar:
         self.prefix = prefix
         self.out = out
 
+        try:
+            self.terminal_size = get_terminal_size()
+        except OSError:
+            self.terminal_size = None
+
     def update(self, j: Optional[int] = 1):
         self.current += j
-        x = int(self.size * self.current / self.count)
         remaining = ((time() - self.start) / self.current) * (self.count - self.current)
 
         rate = self.current / (time() - self.start)
@@ -110,8 +116,22 @@ class Progressbar:
         mins_current, sec_current = divmod(current_time, 60)
         time_str_current = f"{int(mins_current):02}:{int(sec_current):02}"
 
-        print(f"{self.prefix}[{u'█' * x}{('.' * (self.size - x))}] {self.current}/{self.count}"
-              f" [{time_str_current}<{time_str}, {rate:.2f} it/s]", end='\r', flush=True, file=self.out)
+        pre = f'{self.prefix}'
+        pos = f'{self.current}/{self.count}[{time_str_current}<{time_str}, {rate:.2f} it/s]'
+
+        if self.terminal_size is None:
+            size = self.size
+            print('\r', end='')
+        else:
+            text_size = len(pre) + len(pos) + 3
+            size = max(self.terminal_size.columns - text_size, 0)
+            size = min(size, self.size)
+            print(' ' * self.terminal_size.columns, end='\r', flush=True, file=self.out)
+
+        x = int(size * self.current / self.count)
+        msg = f"{pre}[{'█' * x}{('.' * (size - x))}] {pos}"
+
+        print(msg, end='\r', flush=True, file=self.out)
 
     def close(self):
-        print("\n", flush=True, file=self.out)
+        print('\n', flush=True, file=self.out)
