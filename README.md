@@ -57,6 +57,7 @@ image.
    files between that date and the current date.
 
 The final directory tree should look (if using default paths) something like:
+
 ```bash
 ├── arXiv-sorter
 │   ├── .obsidian
@@ -94,12 +95,20 @@ The program will search for the keywords in the title, abstract, and authors of 
 The program is case-insensitive, and the keywords can be written in any case.
 Inside the `keywords.txt`, you can combine multiple keywords in the same line using the `+` character.
 The program will search for the manuscripts that contain all the keywords in the same line.
-You can comment out a line by starting the line with the `#` character.
 
 After the program is run, the authors inside the `authors.txt` file will be sorted alphabetically.
+When searching for author, the program automatically normalize the author names provided by the user, to use unicode
+characters and remove accents.
+For example, D. Fernández becomes D. Fernandez, and A. Löwdin becomes A. Lowdin.
+After searching for the authors, the program recover the original names format.
 
 A list of all possible arXiv categories can be found [here](https://arxiv.org/category_taxonomy).
 If you are interested in all the groups of a category, just write the category letters in the `categories.txt` file.
+If the same manuscript is in multiple categories, the program will print that manuscript just once.
+Cross-listed manuscripts are also printed in the markdown file.
+
+In all files (authors, categories, and keywords), you can use the `#` character at the beginning of the line to comment
+it out so the program will ignore that line.
 
 ## CSS snippets
 
@@ -126,7 +135,8 @@ When running the program from the terminal, you can use the following optional a
 - `--update` or `-u`: Check if there is a new version of the program available in GitHub, and update the program if
   true. (TO BE IMPLEMENTED)
 - `-image` or `-i`: Remove the images to the markdown file. The image is the first figure in the abstract.
-- `--date0`: Specify the date of the first mailing list to be sorted. The date should be in the format `YYYYMMDD`. If the
+- `--date0`: Specify the date of the first mailing list to be sorted. The date should be in the format `YYYYMMDD`. If
+  the
   date is not specified, the program will search for the latest file in the `abstracts` folder.
 - `--date0`: Specify the date of the last mailing list to be sorted. The date should be in the format `YYYYMMDD`. If the
   date is not specified, this will be the current date.
