@@ -43,10 +43,9 @@ image.
 
 ## Usage
 
-1. Download the binary file from the [release page](https://github.com/Davtax/arXiv-sorter/releases).
-2. Place the binary file in the directory where you want to save the output file.
-3. (Only Mac) Open the terminal and run the following command to permit the binary file to run
-   ```bash chmod 755 arXiv-sorter-macOS```.
+1. Download the corresponding zip file from the [release page](https://github.com/Davtax/arXiv-sorter/releases).
+2. Extract the zip file.
+3. Place the binary file in the directory where you want to save the output file.
 4. (Only the first time) Create the keyword files in the same directory as the binary file. The keyword files should be
    named `authors.txt`, `categories.txt`, and `keywords.txt`. The content of the file should be the keywords you want
    to search for, one keyword per line. If the program is run without the keyword files, the program will create the
@@ -94,10 +93,15 @@ When running the program from the terminal, you can use the following optional a
 - `--help` or `-h`: Show the help message and exit.
 - `--verbose` or `-v`: Print the output to the terminal.
 - `--directory` or `-d`: Specify the directory where the keyword files are located. The default value is the current
-  directory.
-- `time` or `-t`: Specify the terminal closing time in seconds. The default value is 3 seconds.
+  directory (`./`).
 - `--abstracts` or `-a`: Specify the directory where the abstracts are located. The default value is the `abstracts`
-  folder in the current directory.
+  folder in the current directory (`/abstracts`).
+- `--time` or `-t`: Specify the terminal closing time in seconds. The default value is 3 seconds.
+- `--final` or `-f`: Remove the final time stamp from the markdown file.
 - `--update` or `-u`: Check if there is a new version of the program available in GitHub, and update the program if
   true. (TO BE IMPLEMENTED)
 - `-image` or `-i`: Remove the images to the markdown file. The image is the first figure in the abstract.
+- `--date0`: Specify the date of the first mailing list to be sorted. The date should be in the format `YYYYMMDD`. If the
+  date is not specified, the program will search for the latest file in the `abstracts` folder.
+- `--date0`: Specify the date of the last mailing list to be sorted. The date should be in the format `YYYYMMDD`. If the
+  date is not specified, this will be the current date.
