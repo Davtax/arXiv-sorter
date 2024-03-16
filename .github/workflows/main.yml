@@ -66,9 +66,9 @@ jobs:
 
       - name: Compress binaries
         run: |
-          zip arXiv-sorter-Ubuntu.zip arXiv-sorter-Ubuntu/arXiv-sorter-Ubuntu
-          zip arXiv-sorter-Windows.zip arXiv-sorter-Windows/arXiv-sorter-Windows.exe
-          zip arXiv-sorter-macOS.zip arXiv-sorter-macOS/arXiv-sorter-macOS
+          zip -j arXiv-sorter-Ubuntu.zip arXiv-sorter-Ubuntu/arXiv-sorter-Ubuntu
+          zip -j arXiv-sorter-Windows.zip arXiv-sorter-Windows/arXiv-sorter-Windows.exe
+          zip -j arXiv-sorter-macOS.zip arXiv-sorter-macOS/arXiv-sorter-macOS
 
       - name: Show files
         run: ls -laRh
