@@ -1,5 +1,4 @@
-![GitHub Release](https://img.shields.io/github/v/release/Davtax/arXiv-sorter?display_name=release&link=https%3A%2F%2Fgithub.com%2FDavtax%2FarXiv-sorter%2Freleases%2Flatest)
-
+[![GitHub version](https://badge.fury.io/gh/Davtax%2FarXiv-sorter.svg)](https://github.com/Davtax/arXiv-sorter/releases/latest)
 
 # arXiv-sorter
 
