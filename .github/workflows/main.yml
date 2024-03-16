@@ -29,21 +29,12 @@ jobs:
           cache: 'pip' # caching pip dependencies
       - name: Install requirements
         run: pip install -r requirements.txt PyInstaller
-
       - name: Test python
         run: python run.py -v -d searches_test -t 0 -f
-
       - name: Run PyInstaller
         run: pyinstaller --onefile -n arXiv-sorter-${{ matrix.name }} run.py
       - name: Test binaries
         run: dist/arXiv-sorter-${{ matrix.name }} -v -d ../searches_test -t 0 -f
-
-      - name: Compress binaries
-        uses: vimtor/action-zip@v1.2
-        with:
-          files: dist/arXiv-sorter-${{ matrix.name }}
-          dest: dist/arXiv-sorter-${{ matrix.name }}.zip
-
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
@@ -66,6 +57,18 @@ jobs:
           cache: 'pip' # caching pip dependencies
       - name: Load binaries
         uses: actions/download-artifact@v4
+
+      - name: Reset permissions
+        run: |
+          chmod +x arXiv-sorter-Ubuntu/arXiv-sorter-Ubuntu
+          chmod +x arXiv-sorter-Windows/arXiv-sorter-Windows.exe
+          chmod +x arXiv-sorter-macOS/arXiv-sorter-macOS
+
+      - name: Compress binaries
+        run: |
+          zip arXiv-sorter-Ubuntu.zip arXiv-sorter-Ubuntu/arXiv-sorter-Ubuntu
+          zip arXiv-sorter-Windows.zip arXiv-sorter-Windows/arXiv-sorter-Windows.exe
+          zip arXiv-sorter-macOS.zip arXiv-sorter-macOS/arXiv-sorter-macOS
 
       - name: Show files
         run: ls -laRh
@@ -94,4 +97,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./*/arXiv-sorter-*.zip
+          asset_path: ./arXiv-sorter-*.zip
