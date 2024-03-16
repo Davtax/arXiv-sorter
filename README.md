@@ -43,20 +43,43 @@ image.
 
 ## Usage
 
-1. Download the corresponding zip file from the [release page](https://github.com/Davtax/arXiv-sorter/releases).
-2. Extract the zip file.
-3. Place the binary file in the directory where you want to save the output file.
-4. (Only the first time) Create the keyword files in the same directory as the binary file. The keyword files should be
+1. (Only the first time) Install Obsidian, adn configure a new Obsidian vault (or use the default one).
+2. Download the corresponding zip file from the [release page](https://github.com/Davtax/arXiv-sorter/releases).
+3. Extract the zip file.
+4. Place the binary file in the directory where you want to save the output file.
+5. (Only the first time) Create the keyword files in the same directory as the binary file. The keyword files should be
    named `authors.txt`, `categories.txt`, and `keywords.txt`. The content of the file should be the keywords you want
    to search for, one keyword per line. If the program is run without the keyword files, the program will create the
    empty files.
-5. Run the binary files. The program will search for the latest file in the `abstracts` folder, and output the markdown
+6. Run the binary files. The program will search for the latest file in the `abstracts` folder, and output the markdown
    files between that date and the current date.
+
+The final directory tree should looks (if using defaut paths) somethig like:
+```bash
+├── arXiv-sorter
+│   ├── .obsidian
+│   │   ├── snippets
+│   │   │   └── arXiv-sorter.css  
+│   ├── abstracts
+│   │   ├── YYYYMMDD(1).md
+│   │   ├── YYYYMMDD(2).md
+│   │   └── YYYYMMDD(3).md
+│   ├── arXiv-sorter-*
+│   ├── authors.txt
+│   ├── categories.txt
+└── └── keywords.txt
+
+```
 
 > [!NOTE]  
 > Some antivirus programs may block the execution of the binary file.
 > In this case, you can add the binary file to the exception list of the antivirus program.
 > If you are using Windows, you can run the binary file as an administrator.
+
+> [!NOTE]  
+> On Mac, when downloading a new version, and unidentified developer warning pop-up.
+> To solve that, Right click -> Open -> Open.
+> Once solved, the message will dissapear.
 
 > [!WARNING]  
 > Sometimes the arXiv API does not respond, and the program will keep running indefinitely. In this case, you can close
