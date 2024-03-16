@@ -2,29 +2,35 @@ import argparse
 import os
 import sys
 from datetime import datetime
+from typing import List
 
 from feedparser import FeedParserDict
-from typing import List
 
 from app.arXiv_api import search_entries
 from app.dates_functions import check_last_date, shift_date
-from app.format_entries import write_document, fix_entry
+from app.format_entries import fix_entry, write_document
 from app.read_files import read_user_file
 from app.sort_entries import sort_articles
-from app.utils import timing_message, question
-from updater.updater import get_system_name, check_for_update, download_and_update
+from app.utils import question, timing_message
+from updater.updater import check_for_update, download_and_update, get_system_name
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity')
-    parser.add_argument('-d', '--directory', help='specify relative keywords directory', default='./')
-    parser.add_argument('-t', '--time', help='specify closing time', default=3, type=int)
-    parser.add_argument('-f', '--final', action='store_false', help='remove final date string in MarkDown file')
-    parser.add_argument('-a', '--abstracts', help='specify abstracts directory', default='./abstracts/')
-    parser.add_argument('-u', '--update', action='store_true', help='avoid update arXiv-sorter')
-    parser.add_argument('-i', '--image', action='store_false', help='remove images from abstracts')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Increase output verbosity')
+
+    parser.add_argument('-d', '--directory', help='Specify relative keywords directory (default = ./)', default='./')
+    parser.add_argument('-a', '--abstracts', help='Specify abstracts directory (default = ./abstracts)',
+                        default='./abstracts/')
+
+    parser.add_argument('-t', '--time', help='Specify closing time in sec (default = 3s)', default=3, type=int)
+    parser.add_argument('-f', '--final', action='store_false', help='Remove final date string in MarkDown file')
+    parser.add_argument('-u', '--update', action='store_true', help='Update arXiv-sorter')
+    parser.add_argument('-i', '--image', action='store_false', help='Remove images from abstracts')
+
+    parser.add_argument('--date0', help='Specify initial date (%Y%M%D)', default=None)
+    parser.add_argument('--datef', help='Specify final date (%Y%M%D)', default=None)
 
     args = parser.parse_args()
     return args
@@ -46,7 +52,7 @@ def clean_up():
 
 
 def main():
-    version = '0.0.11'
+    version = '0.0.12'
     print(f'Current arXiv-sorter version: v{version}')
 
     args = parse_args()
@@ -55,8 +61,8 @@ def main():
     if current_dir != '':
         os.chdir(current_dir)  # Change working directory to script directory
 
-    platform = get_system_name()
     if args.update:
+        platform = get_system_name()
         new_version_url = check_for_update(platform, version, _verbose=args.verbose)
         if new_version_url is not None and question('Do you want to update arXiv-sorter?'):
             download_and_update(new_version_url)
@@ -88,8 +94,15 @@ def main():
         print('Categories: ' + str(categories) + '\n')
 
     # Search between last date with data and today
-    date_0 = shift_date(check_last_date(), 1)  # Search one day after last date with data
-    date_f = datetime.now()
+    if args.date0 is not None:
+        date_0 = datetime.strptime(args.date0, '%Y%m%d')
+    else:
+        date_0 = shift_date(check_last_date(), 1)  # Search one day after last date with data
+
+    if args.datef is not None:
+        date_f = datetime.strptime(args.datef, '%Y%m%d')
+    else:
+        date_f = datetime.now()
 
     data_found = False
     while not data_found:  # Keep searching until data is found

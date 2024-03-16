@@ -58,6 +58,12 @@ jobs:
       - name: Load binaries
         uses: actions/download-artifact@v4
 
+      - name: Compress binaries
+        run: |
+          tar -cvf arXiv-sorter-Ubuntu.tar arXiv-sorter-Ubuntu/arXiv-sorter-Ubuntu
+          tar -cvf arXiv-sorter-Windows.tar arXiv-sorter-Windows/arXiv-sorter-Windows.exe
+          tar -cvf arXiv-sorter-macOS.tar arXiv-sorter-macOS/arXiv-sorter-macOS
+
       - name: Show files
         run: ls -laRh
 
@@ -85,4 +91,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./*/arXiv-sorter-*
+          asset_path: ./arXiv-sorter-*.tar

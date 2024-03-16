@@ -6,7 +6,7 @@ from app.dates_functions import obtain_date
 from app.utils import get_image_urls
 
 
-def _remove_white_space(text: str) -> str:
+def _remove_white_spaces(text: str) -> str:
     """
     Remove duplicate white spaces from a string.
     """
@@ -24,7 +24,7 @@ def _fix_title(entry: FeedParserDict):
     title = entry.title
 
     title = title.replace('\n', ' ')  # The raw data contains carriage returns
-    title = _remove_white_space(title)
+    title = _remove_white_spaces(title)
     title = title.replace('`', "'")
 
     if entry.updated != entry.published:  # If the entry has been updated, so it is not new
@@ -42,7 +42,7 @@ def _fix_abstract(entry: FeedParserDict):
     """
     abstract = entry.summary
     abstract = abstract.replace('\n', ' ')  # The raw data contains carriage returns
-    abstract = _remove_white_space(abstract)
+    abstract = _remove_white_spaces(abstract)
     abstract = abstract.replace('`', "'")
 
     entry.summary = abstract
@@ -87,7 +87,7 @@ def _fix_equation_inner(text: str) -> str:
     text = text.replace('&lt;', '<')
     text = text.replace('&gt;', '>')
 
-    text = _remove_white_space(text)
+    text = _remove_white_spaces(text)
     return text
 
 
@@ -133,7 +133,7 @@ def write_article(entry: FeedParserDict, f, index: int, n_total: int, image_url=
         f.write(f'Author: {entry.authors}\n\n')
 
     if image_url is not None:
-        f.write(f"<img src='{image_url}' align='right'  width='300'>\n\n")
+        f.write(f"<img src='{image_url}' align='right'  width='300' class='arXiv-sorter'>\n\n")
 
     f.write(f'Abstract: {entry.summary}\n\n')
     f.write(f'{entry.id}\n\n')
