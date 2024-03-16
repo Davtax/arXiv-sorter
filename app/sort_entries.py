@@ -1,4 +1,5 @@
-from typing import List, Tuple, Union, Optional
+from typing import List, Optional, Tuple, Union
+
 from feedparser import FeedParserDict
 from unidecode import unidecode
 
@@ -179,8 +180,8 @@ def sort_articles(entries: List[FeedParserDict], keywords: List[str], authors: L
 
         title, keyword_index_title = _find_and_add(entry.title, keywords, title_enclosure)
         abstract, keyword_index_abstract = _find_and_add(entry.summary, keywords, abstract_enclosure)
-        authors_list, author_index = _find_and_add(entry.authors, authors, authors_enclosure, normalize=True,
-                                                   author_bool=True)
+        authors, author_index = _find_and_add(entry.authors, authors, authors_enclosure, normalize=True,
+                                              author_bool=True)
 
         index_keyword = min(
             value for value in [keyword_index_title, keyword_index_abstract, max_index] if value is not None)
@@ -199,6 +200,6 @@ def sort_articles(entries: List[FeedParserDict], keywords: List[str], authors: L
 
         entry.title = title
         entry.summary = abstract
-        entry.authors = authors_list
+        entry.authors = authors
 
     return sorted(entries, key=lambda x: x['index'], reverse=True)
