@@ -1,3 +1,6 @@
+![GitHub Release](https://img.shields.io/github/v/release/Davtax/arXiv-sorter?display_name=release)
+
+
 # arXiv-sorter
 
 Sort the daily arXiv mail list by user keywords, and output the manuscripts in a nice markdown.
