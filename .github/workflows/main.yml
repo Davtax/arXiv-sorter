@@ -58,11 +58,17 @@ jobs:
       - name: Load binaries
         uses: actions/download-artifact@v4
 
+      - name: Reset permissions
+        run: |
+          chmod +x arXiv-sorter-Ubuntu/arXiv-sorter-Ubuntu
+          chmod +x arXiv-sorter-Windows/arXiv-sorter-Windows.exe
+          chmod +x arXiv-sorter-macOS/arXiv-sorter-macOS
+
       - name: Compress binaries
         run: |
-          tar -cvf arXiv-sorter-Ubuntu.tar arXiv-sorter-Ubuntu/arXiv-sorter-Ubuntu
-          tar -cvf arXiv-sorter-Windows.tar arXiv-sorter-Windows/arXiv-sorter-Windows.exe
-          tar -cvf arXiv-sorter-macOS.tar arXiv-sorter-macOS/arXiv-sorter-macOS
+          zip arXiv-sorter-Ubuntu.zip arXiv-sorter-Ubuntu/arXiv-sorter-Ubuntu
+          zip arXiv-sorter-Windows.zip arXiv-sorter-Windows/arXiv-sorter-Windows.exe
+          zip arXiv-sorter-macOS.zip arXiv-sorter-macOS/arXiv-sorter-macOS
 
       - name: Show files
         run: ls -laRh
@@ -91,4 +97,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./arXiv-sorter-*.tar
+          asset_path: ./arXiv-sorter-*.zip
