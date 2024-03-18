@@ -12,8 +12,7 @@ from packaging import version
 from app.dates_functions import current_utc_timestamp
 from app.utils import timing_message, question
 
-# URL = 'https://api.github.com/repos/Davtax/arXiv-sorter/releases/latest'
-URL = 'https://api.github.com/repos/Davtax/arXiv-sorter/releases/128903236'
+URL = 'https://api.github.com/repos/Davtax/arXiv-sorter/releases/latest'
 
 
 def get_system_name() -> str:
@@ -44,7 +43,7 @@ def check_for_update(platform: str, current_version: str, _verbose: bool = False
                 break
             elif response.status_code == 403 or response.status_code == 429:
                 print('Too many requests to GitHub')
-                timing_message(current_utc_timestamp() - response.headers['X-RateLimit-Reset'] + 1,
+                timing_message(int(response.headers['X-RateLimit-Reset']) - int(current_utc_timestamp()) + 1,
                                'until next request to GitHub API ...')
 
     except requests.ConnectionError:
@@ -87,9 +86,7 @@ def download_and_update(download_url):
     shutil.rmtree(app_path)
     shutil.move(os.path.join("temp", "app"), app_path)
 
-    # # Clean up temporary files
-    # os.remove("temp.zip")
-    # shutil.rmtree("temp")
+    # # Clean up temporary files  # os.remove("temp.zip")  # shutil.rmtree("temp")
 
 
 def check_version(download_url: str, _verbose: bool = False):
