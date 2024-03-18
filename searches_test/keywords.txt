@@ -1,7 +1,5 @@
 quantum dot
+spin[- ]qubit
+spin[- ]orbit
 
-spin-qubit
-spin qubit
-
-spin-orbit
-spin orbit
+quantum dot&reinforcement learning

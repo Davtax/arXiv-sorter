@@ -52,7 +52,7 @@ def clean_up():
 
 
 def main():
-    version = '0.0.12'
+    version = '0.0.13'
     print(f'Current arXiv-sorter version: v{version}')
 
     args = parse_args()
@@ -61,11 +61,12 @@ def main():
     if current_dir != '':
         os.chdir(current_dir)  # Change working directory to script directory
 
-    if args.update:
-        platform = get_system_name()
-        new_version_url = check_for_update(platform, version, _verbose=args.verbose)
-        if new_version_url is not None and question('Do you want to update arXiv-sorter?'):
-            download_and_update(new_version_url)
+    platform = get_system_name()
+    new_version_url = check_for_update(platform, version, _verbose=args.verbose)
+    if new_version_url is not None:
+        print(f'New version available: {new_version_url}')
+    if args.update and new_version_url is not None and question('Do you want to update arXiv-sorter?'):
+        download_and_update(new_version_url)
 
     keyword_dir = args.directory
     if keyword_dir[-1] != '/':
@@ -85,8 +86,9 @@ def main():
 
     # Read user files
     keywords = read_user_file(keyword_dir + 'keywords.txt')
-    authors = read_user_file(keyword_dir + 'authors.txt', sort=True, name_separator=True)
     categories = read_user_file(keyword_dir + 'categories.txt', sort=True)
+    authors = read_user_file(keyword_dir + 'authors.txt', sort=True)
+    authors = [r'\b' + author for author in authors]  # Convert list of authors to regex format
 
     if args.verbose:
         print('Keywords: ' + str(keywords))
@@ -125,7 +127,7 @@ def main():
 
             get_last_new(entries)
 
-            write_document(entries, date, args.abstracts, args.final, figure=args.image)
+            write_document(entries, date, args.abstracts, args.final, figure=args.image, version=version)
             print()
 
         # If data not found, search one day before previous date

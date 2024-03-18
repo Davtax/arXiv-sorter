@@ -1,6 +1,7 @@
-from feedparser import FeedParserDict
-from typing import List
 from datetime import datetime
+from typing import List, Optional
+
+from feedparser import FeedParserDict
 
 from app.dates_functions import obtain_date
 from app.utils import get_image_urls
@@ -144,8 +145,8 @@ def write_article(entry: FeedParserDict, f, index: int, n_total: int, image_url=
         f.write('\n---\n')
 
 
-def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir: str, final: bool,
-                   figure: bool = False):
+def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir: str, final: bool, figure: bool = False,
+                   version: Optional[str] = None):
     print('Writing entries ...')
     n_total = len(entries)
 
@@ -167,4 +168,7 @@ def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir:
 
         if final:
             ct = datetime.now()
-            f.write(f'\n*This file was created at: {ct.strftime("%d %B %Y %H:%M:%S")}*')
+            msg = f'\n*This file was created at: {ct.strftime("%d %B %Y %H:%M:%S")}'
+            if version is not None:
+                msg += f', with arXiv-sorter version: {version}'
+            f.write(msg + '*')
