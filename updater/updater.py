@@ -52,9 +52,7 @@ def check_for_update(platform: str, current_version: str, _verbose: bool = False
 
     latest_version = response.json()['tag_name']
 
-    if version.parse(f'v{current_version}') < version.parse(latest_version):
-        print('New version available: ' + latest_version)
-    else:
+    if version.parse(f'v{current_version}') >= version.parse(latest_version):
         return None
 
     for asset in response.json()['assets']:
