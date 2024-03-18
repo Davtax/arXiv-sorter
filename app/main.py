@@ -62,11 +62,11 @@ def main():
         os.chdir(current_dir)  # Change working directory to script directory
 
     platform = get_system_name()
-    # new_version_url = check_for_update(platform, version, _verbose=args.verbose)
-    # if new_version_url is not None:
-    #     print(f'New version available: {new_version_url}')
-    # if args.update and new_version_url is not None and question('Do you want to update arXiv-sorter?'):
-    #     download_and_update(new_version_url)
+    new_version_url = check_for_update(platform, version, _verbose=args.verbose)
+    if new_version_url is not None:
+        print(f'New version available: {new_version_url}')
+    if args.update and new_version_url is not None and question('Do you want to update arXiv-sorter?'):
+        download_and_update(new_version_url)
 
     keyword_dir = args.directory
     if keyword_dir[-1] != '/':
@@ -127,7 +127,7 @@ def main():
 
             get_last_new(entries)
 
-            write_document(entries, date, args.abstracts, args.final, figure=args.image)
+            write_document(entries, date, args.abstracts, args.final, figure=args.image, version=version)
             print()
 
         # If data not found, search one day before previous date
