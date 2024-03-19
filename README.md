@@ -127,6 +127,8 @@ directory.
 Then, open the Obsidian app, and enable the CSS snippets in the Settings/Appearance/CSS snippets option.
 
 This option is purely stylistic, and it is not necessary to run the program.
+CSS files for both light and dark mode are provided.
+In the dark mode, the colors are inverted, so the highlighting is still visible.
 
 ## Optional arguments
 
