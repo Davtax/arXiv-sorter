@@ -2,6 +2,7 @@ import sys
 from os import get_terminal_size
 from time import sleep, time
 from typing import List, Optional
+import re
 
 import grequests
 import requests
@@ -49,7 +50,7 @@ class ProgressSession:
         self.pbar.close()
 
 
-def get_urls_async(urls: List[str]) -> List[requests.Response]:
+def _get_urls_async(urls: List[str]) -> List[requests.Response]:
     with ProgressSession(urls) as sess:
         rs = (grequests.get(url, session=sess) for url in urls)
 
@@ -58,7 +59,7 @@ def get_urls_async(urls: List[str]) -> List[requests.Response]:
 
 def get_image_urls(ids: List[str]) -> List[str]:
     urls = [f'https://arxiv.org/html/{id_}' for id_ in ids]
-    results = get_urls_async(urls)
+    results = _get_urls_async(urls)
 
     image_urls = []
     for id_, result in zip(ids, results):
@@ -79,13 +80,14 @@ def get_image(response: requests.Response) -> str:
         return ''
 
     fp = response.text
-    index_f = fp.find('.png')
-    index_0 = fp.rfind('src="', 0, index_f + 4)
 
-    if index_0 == -1 or index_f == -1:
+    match = re.search(r'<img.*?src=.*?\.png.*?>', fp)
+    if match is None:
         return ''
-
-    return fp[index_0 + 5:index_f + 4]
+    else:
+        index_0, index_f = match.span()
+        png_name = re.search(r'src=.*?\.png', fp[index_0:index_f]).group().replace('src="', '')
+        return png_name
 
 
 class Progressbar:
