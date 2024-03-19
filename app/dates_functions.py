@@ -1,5 +1,6 @@
-from datetime import timedelta, datetime
 import os
+from datetime import datetime, timedelta
+
 import pytz
 
 
@@ -11,19 +12,22 @@ def daterange(start_date: datetime, end_date: datetime):
         yield start_date + timedelta(n)
 
 
-def check_last_date() -> datetime:
+def check_last_date(folder_name:str, separate_files: bool) -> datetime:
     """
     Check the last date of the file in the abstracts folder by its name.
     """
-    if os.path.exists('./abstracts'):
-        files = os.listdir('./abstracts')
-        files = [file for file in files if file.find('.md') != -1]  # Remove non-markdown files
+    if os.path.exists(folder_name):
+        files = os.listdir(folder_name)
+        if separate_files:
+            files = [file for file in files if file.find('.md') == -1]
+        else:
+            files = [file for file in files if file.find('.md') != -1]  # Remove non-markdown files
         files = sorted(files)  # Sort files by name
 
         if len(files) == 0:
             last_date = datetime.now() - timedelta(days=2)  # The search is done one day after the last date
         else:
-            last_file = files[-1][:-3]
+            last_file = files[-1].split('.')[0]
             last_date_str = last_file.split('-')  # Split in year, month and day
             last_date = datetime(int(last_date_str[0]), int(last_date_str[1]), int(last_date_str[2]))
 

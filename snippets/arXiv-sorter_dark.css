@@ -1,7 +1,7 @@
 /* reading mode */
 .markdown-preview-view p {
 	text-align: justify;
-	text-justify: inter-word;
+	text-justify: inter-word;	
 }
 
 /* source view and live preview */
@@ -12,5 +12,10 @@
 
 img
 {
-Padding: 5px;
+/* top | right | bottom | left */
+	padding: 0px 0px 0px 10px;
+	/* background-color: #1E1E1E;- */
+	background-clip: content-box;
+	filter: invert(100%);
+	background-color: #FFFFFF;
 }

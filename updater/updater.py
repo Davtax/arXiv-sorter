@@ -1,5 +1,6 @@
 import os
 import sys
+from time import sleep
 from platform import system
 from subprocess import Popen
 from typing import Union
@@ -42,13 +43,17 @@ def check_for_update(platform: str, current_version: str, _verbose: bool = False
                     print(response.json(), '\n')
                 break
             elif response.status_code == 403 or response.status_code == 429:
+                sleep(1)  # Wait 1 second and try again
                 print('Too many requests to GitHub')
-                timing_message(int(response.headers['X-RateLimit-Reset']) - int(current_utc_timestamp()) + 1,
-                               'until next request to GitHub API ...')
+                wait_time = int(response.headers['X-RateLimit-Reset']) - int(current_utc_timestamp()) + 1
+                if wait_time > 10:  # If the waiting time is too long, exit
+                    return None
+                else:
+                    timing_message(wait_time, 'until next request to GitHub API ...')
 
     except requests.ConnectionError:
         print('No internet connection')
-        sys.exit()
+        return None
 
     latest_version = response.json()['tag_name']
 

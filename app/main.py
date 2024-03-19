@@ -28,6 +28,7 @@ def parse_args():
     parser.add_argument('-f', '--final', action='store_false', help='Remove final date string in MarkDown file')
     parser.add_argument('-u', '--update', action='store_true', help='Update arXiv-sorter')
     parser.add_argument('-i', '--image', action='store_false', help='Remove images from abstracts')
+    parser.add_argument('-s', '--separate', action='store_true', help='Separate each entry in a different file')
 
     parser.add_argument('--date0', help='Specify initial date (%Y%M%D)', default=None)
     parser.add_argument('--datef', help='Specify final date (%Y%M%D)', default=None)
@@ -52,7 +53,7 @@ def clean_up():
 
 
 def main():
-    version = '0.1.0'
+    version = '0.1.1'
     print(f'Current arXiv-sorter version: v{version}')
 
     args = parse_args()
@@ -99,7 +100,8 @@ def main():
     if args.date0 is not None:
         date_0 = datetime.strptime(args.date0, '%Y%m%d')
     else:
-        date_0 = shift_date(check_last_date(), 1)  # Search one day after last date with data
+        date_0 = shift_date(check_last_date(args.abstracts, args.separate),
+                            1)  # Search one day after last date with data
 
     if args.datef is not None:
         date_f = datetime.strptime(args.datef, '%Y%m%d')
@@ -127,7 +129,7 @@ def main():
 
             get_last_new(entries)
 
-            write_document(entries, date, args.abstracts, args.final, figure=args.image, version=version)
+            write_document(entries, date, args.abstracts, args.final, args.separate, figure=args.image, version=version)
             print()
 
         # If data not found, search one day before previous date
