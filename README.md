@@ -144,7 +144,9 @@ When running the program from the terminal, you can use the following optional a
 - `--update` or `-u`: Check if there is a new version of the program available in GitHub, and update the program if
   true.
   (TO BE IMPLEMENTED)
-- `-image` or `-i`: Remove the images to the markdown file.
+- `--separate` or `-s`: Create a separate markdown file for each manuscript.
+  The markdown file will be located in the `abstracts` folder, inside a folder with the same date as the mailing list.
+- `--image` or `-i`: Remove the images to the markdown file.
   The image is the first figure in the abstract.
 - `--date0`: Specify the date of the first mailing list to be sorted.
   The date should be in the format `YYYYMMDD`.
