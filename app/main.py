@@ -7,7 +7,7 @@ from typing import List
 from feedparser import FeedParserDict
 
 from app.arXiv_api import search_entries
-from app.dates_functions import check_last_date, shift_date
+from app.dates_functions import check_last_date, prev_mail, next_mail
 from app.format_entries import fix_entry, write_document
 from app.read_files import read_user_file
 from app.sort_entries import sort_articles
@@ -53,7 +53,7 @@ def clean_up():
 
 
 def main():
-    version = '0.1.1'
+    version = '0.1.2'
     print(f'Current arXiv-sorter version: v{version}')
 
     args = parse_args()
@@ -100,8 +100,12 @@ def main():
     if args.date0 is not None:
         date_0 = datetime.strptime(args.date0, '%Y%m%d')
     else:
-        date_0 = shift_date(check_last_date(args.abstracts, args.separate),
-                            1)  # Search one day after last date with data
+        date_0 = check_last_date(args.abstracts, args.separate)
+
+        if date_0 is None:
+            date_0 = prev_mail(datetime.now())
+        else:
+            date_0 = next_mail(date_0)
 
     if args.datef is not None:
         date_f = datetime.strptime(args.datef, '%Y%m%d')
@@ -134,7 +138,7 @@ def main():
 
         # If data not found, search one day before previous date
         date_f = date_0
-        date_0 = shift_date(date_0, -1)
+        date_0 = prev_mail(date_0)
 
     timing_message(args.time, 'before closing ...')
     clean_up()
