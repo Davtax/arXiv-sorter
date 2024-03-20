@@ -87,9 +87,9 @@ def main():
 
     # Read user files
     keywords = read_user_file(keyword_dir + 'keywords.txt')
-    categories = read_user_file(keyword_dir + 'categories.txt', sort=True)
-    authors = read_user_file(keyword_dir + 'authors.txt', sort=True)
-    authors = [r'\b' + author for author in authors]  # Convert list of authors to regex format
+    categories = read_user_file(keyword_dir + 'categories.txt')
+    authors = read_user_file(keyword_dir + 'authors.txt')
+    authors = [r'\b' + author + r'\b' for author in authors]  # Convert list of authors to regex format
 
     if args.verbose:
         print('Keywords: ' + str(keywords))

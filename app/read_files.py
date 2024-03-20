@@ -3,7 +3,7 @@ from typing import List
 import os
 
 
-def read_user_file(file_name: str, sort: bool = False) -> List[str]:
+def read_user_file(file_name: str) -> List[str]:
     """
     Read a file with keywords or authors and return a list of unique lines.
     """
@@ -14,12 +14,6 @@ def read_user_file(file_name: str, sort: bool = False) -> List[str]:
         lines = f.read()
 
     lines = lines.split('\n')
-
-    if sort:  # Sort the data in the user file by alphabetical order
-        lines.sort()
-
-        with open(file_name, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(lines))
 
     lines = [line for line in lines if line]  # Remove empty lines
     lines = [line for line in lines if line[0] != '#']  # Remove comments
