@@ -10,11 +10,11 @@ import requests
 
 from app.dates_functions import daterange, obtain_date, current_time_zone
 
-base_url = 'https://export.arxiv.org/api/query?'
+BASE_URL = 'https://export.arxiv.org/api/query?'
 
-n_max = 1000  # Maximum number of entries per request
-t_sleep = 3  # seconds between requests
-t_previous_request = 0  # UTC seconds from the previous request
+N_MAX = 1000  # Maximum number of entries per request
+T_SLEEP = 3  # seconds between requests
+T_PREVIOUS_REQUEST = 0  # UTC seconds from the previous request
 
 
 def search_entries(categories: List[str], date_0: datetime, date_f: datetime, _verbose: bool = False) -> Tuple[
@@ -23,7 +23,7 @@ def search_entries(categories: List[str], date_0: datetime, date_f: datetime, _v
     Ask the arXiv API for the entries in the given categories and dates. The entries are sorted by date, with each
     element of the list containing the entries of a given day.
     """
-    global t_previous_request
+    global T_PREVIOUS_REQUEST
 
     #  The arXiv deadline is at 14:00 ET
     et = current_time_zone()
@@ -55,17 +55,17 @@ def search_entries(categories: List[str], date_0: datetime, date_f: datetime, _v
     # Keep asking for entries until there are no more entries in the range of dates
     total_entries = []
     while True:
-        n_entries = f'&start={len(total_entries)}&max_results={n_max}'
+        n_entries = f'&start={len(total_entries)}&max_results={N_MAX}'
         sort = '&sortBy=lastUpdatedDate&sortOrder=ascending'
 
-        elapsed_time = time.time() - t_previous_request  # Wait at least t_sleep seconds between requests
-        if elapsed_time < t_sleep:
-            time.sleep(t_sleep - elapsed_time)
+        elapsed_time = time.time() - T_PREVIOUS_REQUEST  # Wait at least T_SLEEP seconds between requests
+        if elapsed_time < T_SLEEP:
+            time.sleep(T_SLEEP - elapsed_time)
 
-        t_previous_request = time.time()
+        T_PREVIOUS_REQUEST = time.time()
 
         # Do not know why, but it is necessary for Mac to use requests, and then feedparser
-        response = requests.get(base_url + query + n_entries + sort)
+        response = requests.get(BASE_URL + query + n_entries + sort)
         response = feedparser.parse(response.text)  # Ask for entries
         entries = response.entries  # Get entries
 
@@ -73,7 +73,7 @@ def search_entries(categories: List[str], date_0: datetime, date_f: datetime, _v
             print(f'The response feed is: {response.feed} \n')
 
         total_entries += entries
-        if len(entries) == 0 or len(entries) < n_max:  # If there are no more entries, stop
+        if len(entries) == 0 or len(entries) < N_MAX:  # If there are no more entries, stop
             break
 
     return _sort_entries(total_entries, date_0, date_f)
