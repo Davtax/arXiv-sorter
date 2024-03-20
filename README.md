@@ -104,6 +104,7 @@ that contain both (`spin-orbit` or `spin orbit`) and `spin qubit` at the same ti
 Finally, you can use the `#` character at the beginning of the line to comment it out so the program will ignore that
 line.
 
+After the program is run, the authors inside the `authors.txt` file will be sorted alphabetically by the surname.
 When searching for author, the program automatically normalize the author names provided by the user, to use unicode
 characters and remove accents.
 Furthermore, the program perform a case-insensitive search for the author names.
@@ -153,6 +154,7 @@ When running the program from the terminal, you can use the following optional a
   (TO BE IMPLEMENTED)
 - `--separate` or `-s`: Create a separate markdown file for each manuscript.
   The markdown file will be located in the `abstracts` folder, inside a folder with the same date as the mailing list.
+- `--modify` or `-m`: Do not modify the authors file (sort and remove blank lines).
 - `--image` or `-i`: Remove the images to the markdown file.
   The image is the first figure in the abstract.
 - `--date0`: Specify the date of the first mailing list to be sorted.
