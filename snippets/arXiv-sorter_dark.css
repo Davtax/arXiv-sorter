@@ -14,8 +14,7 @@ img
 {
 /* top | right | bottom | left */
 	padding: 0px 0px 0px 10px;
-	/* background-color: #1E1E1E;- */
 	background-clip: content-box;
 	filter: invert(100%);
-	background-color: #FFFFFF;
+	background-color: #E1E1E1;
 }
