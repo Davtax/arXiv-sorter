@@ -29,6 +29,8 @@ def parse_args():
     parser.add_argument('-u', '--update', action='store_true', help='Update arXiv-sorter')
     parser.add_argument('-i', '--image', action='store_false', help='Remove images from abstracts')
     parser.add_argument('-s', '--separate', action='store_true', help='Separate each entry in a different file')
+    parser.add_argument('-m', '--modify', action='store_false',
+                        help='Dont modify the authors file (sort and remove blank lines)')
 
     parser.add_argument('--date0', help='Specify initial date (%Y%M%D)', default=None)
     parser.add_argument('--datef', help='Specify final date (%Y%M%D)', default=None)
@@ -53,7 +55,7 @@ def clean_up():
 
 
 def main():
-    version = '0.1.2'
+    version = '0.1.3'
     print(f'Current arXiv-sorter version: v{version}')
 
     args = parse_args()
@@ -87,9 +89,9 @@ def main():
 
     # Read user files
     keywords = read_user_file(keyword_dir + 'keywords.txt')
-    categories = read_user_file(keyword_dir + 'categories.txt', sort=True)
+    categories = read_user_file(keyword_dir + 'categories.txt')
     authors = read_user_file(keyword_dir + 'authors.txt', sort=True)
-    authors = [r'\b' + author for author in authors]  # Convert list of authors to regex format
+    authors = [r'\b' + author + r'\b' for author in authors]  # Convert list of authors to regex format
 
     if args.verbose:
         print('Keywords: ' + str(keywords))

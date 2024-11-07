@@ -104,14 +104,20 @@ that contain both (`spin-orbit` or `spin orbit`) and `spin qubit` at the same ti
 Finally, you can use the `#` character at the beginning of the line to comment it out so the program will ignore that
 line.
 
-After the program is run, the authors inside the `authors.txt` file will be sorted alphabetically.
+After the program is run, the authors inside the `authors.txt` file will be sorted alphabetically by the surname.
 When searching for author, the program automatically normalize the author names provided by the user, to use unicode
 characters and remove accents.
+Furthermore, the program perform a case-insensitive search for the author names.
 For example, D. Fernández becomes D. Fernandez, and A. Löwdin becomes A. Lowdin.
 After searching for the authors, the program recover the original names format.
-Furthermore, the program search only for full matches, so 'Ares' will not match 'Manzanares'.
+Furthermore, the program search only for full matches by enclosing the provided author names with `\b` at the beginning
+and the end of the name, so `Ares` will not match Manzanares.
+
 I recommend to use just the last name of the author, to avoid false negatives, since sometimes the author names (David
 Fernández) are abbreviated in the arXiv mailing list (D. Fernández).
+The best solution is to use just the first letter of the first name and the last name, together with regular expressions
+in between, e.g., `M[^,] +Ares` will match M. Ares, Maria Ares, M. N. Ares, but not Manzanares or D. Ares, or the string
+(M. Perez, J. Zurita, N. Ares).
 
 A list of all possible arXiv categories can be found [here](https://arxiv.org/category_taxonomy).
 If you are interested in all the groups of a category, just write the category letters in the `categories.txt` file.
@@ -148,6 +154,7 @@ When running the program from the terminal, you can use the following optional a
   (TO BE IMPLEMENTED)
 - `--separate` or `-s`: Create a separate markdown file for each manuscript.
   The markdown file will be located in the `abstracts` folder, inside a folder with the same date as the mailing list.
+- `--modify` or `-m`: Do not modify the authors file (sort and remove blank lines).
 - `--image` or `-i`: Remove the images to the markdown file.
   The image is the first figure in the abstract.
 - `--date0`: Specify the date of the first mailing list to be sorted.
