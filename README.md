@@ -116,7 +116,7 @@ and the end of the name, so `Ares` will not match Manzanares.
 I recommend to use just the last name of the author, to avoid false negatives, since sometimes the author names (David
 Fernández) are abbreviated in the arXiv mailing list (D. Fernández).
 The best solution is to use just the first letter of the first name and the last name, together with regular expressions
-in between, e.g., `M[^,] +Ares` will match M. Ares, Maria Ares, M. N. Ares, but not Manzanares or D. Ares, or the string
+in between, e.g., `M[^,]* +Ares` will match M. Ares, Maria Ares, M. N. Ares, but not Manzanares or D. Ares, or the string
 (M. Perez, J. Zurita, N. Ares).
 
 A list of all possible arXiv categories can be found [here](https://arxiv.org/category_taxonomy).
