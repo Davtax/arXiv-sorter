@@ -37,7 +37,7 @@ class ProgressSession:
         self.pbar = Progressbar(len(urls), prefix='Progress:')
         self.urls = urls
 
-    def update(self, r, *args, **kwargs):
+    def update(self, r=None, *args, **kwargs):
         if not r.is_redirect:
             self.pbar.update()
 
@@ -50,11 +50,17 @@ class ProgressSession:
         self.pbar.close()
 
 
-def _get_urls_async(urls: List[str]) -> List[requests.Response]:
-    with ProgressSession(urls) as sess:
-        rs = (grequests.get(url, session=sess) for url in urls)
+def _get_urls_async(urls: List[str], progres_bar: Optional[bool] = True) -> List[requests.Response]:
+    headers = {'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'}
 
-        return grequests.map(rs)
+    if progres_bar:
+        with ProgressSession(urls) as sess:
+            rs = (grequests.get(url, session=sess, headers=headers) for url in urls)
+
+            return grequests.map(rs, size=5)
+    else:
+        rs = (grequests.get(url, headers=headers) for url in urls)
+        return grequests.map(rs, size=5)
 
 
 def get_image_urls(ids: List[str]) -> List[str]:
