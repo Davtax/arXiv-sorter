@@ -119,7 +119,10 @@ class Progressbar:
         self.current += j
         remaining = ((time() - self.start) / self.current) * (self.count - self.current)
 
-        rate = self.current / (time() - self.start)
+        try:
+            rate = self.current / (time() - self.start)
+        except ZeroDivisionError:
+            rate = 0
 
         mins, sec = divmod(remaining, 60)
         time_str = f"{int(mins):02}:{int(sec):02}"
