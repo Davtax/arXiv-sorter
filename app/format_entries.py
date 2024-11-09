@@ -5,7 +5,6 @@ from typing import List, Optional
 from feedparser import FeedParserDict
 
 from app.dates_functions import obtain_date
-from app.utils import get_image_urls
 
 
 def _remove_white_spaces(text: str) -> str:
@@ -147,17 +146,8 @@ def write_article(entry: FeedParserDict, f, index: int, n_total: int, image_url=
 
 
 def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir: str, final: bool, separate_files: bool,
-                   figure: bool = False, version: Optional[str] = None):
+                   image_urls: List[str], version: Optional[str] = None):
     print('Writing entries ...')
-
-    n_new = sum([1 for entry in entries if entry.index >= 0])
-
-    if figure:
-        print('Getting figures from web ...')
-        ids = [entry.id.split("/")[-1] for entry in entries[:n_new]]
-        image_urls = get_image_urls(ids)
-    else:
-        image_urls = [None] * n_new
 
     if separate_files:
         root = f'{abstracts_dir}{date.date()}'

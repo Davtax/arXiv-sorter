@@ -42,7 +42,7 @@ def _obtain_unique_lines(lines: List[str]) -> List[str]:
     return unique_lines
 
 
-def _sorting_key(name):
+def _sorting_key(name: str) -> str:
     # Sort by the second element of the name, if it exists
     try:
         return name.split('+')[1]

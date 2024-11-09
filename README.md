@@ -116,7 +116,7 @@ and the end of the name, so `Ares` will not match Manzanares.
 I recommend to use just the last name of the author, to avoid false negatives, since sometimes the author names (David
 Fernández) are abbreviated in the arXiv mailing list (D. Fernández).
 The best solution is to use just the first letter of the first name and the last name, together with regular expressions
-in between, e.g., `M[^,] +Ares` will match M. Ares, Maria Ares, M. N. Ares, but not Manzanares or D. Ares, or the string
+in between, e.g., `M[^,]* +Ares` will match M. Ares, Maria Ares, M. N. Ares, but not Manzanares or D. Ares, or the string
 (M. Perez, J. Zurita, N. Ares).
 
 A list of all possible arXiv categories can be found [here](https://arxiv.org/category_taxonomy).
@@ -135,6 +135,25 @@ Then, open the Obsidian app, and enable the CSS snippets in the Settings/Appeara
 This option is purely stylistic, and it is not necessary to run the program.
 CSS files for both light and dark mode are provided.
 In the dark mode, the colors are inverted, so the highlighting is still visible.
+
+## Figures detection
+By default, the program will download the .PDF file of the manuscript from arXiv, and extract the first figure.
+This is saved as a .PNG file in a local folder, and linked in the markdown file.
+If the markdown file is deleted, the next execution of the program will clean up the local folder with the figures.
+The detection of the figures is done via the [PDFFigures2](https://github.com/allenai/pdffigures2) library.
+Sometimes, PFFigures2 is not able to detect the figure, or misunderstand some text as a figure.
+Finally, the extraction of the figure to a .PNG file is done via [PyMuPDF](https://github.com/pymupdf/PyMuPDF).
+After the extraction, the .PDF files saved in local are deleted.
+The process of downloading the .PDF file, detecting and extracting the figure is time-consuming,
+so it is only done for new manuscripts, and those new versions of the manuscripts that contain the keywords.
+However, it can be entirely disabled with the `--image` flag (see below).
+
+> [!WARNING]  
+> The program will download the .PDF files directly from the arXiv website.
+> There is a waiting time between each download to avoid being blocked by the arXiv server.
+> However, sometimes the server will block the IP address.
+> In this case, you will not be able to enter the arXiv website for a few hours.
+> Use this program under your own responsibility.
 
 ## Optional arguments
 

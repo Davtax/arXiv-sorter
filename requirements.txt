@@ -4,3 +4,4 @@ requests
 packaging
 pytz
 grequests
+pymupdf

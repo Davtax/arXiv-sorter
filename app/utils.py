@@ -1,8 +1,8 @@
+import re
 import sys
 from os import get_terminal_size
 from time import sleep, time
 from typing import List, Optional
-import re
 
 import grequests
 import requests
@@ -50,7 +50,7 @@ class ProgressSession:
         self.pbar.close()
 
 
-def _get_urls_async(urls: List[str], progres_bar: Optional[bool] = True) -> List[requests.Response]:
+def get_urls_async(urls: List[str], progres_bar: Optional[bool] = True) -> List[requests.Response]:
     headers = {'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'}
 
     if progres_bar:
@@ -65,7 +65,7 @@ def _get_urls_async(urls: List[str], progres_bar: Optional[bool] = True) -> List
 
 def get_image_urls(ids: List[str]) -> List[str]:
     urls = [f'https://arxiv.org/html/{id_}' for id_ in ids]
-    results = _get_urls_async(urls)
+    results = get_urls_async(urls)
 
     image_urls = []
     for id_, result in zip(ids, results):
@@ -142,4 +142,5 @@ class Progressbar:
         print(msg, end='\r', flush=True, file=self.out)
 
     def close(self):
-        print('\n', flush=True, file=self.out)
+        # print('\n', flush=True, file=self.out)
+        print('', flush=True, file=self.out)

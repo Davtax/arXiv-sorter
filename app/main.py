@@ -7,8 +7,9 @@ from typing import List
 from feedparser import FeedParserDict
 
 from app.arXiv_api import search_entries
-from app.dates_functions import check_last_date, prev_mail, next_mail
+from app.dates_functions import check_last_date, next_mail, prev_mail
 from app.format_entries import fix_entry, write_document
+from app.pdf_scrapper import get_images_pdf_scrapper
 from app.read_files import read_user_file
 from app.sort_entries import sort_articles
 from app.utils import question, timing_message
@@ -55,7 +56,7 @@ def clean_up():
 
 
 def main():
-    version = '0.1.3'
+    version = '0.1.4'
     print(f'Current arXiv-sorter version: v{version}')
 
     args = parse_args()
@@ -63,6 +64,11 @@ def main():
     current_dir = os.path.dirname(sys.argv[0])
     if current_dir != '':
         os.chdir(current_dir)  # Change working directory to script directory
+
+    # Check internal usage folder exists
+    TMP_FOLDER = '.arXiv_sorter'
+    if not os.path.exists(TMP_FOLDER):
+        os.mkdir(TMP_FOLDER)
 
     platform = get_system_name()
     new_version_url = check_for_update(platform, version, _verbose=args.verbose)
@@ -119,23 +125,37 @@ def main():
         print('\nRequesting arXiv API feed between ' + str(date_0.date()) + ' and ' + str(date_f.date()))
 
         entries_dates, dates = search_entries(categories, date_0, date_f, _verbose=args.verbose)
+        try:
+            terminal_size = os.get_terminal_size()
+        except OSError:
+            terminal_size = 59  # Length of previous message: 'Requesting arXiv ...'
+
         for entries, date in zip(entries_dates, dates):  # Iterate over each day
+            print('-' * terminal_size)
+
             if len(entries) == 0:
                 print(f'No entries found for {date.date()}')
                 continue
 
             data_found = True
-            print(f'Found {len(entries)} entries for {date.date()}')
 
-            print('Formatting entries ...')
             [fix_entry(entry) for entry in entries]
 
-            print('Sorting entries ...')
             entries = sort_articles(entries, keywords, authors)
+
+            # Get number of new manuscripts, and get their figure
+            n_new = sum([1 for entry in entries if entry.index >= 0])
+
+            print(f'Found {len(entries)} entries for {date.date()} ({n_new} new submissions or with matching keywords)')
 
             get_last_new(entries)
 
-            write_document(entries, date, args.abstracts, args.final, args.separate, figure=args.image, version=version)
+            if args.image:
+                image_urls = get_images_pdf_scrapper(str(date.date()), entries[:n_new])
+            else:
+                image_urls = [None] * n_new
+
+            write_document(entries, date, args.abstracts, args.final, args.separate, image_urls, version=version)
             print()
 
         # If data not found, search one day before previous date
