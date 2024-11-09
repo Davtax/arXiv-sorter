@@ -125,13 +125,16 @@ def main():
         print('\nRequesting arXiv API feed between ' + str(date_0.date()) + ' and ' + str(date_f.date()))
 
         entries_dates, dates = search_entries(categories, date_0, date_f, _verbose=args.verbose)
+
+        sentence_len = 59
         try:
-            terminal_size = os.get_terminal_size()
+            terminal_size = os.get_terminal_size().columns
+            n_bars = min(terminal_size, sentence_len)
         except OSError:
-            terminal_size = 59  # Length of previous message: 'Requesting arXiv ...'
+            n_bars = sentence_len
 
         for entries, date in zip(entries_dates, dates):  # Iterate over each day
-            print('-' * terminal_size)
+            print('-' * n_bars)  # Length of previous message: 'Requesting arXiv ...'
 
             if len(entries) == 0:
                 print(f'No entries found for {date.date()}')
