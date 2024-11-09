@@ -22,19 +22,31 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4.5.0
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
       - name: Install Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: 'pip' # caching pip dependencies
+
       - name: Install requirements
         run: pip install -r requirements.txt PyInstaller
+
       - name: Test python
         run: python run.py -v -d searches_test -t 0 -f
+
       - name: Run PyInstaller
         run: pyinstaller --onefile -n arXiv-sorter-${{ matrix.name }} run.py
+
       - name: Test binaries
         run: dist/arXiv-sorter-${{ matrix.name }} -v -d ../searches_test -t 0 -f
+
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:

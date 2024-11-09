@@ -18,11 +18,6 @@ TMP_FOLDER = f'{ABSTRACT_FOLDER}/.tmp'
 PDFFIGURES2_PATH = '.arXiv_sorter/pdffigures2-0.0.12.jar'
 PDFFIGURES2_URL = f'https://raw.githubusercontent.com/Davtax/arXiv-sorter/main/{TMP_FOLDER}/{PDFFIGURES2_PATH}'
 
-# Check if TMP_FOLDER exists
-if not os.path.exists(TMP_FOLDER):
-    os.mkdir(TMP_FOLDER)
-
-
 def download_pdfs(ids_entries: List[str], pdf_folder: str, batch_size: Optional[int] = 25,
                   t_sleep: Optional[int] = 1) -> None:
     # Batch async version
@@ -140,6 +135,11 @@ def create_folders(*folders: str) -> None:
 
 
 def get_images_pdf_scrapper(date: str, entries: List[FeedParserDict]) -> List[Union[str, None]]:
+    # Check if TMP_FOLDER exists
+    if not os.path.exists(TMP_FOLDER):
+        os.mkdir(TMP_FOLDER)
+
+
     ids_entries = [entry.id.split('/')[-1] for entry in entries]
 
     pdf_folder = f'{TMP_FOLDER}/{date}/pdfs'
