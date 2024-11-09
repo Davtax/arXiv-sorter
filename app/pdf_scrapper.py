@@ -14,7 +14,7 @@ from pymupdf import open as pymupdf, Rect  # TODO: PyMuPDF is too heavy, conside
 from app.utils import get_urls_async, Progressbar
 
 ABSTRACT_FOLDER = 'abstracts'
-TMP_FOLDER = f'{ABSTRACT_FOLDER}/.tmp'
+TMP_FOLDER = f'{ABSTRACT_FOLDER}/figures'
 PDFFIGURES2_PATH = '.arXiv_sorter/pdffigures2-0.0.12.jar'
 PDFFIGURES2_URL = f'https://github.com/Davtax/arXiv-sorter/raw/refs/heads/main/{PDFFIGURES2_PATH}'
 
