@@ -9,14 +9,15 @@ from typing import List, Optional, Union
 
 import requests
 from feedparser import FeedParserDict
-from pymupdf import open as pymupdf, Rect
+from pymupdf import open as pymupdf, Rect  # TODO: PyMuPDF is too heavy, consider using other library
 
 from app.utils import get_urls_async, Progressbar
 
 ABSTRACT_FOLDER = 'abstracts'
 TMP_FOLDER = f'{ABSTRACT_FOLDER}/.tmp'
 PDFFIGURES2_PATH = '.arXiv_sorter/pdffigures2-0.0.12.jar'
-PDFFIGURES2_URL = f'https://raw.githubusercontent.com/Davtax/arXiv-sorter/main/{TMP_FOLDER}/{PDFFIGURES2_PATH}'
+PDFFIGURES2_URL = f'https://github.com/Davtax/arXiv-sorter/raw/refs/heads/main/{PDFFIGURES2_PATH}'
+
 
 def download_pdfs(ids_entries: List[str], pdf_folder: str, batch_size: Optional[int] = 25,
                   t_sleep: Optional[int] = 1) -> None:
@@ -138,7 +139,6 @@ def get_images_pdf_scrapper(date: str, entries: List[FeedParserDict]) -> List[Un
     # Check if TMP_FOLDER exists
     if not os.path.exists(TMP_FOLDER):
         os.mkdir(TMP_FOLDER)
-
 
     ids_entries = [entry.id.split('/')[-1] for entry in entries]
 

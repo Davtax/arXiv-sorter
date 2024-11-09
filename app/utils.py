@@ -1,3 +1,4 @@
+import io
 import re
 import sys
 from os import get_terminal_size
@@ -6,6 +7,9 @@ from typing import List, Optional
 
 import grequests
 import requests
+
+# Set standard output to UTF-8 encoding if it's not set
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 
 def timing_message(total_time: int, message: str, step: int = 1):
