@@ -148,6 +148,14 @@ The process of downloading the .PDF file, detecting and extracting the figure is
 so it is only done for new manuscripts, and those new versions of the manuscripts that contain the keywords.
 However, it can be entirely disabled with the `--image` flag (see below).
 
+> [!NOTE]  
+> Because, reasons, Obsidian does not recognize relative paths for images.
+> To surpass this, you have to manually download the files: [main.js](https://github.com/csdjk/lcl-obsidian-html-local-img-plugin/releases/download/1.0.0/main.js)
+> and [manifest.json](https://github.com/csdjk/lcl-obsidian-html-local-img-plugin/releases/download/1.0.0/manifest.json).
+> After that, create the folder `.obsidian/plugins/lcl-obsidian-html-local-img-plugin` in your vault directory, and place the files there.
+> Finally, enable the plugin in the Obsidian/Settings/Community plugins.
+> If you have never used Community plugins before, you have to enable them before.
+
 > [!WARNING]  
 > The program will download the .PDF files directly from the arXiv website.
 > There is a waiting time between each download to avoid being blocked by the arXiv server.
