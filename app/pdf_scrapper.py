@@ -88,14 +88,14 @@ def extract_from_json(id_entry: str, json_folder: str, pdf_folder: str, image_fo
     # Sort data by page
     data = sorted(data, key=lambda x: (x['page'], x['regionBoundary']['x1'], x['regionBoundary']['y1']))
 
-    try:
-        for json_entry in data:
-            if json_entry['figType'] == 'Figure':
+    for json_entry in data:
+        if json_entry['figType'] == 'Figure':
+            try:
                 _extract_region(id_entry, pdf_folder, image_folder, json_entry)
                 return True
-    except ValueError:
-        # Sometime pdf2figures2 detects figures out of the page
-        return False
+            except ValueError:
+                # Sometime pdf2figures2 detects figures out of the page
+                pass
 
     return False
 
