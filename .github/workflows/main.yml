@@ -87,7 +87,7 @@ jobs:
 
       - name: Test python
         run: |
-          filename=$(ls arXiv-sorter-Ubuntu/abstracts/)
+          filename=$(ls arXiv-sorter-Ubuntu/abstracts/*.md | cut -d '/' -f 3)
           fileA=arXiv-sorter-Ubuntu/abstracts/$filename
           fileB=arXiv-sorter-Windows/abstracts/$filename
           fileC=arXiv-sorter-macOS/abstracts/$filename
