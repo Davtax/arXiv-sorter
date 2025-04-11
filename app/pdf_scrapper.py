@@ -79,10 +79,16 @@ def _extract_region(id_entry: str, pdf_folder: str, image_folder: str, json_entr
 
 def extract_from_json(id_entry: str, json_folder: str, pdf_folder: str, image_folder: str) -> bool:
     # Extract only the first figure from json_file
+    # encoding = 'utf-8'
+    encoding = 'iso-8859-1'
+
     try:
-        with open(f'{json_folder}/{id_entry}.json', 'r', encoding='utf-8') as file:
+        with open(f'{json_folder}/{id_entry}.json', 'r', encoding=encoding) as file:
             data = json.load(file)
     except FileNotFoundError:
+        return False
+    except UnicodeDecodeError:
+        print(f'Error decoding {json_folder}/{id_entry}.json')
         return False
 
     # Sort data by page
