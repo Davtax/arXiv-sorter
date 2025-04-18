@@ -167,7 +167,7 @@ def _write_document_join(file_name: str, entries: List[FeedParserDict], image_ur
 
     with open(file_name, 'w', encoding='utf-8') as f:
         [write_article(entries[index], f, index, n_new, image_url=image_urls[index]) for index in
-         range(n_new)]  # Write new article (or with new keyword)
+         range(n_new)]  # Write a new article (or with a new keyword)
 
         [write_article(entries[index], f, index - n_new, n_total - n_new) for index in
          range(n_new, n_total)]  # Write updated articles
