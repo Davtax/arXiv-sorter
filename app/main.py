@@ -1,10 +1,10 @@
-import argparse
 import os
 import sys
 from datetime import datetime
 from typing import List
-
+import argparse
 from feedparser import FeedParserDict
+import tempfile
 
 from app.arXiv_api import search_entries
 from app.dates_functions import check_last_date, next_mail, prev_mail
@@ -16,29 +16,6 @@ from app.utils import question
 from updater.updater import check_for_update, download_and_update, get_system_name
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('-v', '--verbose', action='store_true', help='Increase output verbosity')
-
-    parser.add_argument('-d', '--directory', help='Specify relative keywords directory (default = ./)', default='./')
-    parser.add_argument('-a', '--abstracts', help='Specify abstracts directory (default = ./abstracts)',
-                        default='./abstracts/')
-
-    parser.add_argument('-f', '--final', action='store_false', help='Remove final date string in MarkDown file')
-    parser.add_argument('-u', '--update', action='store_true', help='Update arXiv-sorter')
-    parser.add_argument('-i', '--image', action='store_false', help='Remove images from abstracts')
-    parser.add_argument('-s', '--separate', action='store_true', help='Separate each entry in a different file')
-    parser.add_argument('-m', '--modify', action='store_false',
-                        help='Dont modify the authors file (sort and remove blank lines)')
-
-    parser.add_argument('--date0', help='Specify initial date (%Y%M%D)', default=None)
-    parser.add_argument('--datef', help='Specify final date (%Y%M%D)', default=None)
-
-    args = parser.parse_args()
-    return args
-
-
 def get_last_new(entries: List[FeedParserDict]):
     for i, entry in enumerate(entries):
         if entry['index'] == -1:
@@ -46,11 +23,9 @@ def get_last_new(entries: List[FeedParserDict]):
             break
 
 
-def main(temp_dir):
+def main(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
     version = '0.2.4'
     print(f'Current arXiv-sorter version: v{version}')
-
-    args = parse_args()
 
     current_dir = os.path.dirname(sys.argv[0])
     if current_dir != '':
@@ -156,7 +131,3 @@ def main(temp_dir):
         # If data not found, search one day before previous date
         date_f = date_0
         date_0 = prev_mail(date_0)
-
-
-if __name__ == '__main__':
-    main()

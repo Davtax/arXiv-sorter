@@ -39,13 +39,13 @@ jobs:
         run: pip install -r requirements.txt PyInstaller
 
       - name: Test python
-        run: python run.py -v -d searches_test -f
+        run: python run.py -v -d searches_test -f -e
 
       - name: Run PyInstaller
         run: pyinstaller --onefile -n arXiv-sorter-${{ matrix.name }} run.py
 
       - name: Test binaries
-        run: dist/arXiv-sorter-${{ matrix.name }} -v -d ../searches_test -f
+        run: dist/arXiv-sorter-${{ matrix.name }} -v -d ../searches_test -f -e
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
