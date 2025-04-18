@@ -169,6 +169,8 @@ When running the program from the terminal, you can use the following optional a
 - `--update` or `-u`: Check if there is a new version of the program available in GitHub, and update the program if
   true.
   (TO BE IMPLEMENTED)
+- `--exit` or `-e`: Exit the program without the need to press `Enter` at the end.
+  This option is useful if you want to run the program in a cron job, and you don't want to keep the terminal open.
 - `--separate` or `-s`: Create a separate markdown file for each manuscript.
   The markdown file will be located in the `abstracts` folder, inside a folder with the same date as the mailing list.
 - `--modify` or `-m`: Do not modify the authors file (sort and remove blank lines).
