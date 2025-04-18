@@ -3,7 +3,7 @@ import os
 import shutil
 import sys
 from subprocess import PIPE, run
-from threading import activeCount
+from threading import active_count
 from time import sleep
 from typing import List, Optional, Union
 
@@ -14,7 +14,7 @@ from pymupdf import open as pymupdf, Rect  # TODO: PyMuPDF is too heavy, conside
 from app.utils import get_urls_async, Progressbar
 
 ABSTRACT_FOLDER = 'abstracts'
-TMP_FOLDER = f'{ABSTRACT_FOLDER}/figures'
+FIGURES_FOLDER = f'{ABSTRACT_FOLDER}/figures'
 PDFFIGURES2_PATH = '.arXiv_sorter/pdffigures2-0.0.12.jar'
 PDFFIGURES2_URL = f'https://github.com/Davtax/arXiv-sorter/raw/refs/heads/main/{PDFFIGURES2_PATH}'
 
@@ -100,7 +100,7 @@ def extract_from_json(id_entry: str, json_folder: str, pdf_folder: str, image_fo
                 _extract_region(id_entry, pdf_folder, image_folder, json_entry)
                 return True
             except ValueError:
-                # Sometime pdf2figures2 detects figures out of the page
+                # Sometimes pdf2figures2 detects figures out of the page
                 pass
 
     return False
@@ -108,13 +108,14 @@ def extract_from_json(id_entry: str, json_folder: str, pdf_folder: str, image_fo
 
 def clean_previous_figures() -> None:
     # Check if the markdown file is deleted, and delete the corresponding figures
-    abstracts_folder = 'abstracts'
-
-    for image_folder in os.listdir(TMP_FOLDER):
+    for date in os.listdir(FIGURES_FOLDER):
         # Check if is a folder
-        if os.path.isdir(f'{TMP_FOLDER}/{image_folder}'):
-            if f'{image_folder}.md' not in os.listdir(abstracts_folder):
-                shutil.rmtree(f'{TMP_FOLDER}/{image_folder}')
+        if os.path.isdir(f'{FIGURES_FOLDER}/{date}'):
+            if f'{date}.md' not in os.listdir(ABSTRACT_FOLDER):
+                try:
+                    shutil.rmtree(f'{FIGURES_FOLDER}/{date}')
+                except PermissionError:
+                    print(f'Permission error deleting {FIGURES_FOLDER}/{date}')
 
 
 def check_java() -> bool:
@@ -145,26 +146,25 @@ def create_folders(*folders: str) -> None:
         os.makedirs(folder)
 
 
-def get_images_pdf_scrapper(date: str, entries: List[FeedParserDict]) -> List[Union[str, None]]:
-    # Check if TMP_FOLDER exists
-    if not os.path.exists(TMP_FOLDER):
-        os.mkdir(TMP_FOLDER)
+def get_images_pdf_scrapper(date: str, entries: List[FeedParserDict], TMP_FOLDER: str) -> List[Union[str, None]]:
+    if not os.path.isdir(FIGURES_FOLDER):
+        os.mkdir(FIGURES_FOLDER)  # Create dir if it doesn't exist
 
     ids_entries = [entry.id.split('/')[-1] for entry in entries]
 
-    pdf_folder = f'{TMP_FOLDER}/{date}/pdfs'
-    json_folder = f'{TMP_FOLDER}/{date}/data'
-    image_folder = f'{TMP_FOLDER}/{date}/figures'
+    pdf_folder = f'{TMP_FOLDER.name}/{date}/pdfs'
+    json_folder = f'{TMP_FOLDER.name}/{date}/data'
+    image_folder = f'{FIGURES_FOLDER}/{date}'
 
-    threads_num = activeCount()
-
-    # Remove folders if they exist
-    if os.path.isdir(f'{TMP_FOLDER}/{date}'):
-        shutil.rmtree(f'{TMP_FOLDER}/{date}')
+    threads_num = active_count()
 
     clean_previous_figures()
 
-    create_folders(f'{TMP_FOLDER}/{date}', pdf_folder, json_folder, image_folder)
+    # Clean image folder
+    if os.path.exists(image_folder):
+        shutil.rmtree(image_folder)
+
+    create_folders(f'{TMP_FOLDER.name}/{date}', pdf_folder, json_folder, image_folder)
 
     if not check_java():
         return [None] * len(ids_entries)
@@ -187,13 +187,9 @@ def get_images_pdf_scrapper(date: str, entries: List[FeedParserDict]) -> List[Un
         pbar.update(1)
     pbar.close()
 
-    # Clean up temporary folders
-    shutil.rmtree(pdf_folder)
-    shutil.rmtree(json_folder)
-
     # TODO: Check relative path between markdown file and images or work with absolute paths
     for i, figure_link in enumerate(figure_links):
         if figure_link is not None:
-            figure_links[i] = '../' + figure_link
+            figure_links[i] = '../' + figure_link  # Only accept relative paths
 
     return figure_links
