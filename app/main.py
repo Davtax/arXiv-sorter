@@ -12,7 +12,7 @@ from app.format_entries import fix_entry, write_document
 from app.pdf_scrapper import get_images_pdf_scrapper
 from app.read_files import read_user_file
 from app.sort_entries import sort_articles
-from app.utils import question, timing_message
+from app.utils import question
 from updater.updater import check_for_update, download_and_update, get_system_name
 
 
@@ -25,7 +25,6 @@ def parse_args():
     parser.add_argument('-a', '--abstracts', help='Specify abstracts directory (default = ./abstracts)',
                         default='./abstracts/')
 
-    parser.add_argument('-t', '--time', help='Specify closing time in sec (default = 3s)', default=3, type=int)
     parser.add_argument('-f', '--final', action='store_false', help='Remove final date string in MarkDown file')
     parser.add_argument('-u', '--update', action='store_true', help='Update arXiv-sorter')
     parser.add_argument('-i', '--image', action='store_false', help='Remove images from abstracts')
@@ -47,16 +46,8 @@ def get_last_new(entries: List[FeedParserDict]):
             break
 
 
-def clean_up():
-    # Remove files from previous version
-    for file in os.listdir():
-        if '.old' in file:
-            print(f'Removing {file}')
-            os.remove(file)
-
-
-def main():
-    version = '0.2.3'
+def main(temp_dir):
+    version = '0.2.4'
     print(f'Current arXiv-sorter version: v{version}')
 
     args = parse_args()
@@ -66,10 +57,11 @@ def main():
         os.chdir(current_dir)  # Change working directory to script directory
 
     # Check internal usage folder exists
-    TMP_FOLDER = '.arXiv_sorter'
-    if not os.path.exists(TMP_FOLDER):
-        os.mkdir(TMP_FOLDER)
+    ARXIV_SORTER_FOLDER = '.arXiv_sorter'
+    if not os.path.exists(ARXIV_SORTER_FOLDER):
+        os.mkdir(ARXIV_SORTER_FOLDER)
 
+    # Check updates of arXiv-sorter
     platform = get_system_name()
     new_version_url = check_for_update(platform, version, _verbose=args.verbose)
     if new_version_url is not None:
@@ -154,7 +146,7 @@ def main():
             get_last_new(entries)
 
             if args.image:
-                image_urls = get_images_pdf_scrapper(str(date.date()), entries[:n_new])
+                image_urls = get_images_pdf_scrapper(str(date.date()), entries[:n_new], temp_dir)
             else:
                 image_urls = [None] * n_new
 
@@ -164,9 +156,6 @@ def main():
         # If data not found, search one day before previous date
         date_f = date_0
         date_0 = prev_mail(date_0)
-
-    timing_message(args.time, 'before closing ...')
-    clean_up()
 
 
 if __name__ == '__main__':
