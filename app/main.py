@@ -24,7 +24,7 @@ def get_last_new(entries: List[FeedParserDict]):
 
 
 def main(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
-    version = '0.2.4'
+    version = '0.2.5'
     print(f'Current arXiv-sorter version: v{version}')
 
     current_dir = os.path.dirname(sys.argv[0])
