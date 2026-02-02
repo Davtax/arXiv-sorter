@@ -109,7 +109,11 @@ def main(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
 
             data_found = True
 
-            [fix_entry(entry) for entry in entries]
+            for entry in entries:
+                try:
+                    fix_entry(entry)
+                except IndexError as e:
+                    print(f'Error')
 
             entries = sort_articles(entries, keywords, authors)
 
