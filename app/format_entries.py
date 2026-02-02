@@ -53,7 +53,7 @@ def _fix_authors(entry: FeedParserDict):
     """
     Join the authors in a single string.
     """
-    authors = entry.authors
+    authors = entry['authors']
     authors = ', '.join([author.name for author in authors])
 
     entry.authors = authors
@@ -65,8 +65,11 @@ def _fix_equation_inner(text: str) -> str:
     """
     index_0 = text.find('$')  # Find the beginning equation
     while index_0 != -1:
-        if text[index_0 + 1] == ' ':  # Remove the white space after the first $
-            text = text[:index_0 + 1] + text[index_0 + 2:]
+        try:
+            if text[index_0 + 1] == ' ':  # Remove the white space after the first $
+                text = text[:index_0 + 1] + text[index_0 + 2:]
+        except IndexError:
+            break
 
         index_1 = text.find('$', index_0 + 1)  # Find the end of the equation
         if index_1 == -1:
