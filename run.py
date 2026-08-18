@@ -23,8 +23,8 @@ def parse_args() -> argparse.Namespace:
                         help='Dont modify the authors file (sort and remove blank lines)')
     parser.add_argument('-e', '--exit', action='store_true', help='Exit the program, without asking to press enter')
 
-    parser.add_argument('--date0', help='Specify initial date (%Y%M%D)', default=None)
-    parser.add_argument('--datef', help='Specify final date (%Y%M%D)', default=None)
+    parser.add_argument('--date0', help='Specify initial date (YYYYMMDD), e.g. 20260818', default=None)
+    parser.add_argument('--datef', help='Specify final date (YYYYMMDD), e.g. 20260818', default=None)
 
     args = parser.parse_args()
     return args

@@ -6,6 +6,7 @@ from subprocess import PIPE, run
 from threading import active_count
 from time import sleep
 from typing import List, Optional, Union
+import stat
 
 import requests
 from feedparser import FeedParserDict
@@ -90,6 +91,9 @@ def extract_from_json(id_entry: str, json_folder: str, pdf_folder: str, image_fo
     except UnicodeDecodeError:
         print(f'Error decoding {json_folder}/{id_entry}.json')
         return False
+    except json.decoder.JSONDecodeError:
+        print(f'Error decoding {json_folder}/{id_entry}.json')
+        return False
 
     # Sort data by page
     data = sorted(data, key=lambda x: (x['page'], x['regionBoundary']['x1'], x['regionBoundary']['y1']))
@@ -143,7 +147,12 @@ def check_pdffigure2():
 def create_folders(*folders: str) -> None:
     # Create folders
     for folder in folders:
-        os.makedirs(folder)
+        os.makedirs(folder, exist_ok=True)
+
+
+def remove_readonly(func, path, exc_info):
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
 
 
 def get_images_pdf_scrapper(date: str, entries: List[FeedParserDict], TMP_FOLDER: str) -> List[Union[str, None]]:
@@ -187,7 +196,7 @@ def get_images_pdf_scrapper(date: str, entries: List[FeedParserDict], TMP_FOLDER
         pbar.update(1)
     pbar.close()
 
-    # TODO: Check relative path between markdown file and images or work with absolute paths
+    # TODO: Check relative path between Markdown file and images or work with absolute paths
     for i, figure_link in enumerate(figure_links):
         if figure_link is not None:
             figure_links[i] = '../' + figure_link  # Only accept relative paths
