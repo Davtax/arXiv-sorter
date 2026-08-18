@@ -171,7 +171,7 @@ def get_images_pdf_scrapper(date: str, entries: List[FeedParserDict], TMP_FOLDER
 
     # Clean image folder
     if os.path.exists(image_folder):
-        shutil.rmtree(image_folder)
+        shutil.rmtree(image_folder, onexc=remove_readonly)
 
     create_folders(f'{TMP_FOLDER.name}/{date}', pdf_folder, json_folder, image_folder)
 
