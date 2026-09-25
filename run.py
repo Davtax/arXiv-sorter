@@ -1,7 +1,18 @@
-import tempfile
 import argparse
+import builtins
+import tempfile
 
 from app.main import main
+
+_original_print = builtins.print
+
+
+def print_flush(*args, **kwargs):
+    kwargs.setdefault("flush", True)
+    _original_print(*args, **kwargs)
+
+
+builtins.print = print_flush
 
 temp_dir = tempfile.TemporaryDirectory()
 
