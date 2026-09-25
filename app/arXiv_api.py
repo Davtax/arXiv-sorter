@@ -2,6 +2,7 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
+from subprocess import TimeoutExpired, run
 
 import feedparser
 import grequests  # noqa: F401  #  imported for gevent monkey-patching side effect
@@ -19,6 +20,7 @@ T_PREVIOUS_REQUEST = 0  # UTC seconds from the previous request
 ARXIV_OPENER = urllib.request.build_opener()
 ARXIV_HEADERS = {"User-Agent": f"arxiv-sorter/{__version__}", "Accept": "application/atom+xml", }
 N_RETRIES = 3
+TIMEOUT = 30  # seconds
 
 
 def search_entries(categories: list[str], date_0: datetime, date_f: datetime, _verbose: bool = False, ) -> tuple[
@@ -57,32 +59,96 @@ def search_entries(categories: list[str], date_0: datetime, date_f: datetime, _v
     return _sort_entries(total_entries, date_0, date_f)
 
 
-def _get_arxiv_feed(url: str) -> feedparser.FeedParserDict:
+def _wait_between_requests():
     """
-    Request the url to the arXiv API, respecting the minimum time between requests, and retrying on HTTP errors.
+    arXiv asks for no more than one request every 3 seconds.
     """
     global T_PREVIOUS_REQUEST
 
+    elapsed_time = time.time() - T_PREVIOUS_REQUEST
+    if elapsed_time < T_SLEEP:
+        time.sleep(T_SLEEP - elapsed_time)
+    T_PREVIOUS_REQUEST = time.time()
+
+
+def _fetch_urllib(url: str) -> tuple[int, bytes]:
+    request = urllib.request.Request(url, headers=ARXIV_HEADERS)
+    try:
+        with ARXIV_OPENER.open(request, timeout=TIMEOUT) as response:
+            return response.status, response.read()
+    except urllib.error.HTTPError as error:
+        return error.code, error.read()
+
+
+def _fetch_curl(url: str) -> tuple[int, bytes] | None:
+    """
+    Same request through the curl of the system (shipped with Windows 10+, macOS and most Linux distributions).
+    Returns None if curl is not available.
+    """
+    # --globoff: the date range of the query uses [], which curl interprets as a pattern otherwise
+    args = ['curl', '--silent', '--show-error', '--globoff', '--max-time', str(TIMEOUT),
+            '--write-out', '\n%{http_code}']
+    for key, value in ARXIV_HEADERS.items():
+        args += ['--header', f'{key}: {value}']
+
+    try:
+        result = run(args + [url], capture_output=True, timeout=TIMEOUT + 5)
+    except (FileNotFoundError, TimeoutExpired):
+        return None
+
+    content, _, status = result.stdout.rpartition(b'\n')
+    if result.returncode != 0 or not status.isdigit():
+        return None
+    return int(status), content
+
+
+def _parse_feed(content: bytes) -> feedparser.FeedParserDict | None:
+    """
+    Parse the Atom feed, returning None if the content is not a valid arXiv feed (e.g. empty body).
+    """
+    feed = feedparser.parse(content)
+    if feed.bozo or 'id' not in feed.feed:
+        return None
+    return feed
+
+
+def _get_arxiv_feed(url: str) -> feedparser.FeedParserDict:
+    """
+    Request the url to the arXiv API, respecting the minimum time between requests, and retrying on errors.
+
+    Since September 2026, arXiv's CDN throttles some HTTP clients by answering 406 (usually with an empty body) to
+    requests that miss its cache, while accepting the same request from other clients. On a 406 the request is
+    repeated through curl, and in any case retried with an exponential backoff.
+    """
+    status = None
     for attempt in range(N_RETRIES + 1):
-        elapsed_time = time.time() - T_PREVIOUS_REQUEST
+        if attempt > 0:
+            wait = T_SLEEP * 2 ** attempt
+            print(f'arXiv API answered with status code {status}, retrying in {wait} seconds ...')
+            time.sleep(wait)
 
-        if elapsed_time < T_SLEEP:
-            time.sleep(T_SLEEP - elapsed_time)
-
-        request = urllib.request.Request(url, headers=ARXIV_HEADERS)
-
+        _wait_between_requests()
         try:
-            with ARXIV_OPENER.open(request, timeout=30) as response:
-                content = response.read()
+            status, content = _fetch_urllib(url)
+        except urllib.error.URLError as error:  # No connection, timeout, ...
+            status, content = str(error.reason), b''
 
-            T_PREVIOUS_REQUEST = time.time()
-            return feedparser.parse(content)
+        # Sometimes arXiv answers 406 with a valid feed in the body
+        if status == 200 or status == 406:
+            feed = _parse_feed(content)
+            if feed is not None:
+                return feed
 
-        except urllib.error.HTTPError as error:
-            T_PREVIOUS_REQUEST = time.time()
+        if status == 406:
+            _wait_between_requests()
+            curl_response = _fetch_curl(url)
+            if curl_response is not None:
+                status, content = curl_response
+                feed = _parse_feed(content) if status in (200, 406) else None
+                if feed is not None:
+                    return feed
 
-            if attempt == N_RETRIES:
-                raise RuntimeError(f"arXiv request failed with status code {error.code}") from error
+    raise RuntimeError(f"arXiv request failed with status code {status}")
 
 
 def _sort_entries(entries: list[feedparser.FeedParserDict], date_0: datetime, date_f: datetime) -> tuple[
