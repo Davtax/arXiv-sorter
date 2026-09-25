@@ -1,16 +1,17 @@
 from unidecode import unidecode
-from typing import List
-import os
+from pathlib import Path
+from typing import List, Union
 
 
-def read_user_file(file_name: str, sort: bool = False) -> List[str]:
+def read_user_file(file_name: Union[str, Path], sort: bool = False) -> List[str]:
     """
     Read a file with keywords or authors and return a list of unique lines.
     """
-    if not os.path.exists(file_name):
-        open(file_name, 'x').close()  # Create file if it doesn't exist
+    file_path = Path(file_name)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.touch(exist_ok=True)
 
-    with open(file_name, 'r', encoding='utf-8') as f:
+    with file_path.open('r', encoding='utf-8') as f:
         lines = f.read()
 
     lines = lines.split('\n')
@@ -19,7 +20,7 @@ def read_user_file(file_name: str, sort: bool = False) -> List[str]:
     if sort:
         lines = sorted(lines, key=_sorting_key)
 
-        with open(file_name, 'w', encoding='utf-8') as f:
+        with file_path.open('w', encoding='utf-8') as f:
             [f.write(line + '\n') for line in lines]
 
     lines = [line for line in lines if line[0] != '#']  # Remove comments

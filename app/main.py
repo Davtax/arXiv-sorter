@@ -1,11 +1,14 @@
+import argparse
 import os
 import sys
-from datetime import datetime
-from typing import List
-import argparse
-from feedparser import FeedParserDict
 import tempfile
+from datetime import datetime
+from pathlib import Path
+from typing import List
 
+from feedparser import FeedParserDict
+
+from app.__meta__ import __version__
 from app.arXiv_api import search_entries
 from app.dates_functions import check_last_date, next_mail, prev_mail
 from app.format_entries import fix_entry, write_document
@@ -24,46 +27,36 @@ def get_last_new(entries: List[FeedParserDict]):
 
 
 def main(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
-    version = '0.2.6'
-    print(f'Current arXiv-sorter version: v{version}')
+    print(f'Current arXiv-sorter version: v{__version__}')
 
-    current_dir = os.path.dirname(sys.argv[0])
-    if current_dir != '':
-        os.chdir(current_dir)  # Change working directory to script directory
+    launcher_path = Path(sys.argv[0])
+    if launcher_path.parent != Path('.'):
+        os.chdir(launcher_path.resolve().parent)  # Change working directory to script directory
 
     # Check internal usage folder exists
-    ARXIV_SORTER_FOLDER = '.arXiv_sorter'
-    if not os.path.exists(ARXIV_SORTER_FOLDER):
-        os.mkdir(ARXIV_SORTER_FOLDER)
+    arxiv_sorter_folder = Path('.arXiv_sorter')
+    arxiv_sorter_folder.mkdir(exist_ok=True)
 
     # Check updates of arXiv-sorter
     platform = get_system_name()
-    new_version_url = check_for_update(platform, version, _verbose=args.verbose)
+    new_version_url = check_for_update(platform, __version__, _verbose=args.verbose)
     if new_version_url is not None:
         print(f'New version available: {new_version_url}')
     if args.update and new_version_url is not None and question('Do you want to update arXiv-sorter?'):
         download_and_update(new_version_url)
 
-    keyword_dir = args.directory
-    if keyword_dir[-1] != '/':
-        keyword_dir += '/'
-
-    if args.abstracts[-1] != '/':
-        args.abstracts += '/'
-
-    if not os.path.isdir(keyword_dir):
-        os.mkdir(keyword_dir)  # Create dir if it doesn't exist
-
-    if not os.path.exists(args.abstracts):  # Create folder for abstracts if it doesn't exist
-        os.mkdir(args.abstracts)
+    keyword_dir = Path(args.directory)
+    abstracts_dir = Path(args.abstracts)
+    keyword_dir.mkdir(parents=True, exist_ok=True)
+    abstracts_dir.mkdir(parents=True, exist_ok=True)
 
     if args.verbose:
-        print(f'The current dir is: {os.getcwd()}, and the keywords dir is: {keyword_dir} \n')
+        print(f'The current dir is: {Path.cwd()}, and the keywords dir is: {keyword_dir} \n')
 
     # Read user files
-    keywords = read_user_file(keyword_dir + 'keywords.txt')
-    categories = read_user_file(keyword_dir + 'categories.txt')
-    authors = read_user_file(keyword_dir + 'authors.txt', sort=True)
+    keywords = read_user_file(keyword_dir / 'keywords.txt')
+    categories = read_user_file(keyword_dir / 'categories.txt')
+    authors = read_user_file(keyword_dir / 'authors.txt', sort=True)
     authors = [r'\b' + author + r'\b' for author in authors]  # Convert list of authors to regex format
 
     if args.verbose:
@@ -75,7 +68,7 @@ def main(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
     if args.date0 is not None:
         date_0 = datetime.strptime(args.date0, '%Y%m%d')
     else:
-        date_0 = check_last_date(args.abstracts, args.separate)
+        date_0 = check_last_date(abstracts_dir, args.separate)
 
         if date_0 is None:
             date_0 = prev_mail(datetime.now())
@@ -125,11 +118,13 @@ def main(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
             get_last_new(entries)
 
             if args.image:
-                image_urls = get_images_pdf_scrapper(str(date.date()), entries[:n_new], temp_dir)
+                image_urls = get_images_pdf_scrapper(
+                    str(date.date()), entries[:n_new], temp_dir, abstracts_dir, args.separate
+                )
             else:
                 image_urls = [None] * n_new
 
-            write_document(entries, date, args.abstracts, args.final, args.separate, image_urls, version=version)
+            write_document(entries, date, abstracts_dir, args.final, args.separate, image_urls, version=__version__)
             print()
 
         # If data not found, search one day before previous date

@@ -1,5 +1,6 @@
-import os
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Union
 
 import pytz
 
@@ -12,24 +13,24 @@ def daterange(start_date: datetime, end_date: datetime):
         yield start_date + timedelta(n)
 
 
-def check_last_date(folder_name: str, separate_files: bool) -> datetime:
+def check_last_date(folder_name: Union[str, Path], separate_files: bool) -> datetime:
     """
     Check the last date of the file in the abstracts folder by its name.
     """
-    if os.path.exists(folder_name):
-        files = os.listdir(folder_name)
+    folder_path = Path(folder_name)
+    if folder_path.exists():
+        files = list(folder_path.iterdir())
         if separate_files:
-            files = [file for file in files if file.find('.md') == -1]
+            files = [file for file in files if file.is_dir()]
         else:
-            files = [file for file in files if file.find('.md') != -1]  # Remove non-markdown files
-        files = sorted(files)  # Sort files by name
-
-        if len(files) == 0:
-            last_date = None
-        else:
-            last_file = files[-1].split('.')[0]
-            last_date_str = last_file.split('-')  # Split in year, month and day
-            last_date = datetime(int(last_date_str[0]), int(last_date_str[1]), int(last_date_str[2]))
+            files = [file for file in files if file.is_file() and file.suffix == '.md']
+        dates = []
+        for file in files:
+            try:
+                dates.append(datetime.strptime(file.stem, '%Y-%m-%d'))
+            except ValueError:
+                continue
+        last_date = max(dates, default=None)
 
     else:
         last_date = datetime.now()

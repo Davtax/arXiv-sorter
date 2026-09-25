@@ -5,6 +5,7 @@ import sys
 from subprocess import PIPE, run
 from threading import active_count
 from time import sleep
+from pathlib import Path
 from typing import List, Optional, Union
 import stat
 
@@ -14,13 +15,11 @@ from pymupdf import open as pymupdf, Rect  # TODO: PyMuPDF is too heavy, conside
 
 from app.utils import get_urls_async, Progressbar
 
-ABSTRACT_FOLDER = 'abstracts'
-FIGURES_FOLDER = f'{ABSTRACT_FOLDER}/figures'
-PDFFIGURES2_PATH = '.arXiv_sorter/pdffigures2-0.0.12.jar'
-PDFFIGURES2_URL = f'https://github.com/Davtax/arXiv-sorter/raw/refs/heads/main/{PDFFIGURES2_PATH}'
+PDFFIGURES2_PATH = Path('.arXiv_sorter') / 'pdffigures2-0.0.12.jar'
+PDFFIGURES2_URL = f'https://github.com/Davtax/arXiv-sorter/raw/refs/heads/main/{PDFFIGURES2_PATH.as_posix()}'
 
 
-def download_pdfs(ids_entries: List[str], pdf_folder: str, batch_size: Optional[int] = 25,
+def download_pdfs(ids_entries: List[str], pdf_folder: Path, batch_size: Optional[int] = 25,
                   t_sleep: Optional[int] = 1) -> None:
     # Batch async version
     results = []
@@ -44,21 +43,20 @@ def download_pdfs(ids_entries: List[str], pdf_folder: str, batch_size: Optional[
             print(f'403 error in {id_entry}')
             continue
 
-        with open(f'{pdf_folder}/{id_entry}.pdf', 'wb') as f:
+        with (pdf_folder / f'{id_entry}.pdf').open('wb') as f:
             f.write(result.content)
 
 
-def detect_figure(pdf_folder: str, json_folder: str, threads_num: int) -> None:
-    # Detect figures from from pdfs in pdf_folder, and save .json files in json_folder
+def detect_figure(pdf_folder: Path, json_folder: Path, threads_num: int) -> None:
+    # Detect figures from pdfs in pdf_folder, and save .json files in json_folder
     print('Detecting figures in PDF files ...')
-    args = f'java -jar {PDFFIGURES2_PATH} {pdf_folder} -e -t {threads_num} -d {json_folder}/ -q'
-    args = args.split()
+    args = ['java', '-jar', PDFFIGURES2_PATH, pdf_folder, '-e', '-t', str(threads_num), '-d', json_folder, '-q']
     run(args, stdout=PIPE, stderr=PIPE)
 
 
-def _extract_region(id_entry: str, pdf_folder: str, image_folder: str, json_entry: dict, dpi: Optional[int] = 300):
+def _extract_region(id_entry: str, pdf_folder: Path, image_folder: Path, json_entry: dict, dpi: Optional[int] = 300):
     # Extract region from pdf_file using json_entry
-    doc = pymupdf(f'{pdf_folder}/{id_entry}.pdf')
+    doc = pymupdf(pdf_folder / f'{id_entry}.pdf')
 
     region = json_entry['regionBoundary']
     x1, x2, y1, y2 = region['x1'], region['x2'], region['y1'], region['y2']
@@ -71,28 +69,28 @@ def _extract_region(id_entry: str, pdf_folder: str, image_folder: str, json_entr
     sys.stdout = open(os.devnull, "w")
 
     page.set_cropbox(Rect(x1, y1, x2, y2))
-    page.get_pixmap(dpi=dpi).save(f'{image_folder}/{id_entry}.png')
+    page.get_pixmap(dpi=dpi).save(image_folder / f'{id_entry}.png')
 
     sys.stdout = old_stdout
 
     doc.close()
 
 
-def extract_from_json(id_entry: str, json_folder: str, pdf_folder: str, image_folder: str) -> bool:
+def extract_from_json(id_entry: str, json_folder: Path, pdf_folder: Path, image_folder: Path) -> bool:
     # Extract only the first figure from json_file
     # encoding = 'utf-8'
     encoding = 'iso-8859-1'
 
     try:
-        with open(f'{json_folder}/{id_entry}.json', 'r', encoding=encoding) as file:
+        with (json_folder / f'{id_entry}.json').open('r', encoding=encoding) as file:
             data = json.load(file)
     except FileNotFoundError:
         return False
     except UnicodeDecodeError:
-        print(f'Error decoding {json_folder}/{id_entry}.json')
+        print(f'Error decoding {json_folder / f"{id_entry}.json"}')
         return False
     except json.decoder.JSONDecodeError:
-        print(f'Error decoding {json_folder}/{id_entry}.json')
+        print(f'Error decoding {json_folder / f"{id_entry}.json"}')
         return False
 
     # Sort data by page
@@ -110,16 +108,16 @@ def extract_from_json(id_entry: str, json_folder: str, pdf_folder: str, image_fo
     return False
 
 
-def clean_previous_figures() -> None:
+def clean_previous_figures(abstracts_dir: Path) -> None:
     # Check if the markdown file is deleted, and delete the corresponding figures
-    for date in os.listdir(FIGURES_FOLDER):
-        # Check if is a folder
-        if os.path.isdir(f'{FIGURES_FOLDER}/{date}'):
-            if f'{date}.md' not in os.listdir(ABSTRACT_FOLDER):
+    figures_dir = abstracts_dir / 'figures'
+    for date_dir in figures_dir.iterdir():
+        if date_dir.is_dir():
+            if not (abstracts_dir / f'{date_dir.name}.md').exists() and not (abstracts_dir / date_dir.name).is_dir():
                 try:
-                    shutil.rmtree(f'{FIGURES_FOLDER}/{date}')
+                    shutil.rmtree(date_dir)
                 except PermissionError:
-                    print(f'Permission error deleting {FIGURES_FOLDER}/{date}')
+                    print(f'Permission error deleting {date_dir}')
 
 
 def check_java() -> bool:
@@ -135,19 +133,19 @@ def check_java() -> bool:
 
 def check_pdffigure2():
     # Check if pdffigure2 is installed in the system
-    if not os.path.isfile(PDFFIGURES2_PATH):
+    if not PDFFIGURES2_PATH.is_file():
         print('pdffigures2 is not installed. Downloading it from GitHub ...')
 
         # Download the file
         response = requests.get(PDFFIGURES2_URL)
-        with open(PDFFIGURES2_PATH, 'wb') as f:
+        with PDFFIGURES2_PATH.open('wb') as f:
             f.write(response.content)
 
 
-def create_folders(*folders: str) -> None:
+def create_folders(*folders: Path) -> None:
     # Create folders
     for folder in folders:
-        os.makedirs(folder, exist_ok=True)
+        folder.mkdir(parents=True, exist_ok=True)
 
 
 def remove_readonly(func, path, exc_info):
@@ -155,25 +153,27 @@ def remove_readonly(func, path, exc_info):
     func(path)
 
 
-def get_images_pdf_scrapper(date: str, entries: List[FeedParserDict], TMP_FOLDER: str) -> List[Union[str, None]]:
-    if not os.path.isdir(FIGURES_FOLDER):
-        os.mkdir(FIGURES_FOLDER)  # Create dir if it doesn't exist
+def get_images_pdf_scrapper(date: str, entries: List[FeedParserDict], temp_dir, abstracts_dir: Path,
+                            separate_files: bool) -> List[Union[str, None]]:
+    figures_dir = abstracts_dir / 'figures'
+    figures_dir.mkdir(parents=True, exist_ok=True)
 
     ids_entries = [entry.id.split('/')[-1] for entry in entries]
 
-    pdf_folder = f'{TMP_FOLDER.name}/{date}/pdfs'
-    json_folder = f'{TMP_FOLDER.name}/{date}/data'
-    image_folder = f'{FIGURES_FOLDER}/{date}'
+    temporary_date_dir = Path(temp_dir.name) / date
+    pdf_folder = temporary_date_dir / 'pdfs'
+    json_folder = temporary_date_dir / 'data'
+    image_folder = figures_dir / date
 
     threads_num = active_count()
 
-    clean_previous_figures()
+    clean_previous_figures(abstracts_dir)
 
     # Clean image folder
-    if os.path.exists(image_folder):
+    if image_folder.exists():
         shutil.rmtree(image_folder, onexc=remove_readonly)
 
-    create_folders(f'{TMP_FOLDER.name}/{date}', pdf_folder, json_folder, image_folder)
+    create_folders(temporary_date_dir, pdf_folder, json_folder, image_folder)
 
     if not check_java():
         return [None] * len(ids_entries)
@@ -190,15 +190,14 @@ def get_images_pdf_scrapper(date: str, entries: List[FeedParserDict], TMP_FOLDER
     pbar = Progressbar(len(ids_entries), prefix='Extracting figures')
     for id_entry in ids_entries:
         if extract_from_json(id_entry, json_folder, pdf_folder, image_folder):
-            figure_links.append(f'{image_folder}/{id_entry}.png')
+            image_path = image_folder / f'{id_entry}.png'
+            if separate_files:
+                figure_links.append((Path('..') / image_path.relative_to(abstracts_dir)).as_posix())
+            else:
+                figure_links.append(image_path.relative_to(abstracts_dir).as_posix())
         else:
             figure_links.append(None)
         pbar.update(1)
     pbar.close()
-
-    # TODO: Check relative path between Markdown file and images or work with absolute paths
-    for i, figure_link in enumerate(figure_links):
-        if figure_link is not None:
-            figure_links[i] = '../' + figure_link  # Only accept relative paths
 
     return figure_links

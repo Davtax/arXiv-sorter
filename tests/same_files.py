@@ -1,8 +1,9 @@
 import sys
+from pathlib import Path
 
 names = sys.argv[1:]
 
-content = [open(name, 'r').readlines() for name in names]
+content = [Path(name).read_text().splitlines(keepends=True) for name in names]
 content = sorted(content, key=len)
 
 for i in range(len(content) - 1):

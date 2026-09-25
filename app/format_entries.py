@@ -1,6 +1,6 @@
-import os
 from datetime import datetime
-from typing import List, Optional
+from pathlib import Path
+from typing import List, Optional, Union
 
 from feedparser import FeedParserDict
 
@@ -148,27 +148,27 @@ def write_article(entry: FeedParserDict, f, index: int, n_total: int, image_url=
         f.write('\n---\n')
 
 
-def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir: str, final: bool, separate_files: bool,
+def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir: Union[str, Path], final: bool, separate_files: bool,
                    image_urls: List[str], version: Optional[str] = None):
     print('Writing entries ...')
 
+    abstracts_path = Path(abstracts_dir)
     if separate_files:
-        root = f'{abstracts_dir}{date.date()}'
-        if not os.path.exists(root):  # Create folder if it doesn't exist
-            os.mkdir(root)
+        root = abstracts_path / str(date.date())
+        root.mkdir(parents=True, exist_ok=True)
 
         _write_document_split(root, entries, image_urls)
     else:
-        file_name = f'{abstracts_dir}{date.date()}.md'
+        file_name = abstracts_path / f'{date.date()}.md'
         _write_document_join(file_name, entries, image_urls, final, version)
 
 
-def _write_document_join(file_name: str, entries: List[FeedParserDict], image_urls: List[str], final: bool,
+def _write_document_join(file_name: Path, entries: List[FeedParserDict], image_urls: List[str], final: bool,
                          version: str):
     n_total = len(entries)
     n_new = sum([1 for entry in entries if entry.index >= 0])
 
-    with open(file_name, 'w', encoding='utf-8') as f:
+    with file_name.open('w', encoding='utf-8') as f:
         [write_article(entries[index], f, index, n_new, image_url=image_urls[index]) for index in
          range(n_new)]  # Write a new article (or with a new keyword)
 
@@ -183,15 +183,15 @@ def _write_document_join(file_name: str, entries: List[FeedParserDict], image_ur
             f.write(msg + '*')
 
 
-def _write_document_split(root: str, entries: List[FeedParserDict], image_urls: List[str]):
+def _write_document_split(root: Path, entries: List[FeedParserDict], image_urls: List[str]):
     n_new = sum([1 for entry in entries if entry.index >= 0])
 
     for i, entry in enumerate(entries[:n_new]):
-        file_name = f"{root}/{i}_{entry.id.split('/')[-1]}.md"
-        with open(file_name, 'w', encoding='utf-8') as f:
+        file_name = root / f"{i}_{entry.id.split('/')[-1]}.md"
+        with file_name.open('w', encoding='utf-8') as f:
             write_article(entry, f, i, n_new, image_url=image_urls[i])
 
     for i, entry in enumerate(entries[n_new:]):
-        file_name = f"{root}/{i + n_new}_{entry.id.split('/')[-1]}.md"
-        with open(file_name, 'w', encoding='utf-8') as f:
+        file_name = root / f"{i + n_new}_{entry.id.split('/')[-1]}.md"
+        with file_name.open('w', encoding='utf-8') as f:
             write_article(entry, f, i - n_new, len(entries) - n_new)

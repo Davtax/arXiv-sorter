@@ -3,12 +3,13 @@ from subprocess import Popen
 from time import sleep
 import shutil
 import os
+from pathlib import Path
 
-file_name = sys.argv[0].split('\\')[-1]
+file_name = Path(sys.argv[0]).name
 print(f'The file name is: {file_name} v0.0.2')
 
 # List of files in the current directory
-print(os.listdir())
+print([path.name for path in Path.cwd().iterdir()])
 
 if 'temp' in file_name:
     print('Im the new version')

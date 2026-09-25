@@ -1,4 +1,3 @@
-import os
 import sys
 from time import sleep
 from platform import system
@@ -6,6 +5,7 @@ from subprocess import Popen
 from typing import Union
 import shutil
 import zipfile
+from pathlib import Path
 
 import requests
 from packaging import version
@@ -72,7 +72,8 @@ def download_and_update(download_url):
     # Download the new version
     response = requests.get(download_url)
     filename = response.headers.get("Content-Disposition").split("filename=")[1]
-    with open(f'temp_{filename}', 'wb') as f:
+    downloaded_path = Path(f'temp_{filename}')
+    with downloaded_path.open('wb') as f:
         f.write(response.content)
 
     # Extract the new version
@@ -80,14 +81,15 @@ def download_and_update(download_url):
     #     zip_ref.extractall("temp")
 
     # Replace the old version with the new version
-    app_dir = os.path.dirname(sys.executable)  # Get the directory where the script is running
+    app_dir = Path(sys.executable).resolve().parent  # Get the directory where the script is running
 
     print(app_dir)
 
     sys.exit()
 
+    app_path = app_dir / 'app'
     shutil.rmtree(app_path)
-    shutil.move(os.path.join("temp", "app"), app_path)
+    shutil.move(Path('temp') / 'app', app_path)
 
     # # Clean up temporary files  # os.remove("temp.zip")  # shutil.rmtree("temp")
 
@@ -98,12 +100,14 @@ def check_version(download_url: str, _verbose: bool = False):
     """
 
     if '.py' not in sys.argv[0] and question('Do you want to update arXiv-sorter?'):
-        os.rename(sys.argv[0], sys.argv[0] + '.old')
+        executable_path = Path(sys.argv[0])
+        executable_path.rename(executable_path.with_name(executable_path.name + '.old'))
 
         response = requests.get(download_url)
-        open(asset['name'], 'wb').write(response.content)
+        asset_path = Path(asset['name'])
+        asset_path.write_bytes(response.content)
 
         print('The new version has been downloaded')
-        Popen('./' + asset['name'])
+        Popen([str(asset_path)])
 
         sys.exit()
