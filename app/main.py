@@ -4,7 +4,6 @@ import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 from feedparser import FeedParserDict
 
@@ -19,10 +18,14 @@ from app.utils import question
 from updater.updater import check_for_update, download_and_update, get_system_name
 
 
-def get_last_new(entries: List[FeedParserDict]):
+def get_last_new(entries: list[FeedParserDict]):
+    """
+    Flag the last new entry (the one before the first updated entry without matches), to separate both groups.
+    """
     for i, entry in enumerate(entries):
         if entry['index'] == -1:
-            entries[i - 1]['last_new'] = True
+            if i > 0:
+                entries[i - 1]['last_new'] = True
             break
 
 
@@ -56,7 +59,7 @@ def main(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
     # Read user files
     keywords = read_user_file(keyword_dir / 'keywords.txt')
     categories = read_user_file(keyword_dir / 'categories.txt')
-    authors = read_user_file(keyword_dir / 'authors.txt', sort=True)
+    authors = read_user_file(keyword_dir / 'authors.txt', sort=args.modify)
     authors = [r'\b' + author + r'\b' for author in authors]  # Convert list of authors to regex format
 
     if args.verbose:
@@ -93,7 +96,7 @@ def main(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
         except OSError:
             n_bars = sentence_len
 
-        for entries, date in zip(entries_dates, dates):  # Iterate over each day
+        for entries, date in zip(entries_dates, dates, strict=True):  # Iterate over each day
             print('-' * n_bars)  # Length of previous message: 'Requesting arXiv ...'
 
             if len(entries) == 0:
@@ -105,13 +108,13 @@ def main(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
             for entry in entries:
                 try:
                     fix_entry(entry)
-                except IndexError as e:
-                    print(f'Error')
+                except IndexError as error:
+                    print(f'Error formatting the entry {entry.id}: {error}')
 
             entries = sort_articles(entries, keywords, authors)
 
             # Get number of new manuscripts, and get their figure
-            n_new = sum([1 for entry in entries if entry.index >= 0])
+            n_new = sum(1 for entry in entries if entry.index >= 0)
 
             print(f'Found {len(entries)} entries for {date.date()} ({n_new} new submissions or with matching keywords)')
 

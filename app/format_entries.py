@@ -1,62 +1,57 @@
+import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import TextIO
 
 from feedparser import FeedParserDict
 
 from app.dates_functions import obtain_date
+
+# Note: fields are always assigned with `entry[key] = value`. FeedParserDict only redirects attribute *reads* to the
+# dictionary, so `entry.key = value` would create a shadowing attribute and leave the dictionary item outdated.
 
 
 def _remove_white_spaces(text: str) -> str:
     """
     Remove duplicate white spaces from a string.
     """
-    index = text.find('  ')
-    while index != -1:  # Iterate until there are no more duplicate white spaces
-        text = text.replace('  ', ' ')
-        index = text.find('  ')
-    return text
+    return re.sub(' {2,}', ' ', text)
+
+
+def _clean_text(text: str) -> str:
+    """
+    Remove line breaks, duplicate white spaces and backticks, which break the markdown format.
+    """
+    text = text.replace('\n', ' ')  # The raw data contains carriage returns
+    text = _remove_white_spaces(text)
+    return text.replace('`', "'")
 
 
 def _fix_title(entry: FeedParserDict):
     """
     Fix the title to remove white spaces and other uncommon characters.
     """
-    title = entry.title
+    title = _clean_text(entry.title)
 
-    title = title.replace('\n', ' ')  # The raw data contains carriage returns
-    title = _remove_white_spaces(title)
-    title = title.replace('`', "'")
-
-    if entry.updated != entry.published:  # If the entry has been updated, so it is not new
+    entry['updated_bool'] = entry.updated != entry.published  # If the entry has been updated, so it is not new
+    if entry.updated_bool:
         title += ' *(UPDATED)*'
-        entry['updated_bool'] = True
-    else:
-        entry['updated_bool'] = False
 
-    entry.title = title
+    entry['title'] = title
 
 
 def _fix_abstract(entry: FeedParserDict):
     """
     Fix the abstract to remove white spaces and other uncommon characters.
     """
-    abstract = entry.summary
-    abstract = abstract.replace('\n', ' ')  # The raw data contains carriage returns
-    abstract = _remove_white_spaces(abstract)
-    abstract = abstract.replace('`', "'")
-
-    entry.summary = abstract
+    entry['summary'] = _clean_text(entry.summary)
 
 
 def _fix_authors(entry: FeedParserDict):
     """
     Join the authors in a single string.
     """
-    authors = entry['authors']
-    authors = ', '.join([author.name for author in authors])
-
-    entry.authors = authors
+    entry['authors'] = ', '.join(author.name for author in entry.authors)
 
 
 def _fix_equation_inner(text: str) -> str:
@@ -99,18 +94,15 @@ def _fix_equations(entry: FeedParserDict):
     """
     Fix the equations that appear both in the title and the abstract.
     """
-    entry.summary = _fix_equation_inner(entry.summary)
-    entry.title = _fix_equation_inner(entry.title)
+    entry['summary'] = _fix_equation_inner(entry.summary)
+    entry['title'] = _fix_equation_inner(entry.title)
 
 
 def _fix_date(entry: FeedParserDict):
     """
     Fix the date to the proper format.
     """
-    date = entry.updated
-
-    ct = obtain_date(date)
-    entry.updated = ct.strftime("%a, %d %b %Y %H:%M:%S GMT")
+    entry['updated'] = obtain_date(entry.updated).strftime("%a, %d %b %Y %H:%M:%S GMT")
 
 
 def fix_entry(entry: FeedParserDict):
@@ -124,9 +116,9 @@ def fix_entry(entry: FeedParserDict):
     _fix_date(entry)
 
 
-def write_article(entry: FeedParserDict, f, index: int, n_total: int, image_url=None):
+def write_article(entry: FeedParserDict, f: TextIO, index: int, n_total: int, image_url: str | None = None):
     """
-    Write the article to the markdown file.
+    Write the article to the markdown file. `index` is zero-based.
     """
     f.write(f'({index + 1} / {n_total})\n\n')
     f.write(f'Title: **{entry.title}**\n\n')
@@ -148,8 +140,12 @@ def write_article(entry: FeedParserDict, f, index: int, n_total: int, image_url=
         f.write('\n---\n')
 
 
-def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir: Union[str, Path], final: bool, separate_files: bool,
-                   image_urls: List[str], version: Optional[str] = None):
+def write_document(entries: list[FeedParserDict], date: datetime, abstracts_dir: str | Path, final: bool,
+                   separate_files: bool, image_urls: list[str | None], version: str | None = None):
+    """
+    Write the sorted entries of a given date, either in a single markdown file or in a folder with a file per entry.
+    `image_urls` contains the figure of each new entry (index >= 0), which are placed at the beginning of `entries`.
+    """
     print('Writing entries ...')
 
     abstracts_path = Path(abstracts_dir)
@@ -163,35 +159,40 @@ def write_document(entries: List[FeedParserDict], date: datetime, abstracts_dir:
         _write_document_join(file_name, entries, image_urls, final, version)
 
 
-def _write_document_join(file_name: Path, entries: List[FeedParserDict], image_urls: List[str], final: bool,
-                         version: str):
-    n_total = len(entries)
-    n_new = sum([1 for entry in entries if entry.index >= 0])
+def _count_new(entries: list[FeedParserDict]) -> int:
+    return sum(1 for entry in entries if entry.index >= 0)
+
+
+def _write_document_join(file_name: Path, entries: list[FeedParserDict], image_urls: list[str | None], final: bool,
+                         version: str | None):
+    n_new = _count_new(entries)
+    new_entries, updated_entries = entries[:n_new], entries[n_new:]
 
     with file_name.open('w', encoding='utf-8') as f:
-        [write_article(entries[index], f, index, n_new, image_url=image_urls[index]) for index in
-         range(n_new)]  # Write a new article (or with a new keyword)
+        for i, entry in enumerate(new_entries):  # New articles (or with a matching keyword)
+            write_article(entry, f, i, n_new, image_url=image_urls[i])
 
-        [write_article(entries[index], f, index - n_new, n_total - n_new) for index in
-         range(n_new, n_total)]  # Write updated articles
+        for i, entry in enumerate(updated_entries):
+            write_article(entry, f, i, len(updated_entries))
 
         if final:
-            ct = datetime.now()
-            msg = f'\n*This file was created at: {ct.strftime("%d %B %Y %H:%M:%S")}'
+            msg = f'\n*This file was created at: {datetime.now().strftime("%d %B %Y %H:%M:%S")}'
             if version is not None:
                 msg += f', with arXiv-sorter version: {version}'
             f.write(msg + '*')
 
 
-def _write_document_split(root: Path, entries: List[FeedParserDict], image_urls: List[str]):
-    n_new = sum([1 for entry in entries if entry.index >= 0])
+def _write_document_split(root: Path, entries: list[FeedParserDict], image_urls: list[str | None]):
+    n_new = _count_new(entries)
+    new_entries, updated_entries = entries[:n_new], entries[n_new:]
 
-    for i, entry in enumerate(entries[:n_new]):
-        file_name = root / f"{i}_{entry.id.split('/')[-1]}.md"
-        with file_name.open('w', encoding='utf-8') as f:
+    def file_name(position: int, entry: FeedParserDict) -> Path:
+        return root / f"{position}_{entry.id.split('/')[-1]}.md"
+
+    for i, entry in enumerate(new_entries):
+        with file_name(i, entry).open('w', encoding='utf-8') as f:
             write_article(entry, f, i, n_new, image_url=image_urls[i])
 
-    for i, entry in enumerate(entries[n_new:]):
-        file_name = root / f"{i + n_new}_{entry.id.split('/')[-1]}.md"
-        with file_name.open('w', encoding='utf-8') as f:
-            write_article(entry, f, i - n_new, len(entries) - n_new)
+    for i, entry in enumerate(updated_entries):
+        with file_name(n_new + i, entry).open('w', encoding='utf-8') as f:
+            write_article(entry, f, i, len(updated_entries))

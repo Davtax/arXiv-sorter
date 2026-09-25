@@ -1,6 +1,7 @@
 import argparse
 import builtins
 import tempfile
+import traceback
 
 from app.main import main
 
@@ -48,6 +49,8 @@ if __name__ == '__main__':
         main(args, temp_dir)
     except Exception as e:
         print(f'An error occurred: {e}')
+        if args.verbose:
+            traceback.print_exc()
 
     temp_dir.cleanup()
 

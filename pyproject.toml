@@ -1,0 +1,46 @@
+[project]
+name = "arxiv-sorter"
+dynamic = ["version"]
+description = "Download, sort and highlight the daily arXiv submissions matching your keywords and authors."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.14"
+dependencies = [
+    "feedparser",
+    "unidecode",
+    "requests",
+    "packaging",
+    "pytz",
+    "grequests",
+    "pymupdf",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers -m 'not network'"
+markers = [
+    "network: tests that reach the real arXiv / GitHub servers (deselect with -m 'not network')",
+]
+filterwarnings = [
+    # grequests monkey-patches ssl through gevent after it has been imported
+    "ignore::gevent.monkey.MonkeyPatchWarning",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+extend-exclude = ["playground", "test_pdffigures"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["SIM108"]  # ternaries are not always clearer
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "updater"]
+
+[tool.ruff.format]
+quote-style = "preserve"

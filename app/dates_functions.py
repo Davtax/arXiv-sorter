@@ -1,6 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Union
 
 import pytz
 
@@ -13,9 +12,10 @@ def daterange(start_date: datetime, end_date: datetime):
         yield start_date + timedelta(n)
 
 
-def check_last_date(folder_name: Union[str, Path], separate_files: bool) -> datetime:
+def check_last_date(folder_name: str | Path, separate_files: bool) -> datetime | None:
     """
     Check the last date of the file in the abstracts folder by its name.
+    Returns None if the folder exists but contains no dated file, and the current date if the folder does not exist.
     """
     folder_path = Path(folder_name)
     if folder_path.exists():
@@ -59,7 +59,7 @@ def current_time_zone():
 
 
 def current_utc_timestamp() -> float:
-    return datetime.utcnow().timestamp()
+    return datetime.now(UTC).timestamp()
 
 
 def prev_mail(date: datetime) -> datetime:

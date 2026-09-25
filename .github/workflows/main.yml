@@ -91,7 +91,7 @@ jobs:
           fileA=arXiv-sorter-Ubuntu/abstracts/$filename
           fileB=arXiv-sorter-Windows/abstracts/$filename
           fileC=arXiv-sorter-macOS/abstracts/$filename
-          python tests/same_files.py $fileA $fileB $fileC
+          python scripts/same_files.py $fileA $fileB $fileC
 
       - name: Create Release
         id: create_release

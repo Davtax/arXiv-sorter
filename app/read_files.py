@@ -1,9 +1,9 @@
-from unidecode import unidecode
 from pathlib import Path
-from typing import List, Union
+
+from unidecode import unidecode
 
 
-def read_user_file(file_name: Union[str, Path], sort: bool = False) -> List[str]:
+def read_user_file(file_name: str | Path, sort: bool = False) -> list[str]:
     """
     Read a file with keywords or authors and return a list of unique lines.
     """
@@ -11,31 +11,26 @@ def read_user_file(file_name: Union[str, Path], sort: bool = False) -> List[str]
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.touch(exist_ok=True)
 
-    with file_path.open('r', encoding='utf-8') as f:
-        lines = f.read()
-
-    lines = lines.split('\n')
-    lines = [line for line in lines if line]  # Remove empty lines
+    lines = file_path.read_text(encoding='utf-8').splitlines()
+    lines = [line for line in lines if line.strip()]  # Remove empty lines
 
     if sort:
         lines = sorted(lines, key=_sorting_key)
+        file_path.write_text(''.join(f'{line}\n' for line in lines), encoding='utf-8')
 
-        with file_path.open('w', encoding='utf-8') as f:
-            [f.write(line + '\n') for line in lines]
-
-    lines = [line for line in lines if line[0] != '#']  # Remove comments
+    lines = [line for line in lines if not line.lstrip().startswith('#')]  # Remove comments
 
     return _obtain_unique_lines(lines)
 
 
-def _obtain_unique_lines(lines: List[str]) -> List[str]:
+def _obtain_unique_lines(lines: list[str]) -> list[str]:
     """
-    Obtain the unique lines from a list of lines, after a normalization process. If multiple keywords are present, then
-    they are grouped together in a list.
+    Obtain the unique lines from a list of lines, after a normalization process (lower case, no accents and no
+    surrounding spaces).
     """
     unique_lines = []
-    for i in range(len(lines)):
-        line = unidecode(lines[i].lower()).strip()  # Normalize unicode characters (e.g. accents) and remove spaces
+    for line in lines:
+        line = unidecode(line.lower()).strip()
 
         if line not in unique_lines:
             unique_lines.append(line)

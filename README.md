@@ -179,6 +179,28 @@ When running the program from the terminal, you can use the following optional a
 - `--date0`: Specify the date of the first mailing list to be sorted.
   The date should be in the format `YYYYMMDD`.
   If the date is not specified, the program will search for the latest file in the `abstracts` folder.
-- `--date0`: Specify the date of the last mailing list to be sorted.
+- `--datef`: Specify the date of the last mailing list to be sorted.
   The date should be in the format `YYYYMMDD`.
   If the date is not specified, this will be the current date.
+
+## Development
+
+The program requires Python 3.14. Install the dependencies (including the development tools) with
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+and run it from the source code with `python run.py` (the same optional arguments apply).
+
+The tests use [pytest](https://docs.pytest.org/) and the code is linted with [ruff](https://docs.astral.sh/ruff/),
+both configured in `pyproject.toml`:
+
+```bash
+pytest               # unit tests (no internet connection required)
+pytest -m network    # tests that make real requests to the arXiv API
+ruff check .         # lint (use --fix to fix the automatically fixable issues)
+```
+
+Both run in GitHub Actions on every push and pull request.
+The folder `scripts/` contains helper scripts used by the release workflow.

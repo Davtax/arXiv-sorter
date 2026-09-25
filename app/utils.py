@@ -3,13 +3,14 @@ import re
 import sys
 from os import get_terminal_size
 from time import sleep, time
-from typing import List, Optional
+from typing import TextIO
 
 import grequests
 import requests
 
-# Set standard output to UTF-8 encoding if it's not set
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+# Set standard output to UTF-8 encoding (the Windows console may use a legacy code page)
+if isinstance(sys.stdout, io.TextIOWrapper):
+    sys.stdout.reconfigure(encoding='utf-8')
 
 
 def timing_message(total_time: int, message: str, step: int = 1):
@@ -37,7 +38,7 @@ def question(message: str) -> bool:
 
 
 class ProgressSession:
-    def __init__(self, urls: List[str]):
+    def __init__(self, urls: list[str]):
         self.pbar = Progressbar(len(urls), prefix='Progress:')
         self.urls = urls
 
@@ -54,10 +55,10 @@ class ProgressSession:
         self.pbar.close()
 
 
-def get_urls_async(urls: List[str], progres_bar: Optional[bool] = True) -> List[requests.Response]:
+def get_urls_async(urls: list[str], progress_bar: bool = True) -> list[requests.Response]:
     headers = {'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'}
 
-    if progres_bar:
+    if progress_bar:
         with ProgressSession(urls) as sess:
             rs = (grequests.get(url, session=sess, headers=headers) for url in urls)
 
@@ -67,12 +68,12 @@ def get_urls_async(urls: List[str], progres_bar: Optional[bool] = True) -> List[
         return grequests.map(rs, size=5)
 
 
-def get_image_urls(ids: List[str]) -> List[str]:
+def get_image_urls(ids: list[str]) -> list[str]:
     urls = [f'https://arxiv.org/html/{id_}' for id_ in ids]
     results = get_urls_async(urls)
 
     image_urls = []
-    for id_, result in zip(ids, results):
+    for id_, result in zip(ids, results, strict=True):
         path = get_image(result)
         if path == '':
             image_urls.append(None)
@@ -101,21 +102,21 @@ def get_image(response: requests.Response) -> str:
 
 
 class Progressbar:
-    def __init__(self, count: int, prefix: Optional[str] = "", size: Optional[int] = 40, out=sys.stdout):
+    def __init__(self, count: int, prefix: str = "", size: int = 40, out: TextIO | None = None):
         self.count = count
         self.current = 0
         self.start = time()
 
         self.size = size
         self.prefix = prefix
-        self.out = out
+        self.out = out if out is not None else sys.stdout
 
         try:
             self.terminal_size = get_terminal_size()
         except OSError:
             self.terminal_size = None
 
-    def update(self, j: Optional[int] = 1):
+    def update(self, j: int = 1):
         self.current += j
         remaining = ((time() - self.start) / self.current) * (self.count - self.current)
 

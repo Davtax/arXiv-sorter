@@ -22,3 +22,7 @@ pdfextract/
 pdffigures2-master/
 playground/
 test_pdffigures/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
