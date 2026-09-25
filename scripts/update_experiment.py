@@ -1,9 +1,7 @@
 import sys
+from pathlib import Path
 from subprocess import Popen
 from time import sleep
-import shutil
-import os
-from pathlib import Path
 
 file_name = Path(sys.argv[0]).name
 print(f'The file name is: {file_name} v0.0.2')
