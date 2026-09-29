@@ -2,6 +2,8 @@ import json
 import os
 import shutil
 import stat
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures.process import BrokenProcessPool
 from contextlib import redirect_stdout
 from pathlib import Path
 from subprocess import DEVNULL, Popen
@@ -76,8 +78,12 @@ def download_pdfs(ids_entries: list[str], pdf_folder: Path, batch_size: int = 25
                         f'they will have no figure: {", ".join(refused)}')
 
 
-def detect_figure(pdf_folder: Path, json_folder: Path, threads: int, java: str | os.PathLike[str] = 'java',
-                  t_poll: float = 0.5) -> None:
+def detect_figure(pdf_folder: Path,
+                  json_folder: Path,
+                  threads: int,
+                  java: str | os.PathLike[str] = 'java',
+                  t_poll: float = 0.5
+                  ) -> None:
     """
     Detect the figures of the PDFs with pdffigures2, run by the given java executable, which saves a JSON file per PDF
     inside json_folder.
@@ -122,7 +128,20 @@ def _extract_region(id_entry: str, pdf_folder: Path, image_folder: Path, json_en
 
 
 def extract_from_json(id_entry: str, json_folder: Path, pdf_folder: Path, image_folder: Path) -> bool:
-    # Extract only the first figure from json_file
+    """
+    Save the first figure detected in the PDF of the entry as an image. False if it has none.
+    """
+    found, detail = _first_figure(id_entry, json_folder, pdf_folder, image_folder)
+    if detail:
+        console.detail(detail)
+    return found
+
+
+def _first_figure(id_entry: str, json_folder: Path, pdf_folder: Path, image_folder: Path) -> tuple[bool, str]:
+    """
+    Body of extract_from_json, which also runs in other processes: instead of printing, it returns whether the figure
+    was saved, and a detail to show (the other processes have neither the log file nor the --verbose option).
+    """
     # encoding = 'utf-8'
     encoding = 'iso-8859-1'
 
@@ -130,10 +149,9 @@ def extract_from_json(id_entry: str, json_folder: Path, pdf_folder: Path, image_
         with (json_folder / f'{id_entry}.json').open('r', encoding=encoding) as file:
             data = json.load(file)
     except FileNotFoundError:
-        return False
+        return False, ''
     except (UnicodeDecodeError, json.JSONDecodeError):
-        console.detail(f'Unable to read the figures detected in {id_entry} ({json_folder / f"{id_entry}.json"})')
-        return False
+        return False, f'Unable to read the figures detected in {id_entry} ({json_folder / f"{id_entry}.json"})'
 
     # Sort data by page
     data = sorted(data, key=lambda x: (x['page'], x['regionBoundary']['x1'], x['regionBoundary']['y1']))
@@ -142,12 +160,47 @@ def extract_from_json(id_entry: str, json_folder: Path, pdf_folder: Path, image_
         if json_entry['figType'] == 'Figure':
             try:
                 _extract_region(id_entry, pdf_folder, image_folder, json_entry)
-                return True
+                return True, ''
             except ValueError:
                 # Sometimes pdf2figures2 detects figures out of the page
                 pass
 
-    return False
+    return False, ''
+
+
+def extract_all(ids_entries: list[str], json_folder: Path, pdf_folder: Path, image_folder: Path, threads: int = 1) -> \
+list[bool]:
+    """
+    Save the first figure of each entry, rendering several PDFs at the same time with the given number of processes
+    (PyMuPDF does not support threads, and would hold the GIL). Returns whether each entry got a figure.
+    """
+    found = [False] * len(ids_entries)
+    workers = min(threads, len(ids_entries))
+    pbar = Progressbar(len(ids_entries), prefix='Extracting figures', icon='🎨')
+
+    if workers <= 1:  # Starting other processes takes longer than extracting a few figures
+        for i, id_entry in enumerate(ids_entries):
+            found[i] = extract_from_json(id_entry, json_folder, pdf_folder, image_folder)
+            pbar.update(1)
+        pbar.close()
+        return found
+
+    with ProcessPoolExecutor(workers) as pool:
+        futures = {pool.submit(_first_figure, id_entry, json_folder, pdf_folder, image_folder): i for i, id_entry in
+                   enumerate(ids_entries)}
+        try:
+            for future in as_completed(futures):
+                found[futures[future]], detail = future.result()
+                if detail:
+                    console.detail(detail)
+                pbar.update(1)
+        except BrokenProcessPool:  # A process crashed, e.g. rendering a malformed PDF
+            missing = [ids_entries[i] for future, i in futures.items() if
+                       not future.done() or future.exception() is not None]
+            console.warning(f'The extraction of the figures stopped unexpectedly, {len(missing)} entries have no '
+                            f'figure: {", ".join(missing)}')
+    pbar.close()
+    return found
 
 
 def clean_previous_figures(abstracts_dir: Path) -> None:
@@ -232,11 +285,11 @@ def extract_figures(date: str,
                     temp_dir,
                     abstracts_dir: Path,
                     separate_files: bool,
-                    threads: int = 1,
-                    ) -> list[str | None]:
+                    threads: int = 1, ) -> list[str | None]:
     """
     Download the PDFs of the entries and extract their first figure, detected by pdffigures2 with the given number of
-    threads (each one processes a PDF at a time, so more threads are faster but use more memory).
+    threads and saved as images by as many processes (each one processes a PDF at a time, so more threads are faster
+    but use more memory).
     Returns the link to the figure of each entry, relative to the abstracts folder (None if no figure was found).
     """
     figures_dir = abstracts_dir / 'figures'
@@ -267,12 +320,11 @@ def extract_figures(date: str,
     # Detect figures from pdfs
     detect_figure(pdf_folder, json_folder, threads, java)
 
-    # Extract figures from json files
-    # ToDo: use a thread pool to extract the figures in parallel, since it is slow and CPU intensive
+    # Extract figures from json files, with as many processes as threads detect them
     figure_links: list[str | None] = []
-    pbar = Progressbar(len(ids_entries), prefix='Extracting figures', icon='🎨')
-    for id_entry in ids_entries:
-        if extract_from_json(id_entry, json_folder, pdf_folder, image_folder):
+    found = extract_all(ids_entries, json_folder, pdf_folder, image_folder, threads)
+    for id_entry, has_figure in zip(ids_entries, found, strict=True):
+        if has_figure:
             image_path = image_folder / f'{id_entry}.png'
             if separate_files:
                 figure_links.append((Path('..') / image_path.relative_to(abstracts_dir)).as_posix())
@@ -280,8 +332,6 @@ def extract_figures(date: str,
                 figure_links.append(image_path.relative_to(abstracts_dir).as_posix())
         else:
             figure_links.append(None)
-        pbar.update(1)
-    pbar.close()
 
     n_figures = sum(link is not None for link in figure_links)
     console.info(f'Figures found for {n_figures} of the {len(ids_entries)} new entries', icon='🎨')

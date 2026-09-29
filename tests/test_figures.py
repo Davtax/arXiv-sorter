@@ -1,10 +1,12 @@
 import json
+from concurrent.futures import Future
+from concurrent.futures.process import BrokenProcessPool
 from types import SimpleNamespace
 
 import pytest
 
 from arxiv_sorter import figures
-from arxiv_sorter.figures import clean_previous_figures, extract_from_json
+from arxiv_sorter.figures import clean_previous_figures, extract_all, extract_from_json
 
 
 class TestExtractFromJson:
@@ -58,6 +60,57 @@ def test_clean_previous_figures_removes_orphans_only(tmp_path):
     clean_previous_figures(tmp_path)
 
     assert sorted(path.name for path in figures.iterdir()) == ['2026-01-01', '2026-01-02']
+
+
+
+def write_figure_json(folder, id_entry, fig_type='Figure'):
+    data = [{'figType': fig_type, 'page': 0, 'regionBoundary': {'x1': 0, 'x2': 9, 'y1': 0, 'y2': 9}}]
+    (folder / f'{id_entry}.json').write_text(json.dumps(data), encoding='utf-8')
+
+
+class TestExtractAll:
+    IDS = ['2609.00001', '2609.00002', '2609.00003', '2609.00004']
+
+    def test_one_thread_extracts_in_this_process(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(figures, 'ProcessPoolExecutor', None)  # Never started
+        monkeypatch.setattr(figures, 'extract_from_json', lambda id_entry, *folders: id_entry.endswith(('1', '3')))
+
+        assert extract_all(self.IDS, tmp_path, tmp_path, tmp_path, threads=1) == [True, False, True, False]
+
+    def test_several_threads_extract_in_other_processes(self, tmp_path, capsys, verbose):
+        """Real processes, which report the figures found in the order of the entries, and their details."""
+        write_figure_json(tmp_path, self.IDS[0], fig_type='Table')
+        write_figure_json(tmp_path, self.IDS[1], fig_type='Table')
+        (tmp_path / f'{self.IDS[2]}.json').write_text('{not json', encoding='utf-8')
+
+        assert extract_all(self.IDS, tmp_path, tmp_path, tmp_path, threads=3) == [False] * 4
+        assert f'Unable to read the figures detected in {self.IDS[2]}' in capsys.readouterr().out
+
+    def test_a_crashed_process_leaves_the_other_figures(self, tmp_path, capsys, monkeypatch):
+        class CrashingPool:
+            """Pool whose second task crashes its process."""
+            def __init__(self, workers):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def submit(self, function, id_entry, *folders):
+                future = Future()
+                if id_entry == TestExtractAll.IDS[1]:
+                    future.set_exception(BrokenProcessPool('A process terminated abruptly'))
+                else:
+                    future.set_result((True, ''))
+                return future
+
+        monkeypatch.setattr(figures, 'ProcessPoolExecutor', CrashingPool)
+        found = extract_all(self.IDS, tmp_path, tmp_path, tmp_path, threads=4)
+
+        assert found[1] is False
+        assert self.IDS[1] in capsys.readouterr().out
 
 
 class TestCheckPdffigures2:

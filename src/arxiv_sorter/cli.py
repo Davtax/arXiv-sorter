@@ -60,8 +60,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument('-u', '--update', action='store_true', help='download new versions of arXiv-sorter')
     parser.add_argument('-i', '--image', action='store_false', help='do not include the figures (faster)')
     parser.add_argument('-t', '--threads', type=threads_type, default=1,
-                        help=f'threads to detect the figures, from 1 (default) to {max_threads()} in this system. More '
-                             'threads are faster, but use more memory')
+                        help=f'threads to detect and extract the figures, from 1 (default) to {max_threads()} in this '
+                             'system. More threads are faster, but use more memory')
     parser.add_argument('-s', '--separate', action='store_true', help='create a separate file for each submission')
     parser.add_argument('-m', '--modify', action='store_false',
                         help='do not modify authors.txt (it is sorted and its blank lines removed by default)')

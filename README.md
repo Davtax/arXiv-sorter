@@ -196,8 +196,8 @@ When running the program from the terminal, you can use the following optional a
 - `--modify` or `-m`: Do not modify the authors file (sort and remove blank lines).
 - `--image` or `-i`: Remove the images to the markdown file.
   The image is the first figure in the abstract.
-- `--threads` or `-t`: Number of threads used to detect the figures, from 1 (default) to the number of CPUs of the
-  system.
+- `--threads` or `-t`: Number of threads used to detect the figures, and of processes that save them as images, from 1
+  (default) to the number of CPUs of the system.
   Each thread processes a PDF at a time, so more threads are faster but use more memory.
 - `--date0`: Specify the date of the first mailing list to be sorted.
   The date should be in the format `YYYYMMDD`.

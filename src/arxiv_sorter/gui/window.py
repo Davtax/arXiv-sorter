@@ -383,8 +383,8 @@ class MainWindow(QMainWindow):
         self.threads_spin.setRange(1, max_threads())
         self.threads_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.threads_spin.setMinimumWidth(self.threads_spin.fontMetrics().horizontalAdvance('0000') + 30)  # Arrows
-        self.threads_spin.setToolTip(f'Threads to detect the figures, up to {max_threads()} (CPUs of this system). '
-                                     'More threads are faster, but use more memory (--threads)')
+        self.threads_spin.setToolTip(f'Threads to detect and extract the figures, up to {max_threads()} (CPUs of this '
+                                     'system). More threads are faster, but use more memory (--threads)')
         self.images_check.toggled.connect(self._update_threads_enabled)
         threads_row = QHBoxLayout()
         # Indented past the text of the figures option, which it depends on (measured with the style of the platform)
