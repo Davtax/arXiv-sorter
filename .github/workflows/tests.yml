@@ -3,9 +3,9 @@ name: Tests
 on:
   push:
     branches: [ main ]
-  pull_request:
   workflow_dispatch:  # Run it from the Actions tab (also runs the tests against the real servers)
-  workflow_call:  # First job of a release build, which only builds the binaries if the tests pass
+  # First job of the build workflow, which only builds the binaries if the tests pass (also in the pull requests)
+  workflow_call:
   schedule:
     - cron: '0 6 * * 1'  # Every Monday, to detect changes in the arXiv and GitHub APIs
 

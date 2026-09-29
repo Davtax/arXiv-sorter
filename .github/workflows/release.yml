@@ -1,0 +1,90 @@
+name: Release
+
+# When a pull request into main is merged, its version is released: a draft release is created with the archives built,
+# tested and attested by the build workflow in the pull request (not built again), their checksums and the notes of
+# the changes. The tag v<version> is created on the merged commit when the draft is published.
+on:
+  pull_request:
+    types: [ closed ]
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Draft release
+    if: github.event.pull_request.merged && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write  # To create the release
+      actions: read  # To download the archives of the build workflow
+    steps:
+      - name: Checkout the merged commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Find the build of the pull request
+        id: build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          run_id=$(gh run list --workflow build.yml --event pull_request --commit "$HEAD_SHA" --status success \
+            --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$run_id" ]; then
+            echo "::error::No successful build of the last commit of the pull request ($HEAD_SHA)"
+            exit 1
+          fi
+          echo "Archives of the build $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$run_id"
+          echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Download the archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release
+          run-id: ${{ steps.build.outputs.run-id }}
+          github-token: ${{ github.token }}
+
+      - name: Download the tree of the built commit
+        uses: actions/download-artifact@v8
+        with:
+          name: source-tree
+          run-id: ${{ steps.build.outputs.run-id }}
+          github-token: ${{ github.token }}
+
+      - name: Check the version and the built files
+        id: version
+        run: |
+          if [ "$(git rev-parse 'HEAD^{tree}')" != "$(cat tree.txt)" ]; then
+            echo "::error::main changed after the build of the pull request, so the archives are not of the merged commit"
+            exit 1
+          fi
+          version=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' src/arxiv_sorter/__init__.py)
+          if [ -z "$version" ]; then
+            echo "::error::No __version__ = \"...\" found in src/arxiv_sorter/__init__.py"
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
+            echo "::error::The tag v$version already exists"
+            exit 1
+          fi
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create the draft release
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          TARGET: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          sha256sum arXiv-sorter-*.zip arXiv-sorter-*.tar.gz > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --target "$TARGET" --generate-notes \
+            --title "arXiv-sorter $TAG" \
+            arXiv-sorter-CLI-Ubuntu.zip arXiv-sorter-CLI-Windows.zip arXiv-sorter-CLI-macOS.zip \
+            arXiv-sorter-GUI-Ubuntu.tar.gz arXiv-sorter-GUI-Windows.zip arXiv-sorter-GUI-macOS.zip SHA256SUMS.txt

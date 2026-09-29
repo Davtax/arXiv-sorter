@@ -339,37 +339,37 @@ mypy                 # type check
 
 ### Continuous integration
 
-Two GitHub Actions workflows check the changes and build the releases:
+Three GitHub Actions workflows check the changes and publish the releases:
 
-- **Tests** (`.github/workflows/tests.yml`), on every pull request and push to `main`: ruff, mypy and
-  [actionlint](https://github.com/rhysd/actionlint) (for the workflows), and the tests with coverage on Windows, macOS
-  and Linux. Every Monday, and when run by hand from the Actions tab, the tests against the real arXiv and GitHub
-  servers also run.
-- **Build** (`.github/workflows/build.yml`), in the pull requests that change the program or its packaging, and when
-  a version tag is pushed: builds the command line and GUI binaries for the three systems, runs them (detecting a
-  single figure), and checks that they write the same abstracts. For a tag, the tests run first, and the binaries are
-  only built and released if they pass (see below). It can also be run by hand from the Actions tab, to build any
-  branch without release. The binaries can be downloaded from the summary of the run for 14 days.
+- **Tests** (`.github/workflows/tests.yml`), in every pull request (as the first job of the build workflow) and push
+  to `main`: ruff, mypy and [actionlint](https://github.com/rhysd/actionlint) (for the workflows), and the tests with
+  coverage on Windows, macOS and Linux. In the pull requests into `main`, it also checks that `__version__` is larger
+  than the one in `main`. Every Monday, and when run by hand from the Actions tab, the tests against the real arXiv
+  and GitHub servers also run.
+- **Build** (`.github/workflows/build.yml`), in every pull request, after the tests pass: builds the command line and
+  GUI binaries for the three systems, runs them (detecting a single figure), and checks that they write the same
+  abstracts. The binaries are always built in the pull requests into `main`, and in the others only if they change the
+  program or its packaging. It can also be run by hand from the Actions tab, to build any branch. The binaries can be
+  downloaded from the summary of the run for 14 days.
+- **Release** (`.github/workflows/release.yml`), when a pull request into `main` is merged: creates a draft release
+  with the archives built in the pull request (see below).
 
-[Dependabot](.github/dependabot.yml) opens pull requests every month to update the actions and the dependencies.
-The folder `scripts/` contains the helper scripts of the build workflow.
+[Dependabot](.github/dependabot.yml) opens pull requests into `dev` every month to update the actions and the
+dependencies. The folder `scripts/` contains the helper scripts of the workflows.
 
 ### Releases
 
-1. Update `__version__` in `src/arxiv_sorter/__init__.py`, and push it to `main`.
-2. Tag the commit and push the tag:
+Every pull request into `main` is a release, so the changes are made in `dev` (or merged into it):
 
-   ```bash
-   git tag v0.4.0
-   git push origin v0.4.0
-   ```
-
-3. The build workflow runs the tests and creates a draft release with the six archives, their checksums
-   (`SHA256SUMS.txt`) and the notes of the changes. Review it on GitHub and publish it. The workflow stops if a test
-   fails, or if the tag does not match `__version__`.
+1. Update `__version__` in `src/arxiv_sorter/__init__.py` in `dev`.
+2. Open a pull request from `dev` into `main`. The tests run, and then the six archives are built, tested and attested.
+3. Merge it. The release workflow creates a draft release with the archives of the pull request (they are not built
+   again), their checksums (`SHA256SUMS.txt`) and the notes of the changes. Review it on GitHub and publish it, which
+   creates the tag `v<version>` on the merged commit. The workflow stops if `main` changed after the pull request was
+   built (update the pull request with `main` before merging), or if the tag already exists.
 
 Each archive has a signed [build provenance](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations)
-that shows it was built by the workflow from the tagged commit. Check it with
+that shows it was built by the workflow in the pull request of the release. Check it with
 
 ```bash
 gh attestation verify arXiv-sorter-GUI-Windows.zip --repo Davtax/arXiv-sorter
