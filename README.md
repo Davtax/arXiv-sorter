@@ -44,7 +44,10 @@ image.
 ## Usage
 
 1. (Only the first time) Install Obsidian, and configure a new Obsidian vault (or use the default one).
-2. Download the corresponding zip file from the [release page](https://github.com/Davtax/arXiv-sorter/releases).
+2. Download the zip file of the command line program for your system from the
+   [release page](https://github.com/Davtax/arXiv-sorter/releases): `arXiv-sorter-CLI-Windows.zip`,
+   `arXiv-sorter-CLI-macOS.zip` or `arXiv-sorter-CLI-Ubuntu.zip` (or the graphical interface, see
+   [Graphical interface](#graphical-interface)).
 3. Extract the zip file.
 4. Place the binary file in the directory where you want to save the output file.
 5. (Only the first time) Create the keyword files in the same directory as the binary file.
@@ -66,7 +69,7 @@ The final directory tree should look (if using default paths) something like:
 │   │   ├── YYYYMMDD(1).md
 │   │   ├── YYYYMMDD(2).md
 │   │   └── YYYYMMDD(3).md
-│   ├── arXiv-sorter-*
+│   ├── arXiv-sorter-CLI-*
 │   ├── authors.txt
 │   ├── categories.txt
 └── └── keywords.txt
@@ -212,14 +215,14 @@ Besides the command line, arXiv-sorter can be used from a graphical interface (b
 [PySide6](https://doc.qt.io/qtforpython-6/)) that works on Windows, macOS and Linux.
 Download the archive for your system from the [release page](https://github.com/Davtax/arXiv-sorter/releases):
 
-- **Windows**: `arXiv-sorter-GUI-Windows.zip`. Extract `arXiv-sorter-GUI.exe` to the folder where you want to keep
+- **Windows**: `arXiv-sorter-GUI-Windows.zip`. Extract `arXiv-sorter-GUI-Windows.exe` to the folder where you want to keep
   your files, and run it.
-- **macOS**: `arXiv-sorter-GUI-macOS.zip`, for Apple silicon. Extract `arXiv-sorter.app` and move it to the folder
+- **macOS**: `arXiv-sorter-GUI-macOS.zip`, for Apple silicon. Extract `arXiv-sorter-GUI-macOS.app` and move it to the folder
   where you want to keep your files. Since the app is not notarized by Apple, macOS blocks it the first time: open
   it, then go to System Settings -> Privacy & Security and click Open Anyway.
 - **Linux**: `arXiv-sorter-GUI-Ubuntu.tar.gz`, built on Ubuntu 22.04 (it runs on distributions with glibc 2.35 or
   newer). Extract it with `tar -xzf arXiv-sorter-GUI-Ubuntu.tar.gz` to the folder where you want to keep your files,
-  and run `./arXiv-sorter-GUI`.
+  and run `./arXiv-sorter-GUI-Ubuntu`.
   Qt requires the XCB cursor library, e.g. `sudo apt install libxcb-cursor0` on Debian and Ubuntu.
 
 On Windows and Linux the program is a single file, which unpacks itself in a temporary folder each time it starts (this
@@ -227,7 +230,7 @@ takes a few seconds), and deletes it when the window is closed.
 If the temporary folder of the system does not allow running programs (e.g. `/tmp` mounted with `noexec`), choose
 another one with the `TMPDIR` environment variable.
 
-By default, the keyword files and the abstracts are next to the program (next to `arXiv-sorter.app` on macOS), and
+By default, the keyword files and the abstracts are next to the program (next to `arXiv-sorter-GUI-macOS.app` on macOS), and
 other folders can be chosen in the window.
 From the source code (see [Development](#development)), start it with
 

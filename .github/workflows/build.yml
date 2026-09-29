@@ -50,15 +50,19 @@ jobs:
       matrix:
         include:
           # Linux binaries only run on systems with the same or a newer glibc, so they are built on an older Ubuntu
+          # The programs are named after the system, e.g. arXiv-sorter-CLI-Windows.exe and arXiv-sorter-GUI-Windows.exe
           - os: ubuntu-22.04
             name: Ubuntu
-            gui_executable: gui-dist/arXiv-sorter-GUI
+            gui_program: arXiv-sorter-GUI-Ubuntu
+            gui_executable: gui-dist/arXiv-sorter-GUI-Ubuntu
           - os: windows-latest
             name: Windows
-            gui_executable: gui-dist/arXiv-sorter-GUI.exe
+            gui_program: arXiv-sorter-GUI-Windows.exe
+            gui_executable: gui-dist/arXiv-sorter-GUI-Windows.exe
           - os: macos-latest
             name: macOS
-            gui_executable: gui-dist/arXiv-sorter.app/Contents/MacOS/arXiv-sorter
+            gui_program: arXiv-sorter-GUI-macOS.app
+            gui_executable: gui-dist/arXiv-sorter-GUI-macOS.app/Contents/MacOS/arXiv-sorter-GUI-macOS
     defaults:
       run:
         shell: bash
@@ -87,15 +91,16 @@ jobs:
         run: python run.py -v -d searches_test -f -e
 
       - name: Build the command line binary
-        run: pyinstaller --onefile --paths src -n "arXiv-sorter-${{ matrix.name }}" run.py
+        run: pyinstaller --onefile --paths src -n "arXiv-sorter-CLI-${{ matrix.name }}" run.py
 
+      # With 2 threads, the figures are also extracted by other processes, which the binary starts from itself
       - name: Run the command line binary
-        run: dist/arXiv-sorter-${{ matrix.name }} -v -d ../searches_test -f -e
+        run: dist/arXiv-sorter-CLI-${{ matrix.name }} -v -d ../searches_test -f -e -t 2
 
       - name: Upload the command line binary
         uses: actions/upload-artifact@v7
         with:
-          name: arXiv-sorter-${{ matrix.name }}
+          name: arXiv-sorter-CLI-${{ matrix.name }}
           path: dist/  # With the abstracts of the test run, compared between the systems
           if-no-files-found: error
           retention-days: 14
@@ -116,15 +121,15 @@ jobs:
       - name: Package the GUI (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path gui-dist/arXiv-sorter-GUI.exe -DestinationPath arXiv-sorter-GUI-Windows.zip
+        run: Compress-Archive -Path gui-dist/${{ matrix.gui_program }} -DestinationPath arXiv-sorter-GUI-Windows.zip
 
       - name: Package the GUI (macOS)
         if: runner.os == 'macOS'
-        run: ditto -c -k --sequesterRsrc --keepParent gui-dist/arXiv-sorter.app arXiv-sorter-GUI-macOS.zip
+        run: ditto -c -k --sequesterRsrc --keepParent gui-dist/${{ matrix.gui_program }} arXiv-sorter-GUI-macOS.zip
 
       - name: Package the GUI (Linux)
         if: runner.os == 'Linux'
-        run: tar -czf arXiv-sorter-GUI-Ubuntu.tar.gz -C gui-dist arXiv-sorter-GUI
+        run: tar -czf arXiv-sorter-GUI-Ubuntu.tar.gz -C gui-dist ${{ matrix.gui_program }}
 
       - name: Upload the GUI
         uses: actions/upload-artifact@v7
@@ -150,37 +155,25 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      # By name: a pattern like arXiv-sorter-* would also download the archives of the GUI
-      - name: Download the results on Ubuntu
+      - name: Download the results of the command line binaries
         uses: actions/download-artifact@v8
         with:
-          name: arXiv-sorter-Ubuntu
-          path: binaries/arXiv-sorter-Ubuntu
-
-      - name: Download the results on Windows
-        uses: actions/download-artifact@v8
-        with:
-          name: arXiv-sorter-Windows
-          path: binaries/arXiv-sorter-Windows
-
-      - name: Download the results on macOS
-        uses: actions/download-artifact@v8
-        with:
-          name: arXiv-sorter-macOS
-          path: binaries/arXiv-sorter-macOS
+          pattern: arXiv-sorter-CLI-*
+          path: binaries
 
       - name: Compare the abstracts written on each system
         working-directory: binaries
         run: |
           shopt -s nullglob
-          files=(arXiv-sorter-Ubuntu/abstracts/*.md)
+          files=(arXiv-sorter-CLI-Ubuntu/abstracts/*.md)
           if [ ${#files[@]} -eq 0 ]; then
             echo "::error::No abstracts were written by the test run on Ubuntu"
             exit 1
           fi
           for file in "${files[@]}"; do
             name=$(basename "$file")
-            python ../scripts/same_files.py "$file" "arXiv-sorter-Windows/abstracts/$name" "arXiv-sorter-macOS/abstracts/$name"
+            python ../scripts/same_files.py "$file" "arXiv-sorter-CLI-Windows/abstracts/$name" \
+              "arXiv-sorter-CLI-macOS/abstracts/$name"
           done
 
   release:
@@ -214,9 +207,9 @@ jobs:
         working-directory: binaries
         run: |
           for name in Ubuntu Windows macOS; do
-            binary=$(find "arXiv-sorter-$name" -maxdepth 1 -type f -name "arXiv-sorter-$name*")
+            binary=$(find "arXiv-sorter-CLI-$name" -maxdepth 1 -type f -name "arXiv-sorter-CLI-$name*")
             chmod +x "$binary"  # The artifacts do not keep the permissions
-            zip -j "../arXiv-sorter-$name.zip" "$binary"
+            zip -j "../arXiv-sorter-CLI-$name.zip" "$binary"
           done
           mv arXiv-sorter-GUI-*/arXiv-sorter-GUI-* ..
           cd ..
@@ -235,5 +228,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag --generate-notes --title "arXiv-sorter $GITHUB_REF_NAME" \
-            arXiv-sorter-Ubuntu.zip arXiv-sorter-Windows.zip arXiv-sorter-macOS.zip \
+            arXiv-sorter-CLI-Ubuntu.zip arXiv-sorter-CLI-Windows.zip arXiv-sorter-CLI-macOS.zip \
             arXiv-sorter-GUI-Ubuntu.tar.gz arXiv-sorter-GUI-Windows.zip arXiv-sorter-GUI-macOS.zip SHA256SUMS.txt

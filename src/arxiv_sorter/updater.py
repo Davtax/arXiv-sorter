@@ -85,9 +85,10 @@ def get_system_name() -> str:
 
 def asset_name(platform: str, gui: bool = False) -> str:
     """
-    Name (without extension) of the release asset for the platform, e.g. arXiv-sorter-Windows or arXiv-sorter-GUI-macOS.
+    Name (without extension) of the release asset for the platform, e.g. arXiv-sorter-CLI-Windows or
+    arXiv-sorter-GUI-macOS. It is also the name of the program inside (plus .exe on Windows, or .app on macOS).
     """
-    return f'arXiv-sorter-GUI-{platform}' if gui else f'arXiv-sorter-{platform}'
+    return f'arXiv-sorter-{"GUI" if gui else "CLI"}-{platform}'
 
 
 def latest_release() -> dict:

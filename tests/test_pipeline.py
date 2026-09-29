@@ -185,8 +185,8 @@ def test_nothing_marked_when_every_entry_is_updated():
 
 
 class TestCheckUpdates:
-    RELEASE = Release(version='v9.9.9', url='https://example.org/arXiv-sorter-Windows.zip',
-                      asset='arXiv-sorter-Windows.zip', page='https://example.org/v9.9.9')
+    RELEASE = Release(version='v9.9.9', url='https://example.org/arXiv-sorter-CLI-Windows.zip',
+                      asset='arXiv-sorter-CLI-Windows.zip', page='https://example.org/v9.9.9')
 
     @pytest.fixture
     def updates(self, monkeypatch):
