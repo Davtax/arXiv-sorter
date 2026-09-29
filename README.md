@@ -274,6 +274,9 @@ The schedule is kept by the operating system, which runs the program with `--sch
 - **Linux**: the systemd user timer `arxiv-sorter-daily.timer` (`systemctl --user list-timers`). The notification is
   shown with `notify-send`, when available.
 
+Only one run of arXiv-sorter works at a time: if it is already running (from the window, a terminal or the daily run),
+a new run is refused, and a daily run is skipped with a notification.
+
 If you move the program to another folder, choose the time again, so the schedule starts it from its new location.
 
 The configuration is saved when the program runs and when the window closes, and restored at the next start.

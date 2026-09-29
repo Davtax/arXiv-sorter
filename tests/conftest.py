@@ -4,7 +4,7 @@ from collections.abc import Callable
 import pytest
 from feedparser import FeedParserDict
 
-from arxiv_sorter import console, log_file
+from arxiv_sorter import console, log_file, run_lock
 
 
 def _make_entry(
@@ -45,6 +45,12 @@ def logs_in_tmp(tmp_path, monkeypatch):
     for handler in [handler for handler in log_file.LOGGER.handlers if isinstance(handler, logging.FileHandler)]:
         log_file.LOGGER.removeHandler(handler)
         handler.close()
+
+
+@pytest.fixture(autouse=True)
+def lock_in_tmp(tmp_path, monkeypatch):
+    """The lock of the runs is in a temporary folder, so the tests are not blocked by a real run (nor block it)."""
+    monkeypatch.setattr(run_lock, 'lock_path', lambda: tmp_path / 'run.lock')
 
 
 @pytest.fixture(autouse=True)

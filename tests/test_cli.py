@@ -1,6 +1,7 @@
 import pytest
 
-from arxiv_sorter import cli
+from arxiv_sorter import cli, run_lock
+from arxiv_sorter.protocol import BUSY_EXIT_CODE
 
 
 @pytest.fixture
@@ -42,3 +43,16 @@ class TestThreads:
             cli.parse_args(['-t', '8'])
 
         assert 'between 1 and 4' in capsys.readouterr().err
+
+
+class TestLock:
+    def test_a_second_run_is_refused(self, tmp_path, capsys):
+        with run_lock.RunLock() as lock:
+            assert lock.acquire()
+            with pytest.raises(SystemExit) as stopped:
+                cli.main(['--exit', '--directory', str(tmp_path), '--abstracts', str(tmp_path / 'abstracts')])
+
+        assert stopped.value.code == BUSY_EXIT_CODE
+        assert 'already running' in capsys.readouterr().out
+        assert not (tmp_path / 'logs').exists()  # No log file for a run that did not start
+        assert not (tmp_path / 'abstracts').exists()

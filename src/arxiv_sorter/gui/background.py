@@ -17,7 +17,7 @@ from arxiv_sorter.gui.settings import Settings
 from arxiv_sorter.gui.summary import Outcome, WrittenFile, plural
 from arxiv_sorter.gui.window import open_path, set_windows_app_id, settings_path, worker_command, worker_environment
 from arxiv_sorter.log_file import latest_log
-from arxiv_sorter.protocol import LOG_TAG, WRITTEN_TAG, Level
+from arxiv_sorter.protocol import BUSY_EXIT_CODE, LOG_TAG, WRITTEN_TAG, Level
 from arxiv_sorter.system import APP_NAME, NO_WINDOW, base_dir
 
 NOTIFICATION_SECONDS = 20  # The notification can be clicked while the program waits, then it exits
@@ -91,6 +91,10 @@ class BackgroundRun(QObject):
             self.handle_line(self.output)
             self.output = ''
 
+        if exit_status == QProcess.ExitStatus.NormalExit and exit_code == BUSY_EXIT_CODE:
+            self.notify(f'{APP_NAME}: daily run skipped', 'arXiv-sorter was already running, so the daily run was '
+                        'skipped. It runs again tomorrow, or run it from the window.')
+            return
         if exit_status == QProcess.ExitStatus.CrashExit:
             outcome = Outcome.FAILED
         elif exit_code != 0 or self.first_error:

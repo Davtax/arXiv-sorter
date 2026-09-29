@@ -49,6 +49,7 @@ from arxiv_sorter.gui.theme import apply_theme
 from arxiv_sorter.gui.updates import UpdateChecker, UpdateInstaller
 from arxiv_sorter.log_file import latest_log, logs_dir
 from arxiv_sorter.protocol import GUI_ENV_VAR, LOG_TAG, PROGRESS_TAG, QUESTION_TAG, WORKER_FLAG, WRITTEN_TAG, Level
+from arxiv_sorter.run_lock import is_running
 from arxiv_sorter.search_terms import Kind, Problem, Severity, check_file, check_folder
 from arxiv_sorter.system import APP_NAME, base_dir, config_dir, is_frozen, kill_process_tree, max_threads
 from arxiv_sorter.updater import Release, launch, remove_old_version
@@ -809,6 +810,10 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, APP_NAME, error)
             return
         if not self.confirm_search_files():
+            return
+        if is_running():
+            QMessageBox.information(self, APP_NAME, 'arXiv-sorter is already running, e.g. the daily run in the '
+                                    'background, or from a terminal. Try again when it finishes.')
             return
         self.save_settings()
 

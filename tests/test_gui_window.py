@@ -16,13 +16,13 @@ if sys.platform.startswith('linux') and not (os.environ.get('DISPLAY') or os.env
 QtCore = pytest.importorskip('PySide6.QtCore')
 pytest.importorskip('pytestqt')
 
-from arxiv_sorter import scheduler  # noqa: E402
+from arxiv_sorter import run_lock, scheduler  # noqa: E402
 from arxiv_sorter.gui import background  # noqa: E402
 from arxiv_sorter.gui import updates as updates_module  # noqa: E402
 from arxiv_sorter.gui import window as window_module  # noqa: E402
 from arxiv_sorter.gui.search_editor import SearchFilesEditor, abstract_excerpt, highlighted_html  # noqa: E402
 from arxiv_sorter.gui.summary import Outcome, WrittenFile  # noqa: E402
-from arxiv_sorter.protocol import LOG_TAG, PROGRESS_TAG, WRITTEN_TAG  # noqa: E402
+from arxiv_sorter.protocol import BUSY_EXIT_CODE, LOG_TAG, PROGRESS_TAG, WRITTEN_TAG  # noqa: E402
 from arxiv_sorter.search_terms import Kind  # noqa: E402
 from arxiv_sorter.sorting import AbstractEnclosure  # noqa: E402
 from arxiv_sorter.updater import Release, UpdateError  # noqa: E402
@@ -204,6 +204,15 @@ class TestBackground:
         assert run.first_error == 'No connection'
         assert 'errors' in notifications[0][0]
 
+    def test_the_run_is_skipped_while_another_one_runs(self, qtbot, monkeypatch):
+        notifications = []
+        monkeypatch.setattr(background.BackgroundRun, 'notify', lambda run, *message: notifications.append(message))
+        run = background.BackgroundRun(window_module.Settings(keywords_dir='k', abstracts_dir='a'))
+        run.handle_line(f'{LOG_TAG}error\t⏳\tarXiv-sorter is already running')
+        run.process_finished(BUSY_EXIT_CODE, QtCore.QProcess.ExitStatus.NormalExit)
+
+        assert notifications[0][0].endswith('daily run skipped')
+
 
 class TestOutput:
     def test_messages_are_shown_and_counted(self, win):
@@ -334,6 +343,14 @@ class TestSearchFiles:
 
         assert win.process is None
         assert 'keywords.txt, line 1' in no_modal_dialogs[0]
+
+    def test_run_is_not_started_while_another_one_runs(self, win, no_modal_dialogs):
+        with run_lock.RunLock() as lock:  # e.g. the daily run, in the background
+            assert lock.acquire()
+            win.start()
+
+        assert win.process is None
+        assert 'already running' in str(no_modal_dialogs[0])
 
 
 class TestTheme:
