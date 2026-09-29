@@ -305,5 +305,30 @@ ruff check .         # lint (use --fix to fix the automatically fixable issues)
 mypy                 # type check
 ```
 
-Both run in GitHub Actions on every push and pull request.
-The folder `scripts/` contains helper scripts used by the release workflow.
+### Continuous integration
+
+Two GitHub Actions workflows check every change:
+
+- **Tests** (`.github/workflows/tests.yml`), on every pull request and push to `main`: ruff, mypy and
+  [actionlint](https://github.com/rhysd/actionlint) (for the workflows), and the tests with coverage on Windows, macOS
+  and Linux. Every Monday, and when run by hand from the Actions tab, the tests against the real arXiv and GitHub
+  servers also run.
+- **Build** (`.github/workflows/build.yml`), when the program or its packaging change: builds the command line and GUI
+  binaries for the three systems, runs them, and checks that they write the same abstracts. The binaries can be
+  downloaded from the summary of the run for 14 days.
+
+[Dependabot](.github/dependabot.yml) opens pull requests every month to update the actions and the dependencies.
+The folder `scripts/` contains the helper scripts of the build workflow.
+
+### Releases
+
+1. Update `__version__` in `src/arxiv_sorter/__init__.py`, and push it to `main`.
+2. Tag the commit and push the tag:
+
+   ```bash
+   git tag v0.4.0
+   git push origin v0.4.0
+   ```
+
+3. The build workflow creates a draft release with the six archives and the notes of the changes. Review it on GitHub
+   and publish it. The workflow stops if the tag does not match `__version__`.

@@ -1,0 +1,215 @@
+name: Build
+
+# The binaries are built and tested on every change of the program, and a draft release is created when a version tag
+# is pushed, e.g. `git tag v0.4.0 && git push origin v0.4.0` (the tag must match the version in arxiv_sorter/__init__.py)
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'packaging/**'
+      - 'scripts/**'
+      - 'run.py'
+      - 'gui.py'
+      - 'pyproject.toml'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}  # A release build is never cancelled
+
+env:
+  PYTHON_VERSION: '3.14'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+jobs:
+  build:
+    name: Build on ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux binaries only run on systems with the same or a newer glibc, so they are built on an older Ubuntu
+          - os: ubuntu-22.04
+            name: Ubuntu
+            gui_executable: gui-dist/arXiv-sorter-GUI
+          - os: windows-latest
+            name: Windows
+            gui_executable: gui-dist/arXiv-sorter-GUI.exe
+          - os: macos-latest
+            name: macOS
+            gui_executable: gui-dist/arXiv-sorter.app/Contents/MacOS/arXiv-sorter
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Java (to detect the figures)
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install the package and PyInstaller
+        run: pip install . pyinstaller
+
+      # Command line program
+      - name: Run from Python
+        run: python run.py -v -d searches_test -f -e
+
+      - name: Build the command line binary
+        run: pyinstaller --onefile --paths src -n "arXiv-sorter-${{ matrix.name }}" run.py
+
+      - name: Run the command line binary
+        run: dist/arXiv-sorter-${{ matrix.name }} -v -d ../searches_test -f -e
+
+      - name: Upload the command line binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: arXiv-sorter-${{ matrix.name }}
+          path: dist/  # With the abstracts of the test run, compared between the systems
+          if-no-files-found: error
+          retention-days: 14
+
+      # GUI: a single executable (an .app bundle on macOS), see packaging/arxiv-sorter-gui.spec
+      - name: Build the GUI
+        run: pyinstaller packaging/arxiv-sorter-gui.spec --distpath gui-dist --workpath gui-build --noconfirm
+
+      - name: Install Qt runtime libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libxcb-cursor0 libfontconfig1 libdbus-1-3
+
+      - name: Test the GUI binary
+        run: python scripts/smoke_test_gui.py "${{ matrix.gui_executable }}"
+
+      # The archives are created on each system, since the artifacts do not keep the symbolic links (used by the Qt
+      # frameworks of the macOS bundle) nor the executable permission of the files
+      - name: Package the GUI (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path gui-dist/arXiv-sorter-GUI.exe -DestinationPath arXiv-sorter-GUI-Windows.zip
+
+      - name: Package the GUI (macOS)
+        if: runner.os == 'macOS'
+        run: ditto -c -k --sequesterRsrc --keepParent gui-dist/arXiv-sorter.app arXiv-sorter-GUI-macOS.zip
+
+      - name: Package the GUI (Linux)
+        if: runner.os == 'Linux'
+        run: tar -czf arXiv-sorter-GUI-Ubuntu.tar.gz -C gui-dist arXiv-sorter-GUI
+
+      - name: Upload the GUI
+        uses: actions/upload-artifact@v7
+        with:
+          name: arXiv-sorter-GUI-${{ matrix.name }}
+          path: arXiv-sorter-GUI-${{ matrix.name }}.*
+          if-no-files-found: error
+          compression-level: 0  # Already compressed
+          retention-days: 14
+
+  compare:
+    name: Same results on every system
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # By name: a pattern like arXiv-sorter-* would also download the archives of the GUI
+      - name: Download the results on Ubuntu
+        uses: actions/download-artifact@v8
+        with:
+          name: arXiv-sorter-Ubuntu
+          path: binaries/arXiv-sorter-Ubuntu
+
+      - name: Download the results on Windows
+        uses: actions/download-artifact@v8
+        with:
+          name: arXiv-sorter-Windows
+          path: binaries/arXiv-sorter-Windows
+
+      - name: Download the results on macOS
+        uses: actions/download-artifact@v8
+        with:
+          name: arXiv-sorter-macOS
+          path: binaries/arXiv-sorter-macOS
+
+      - name: Compare the abstracts written on each system
+        working-directory: binaries
+        run: |
+          shopt -s nullglob
+          files=(arXiv-sorter-Ubuntu/abstracts/*.md)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::No abstracts were written by the test run on Ubuntu"
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            name=$(basename "$file")
+            python ../scripts/same_files.py "$file" "arXiv-sorter-Windows/abstracts/$name" "arXiv-sorter-macOS/abstracts/$name"
+          done
+
+  release:
+    name: Draft release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [ build, compare ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write  # To create the release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Check that the tag matches the version of the program
+        run: |
+          version=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' src/arxiv_sorter/__init__.py)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::The tag $GITHUB_REF_NAME does not match the version v$version in src/arxiv_sorter/__init__.py"
+            exit 1
+          fi
+
+      - name: Download the binaries
+        uses: actions/download-artifact@v8
+        with:
+          path: binaries
+
+      - name: Compress the command line binaries
+        working-directory: binaries
+        run: |
+          for name in Ubuntu Windows macOS; do
+            binary=$(find "arXiv-sorter-$name" -maxdepth 1 -type f -name "arXiv-sorter-$name*")
+            chmod +x "$binary"  # The artifacts do not keep the permissions
+            zip -j "../arXiv-sorter-$name.zip" "$binary"
+          done
+          mv arXiv-sorter-GUI-*/arXiv-sorter-GUI-* ..
+          ls -la ..
+
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag --generate-notes --title "arXiv-sorter $GITHUB_REF_NAME" \
+            arXiv-sorter-Ubuntu.zip arXiv-sorter-Windows.zip arXiv-sorter-macOS.zip \
+            arXiv-sorter-GUI-Ubuntu.tar.gz arXiv-sorter-GUI-Windows.zip arXiv-sorter-GUI-macOS.zip

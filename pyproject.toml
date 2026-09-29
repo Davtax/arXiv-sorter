@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-qt", "ruff", "mypy", "types-requests", "types-pytz"]
+dev = ["pytest", "pytest-cov", "pytest-qt", "ruff", "mypy", "types-requests", "types-pytz"]
 
 [project.scripts]
 arxiv-sorter = "arxiv_sorter.cli:main"
@@ -43,6 +43,16 @@ pythonpath = ["src"]
 addopts = "-ra --strict-markers -m 'not network'"
 markers = [
     "network: tests that reach the real arXiv / GitHub servers (deselect with -m 'not network')",
+]
+
+[tool.coverage.run]
+source = ["arxiv_sorter"]
+branch = true
+
+[tool.coverage.report]
+skip_empty = true
+exclude_also = [
+    "if __name__ == .__main__.:",
 ]
 
 [tool.mypy]

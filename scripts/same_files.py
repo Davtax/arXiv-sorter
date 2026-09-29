@@ -1,14 +1,28 @@
+"""
+Check that the Markdown files written on each system have the same lines (used by the build workflow).
+
+Usage: python scripts/same_files.py <file> <file> [<file> ...]
+"""
 import sys
 from pathlib import Path
 
-names = sys.argv[1:]
 
-content = [Path(name).read_text().splitlines(keepends=True) for name in names]
-content = sorted(content, key=len)
+def main(names: list[str]) -> int:
+    missing = [name for name in names if not Path(name).is_file()]
+    if missing:
+        print(f'Missing files: {", ".join(missing)}')
+        return 1
 
-for i in range(len(content) - 1):
-    DF = [x for x in content[i] if x not in content[i + 1]]
+    contents = sorted((Path(name).read_text(encoding='utf-8').splitlines(keepends=True) for name in names), key=len)
+    for shorter, longer in zip(contents, contents[1:], strict=False):
+        different = [line for line in shorter if line not in longer]
+        if different:
+            print(f'The following lines are different between the systems: {different}')
+            return 1
 
-    if DF:
-        print(f'The following lines are different from machines {DF}')
-        sys.exit(1)
+    print(f'The {len(names)} files have the same lines')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))
