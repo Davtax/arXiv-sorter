@@ -1,2 +1,2 @@
 # Dependencies are declared in pyproject.toml
--e .
+-e .[dev]

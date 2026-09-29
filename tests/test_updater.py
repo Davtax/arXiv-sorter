@@ -1,0 +1,113 @@
+import time
+
+import pytest
+import requests
+
+from arxiv_sorter import updater
+
+
+class FakeResponse:
+    def __init__(self, status_code=200, json_data=None, headers=None):
+        self.status_code = status_code
+        self._json = json_data or {}
+        self.headers = headers or {}
+
+    def json(self):
+        return self._json
+
+
+RELEASE = {
+    'tag_name': 'v1.0.0',
+    'assets': [
+        {'name': 'arXiv-sorter-GUI-Windows.zip', 'browser_download_url': 'https://example.org/gui-windows.zip'},
+        {'name': 'arXiv-sorter-Windows.zip', 'browser_download_url': 'https://example.org/windows.zip'},
+        {'name': 'arXiv-sorter-Ubuntu.zip', 'browser_download_url': 'https://example.org/ubuntu.zip'},
+        {'name': 'arXiv-sorter-GUI-Ubuntu.tar.gz', 'browser_download_url': 'https://example.org/gui-ubuntu.tar.gz'},
+    ],
+}
+
+
+@pytest.fixture
+def github(monkeypatch):
+    """Replace `requests.get` with a queue of fake responses."""
+    responses = []
+
+    def fake_get(url, **kwargs):
+        response = responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+    monkeypatch.setattr(updater.requests, 'get', fake_get)
+    return responses
+
+
+@pytest.mark.parametrize(('system', 'expected'), [('Darwin', 'macOS'), ('Windows', 'Windows'), ('Linux', 'Ubuntu')])
+def test_get_system_name(monkeypatch, system, expected):
+    monkeypatch.setattr(updater, 'system', lambda: system)
+    assert updater.get_system_name() == expected
+
+
+def test_get_system_name_unknown_platform(monkeypatch):
+    monkeypatch.setattr(updater, 'system', lambda: 'Plan9')
+    with pytest.raises(SystemExit):
+        updater.get_system_name()
+
+
+class TestCheckForUpdate:
+    def test_newer_version_returns_platform_asset(self, github):
+        github.append(FakeResponse(json_data=RELEASE))
+        assert updater.check_for_update('Windows', '0.9.0') == 'https://example.org/windows.zip'
+
+    @pytest.mark.parametrize(('platform', 'expected'), [('Windows', 'https://example.org/gui-windows.zip'),
+                                                        ('Ubuntu', 'https://example.org/gui-ubuntu.tar.gz')])
+    def test_gui_returns_gui_asset(self, github, platform, expected):
+        github.append(FakeResponse(json_data=RELEASE))
+        assert updater.check_for_update(platform, '0.9.0', gui=True) == expected
+
+    @pytest.mark.parametrize('current', ['1.0.0', '1.0.1'])
+    def test_up_to_date(self, github, current):
+        github.append(FakeResponse(json_data=RELEASE))
+        assert updater.check_for_update('Windows', current) is None
+
+    def test_missing_platform_asset(self, github, capsys, verbose):
+        github.append(FakeResponse(json_data=RELEASE))
+        assert updater.check_for_update('macOS', '0.9.0') is None
+        assert 'No asset arXiv-sorter-macOS found' in capsys.readouterr().out
+
+    def test_no_internet(self, github):
+        github.append(requests.ConnectionError())
+        assert updater.check_for_update('Windows', '0.9.0') is None
+
+    def test_long_rate_limit_gives_up(self, github, monkeypatch):
+        monkeypatch.setattr(updater, 'sleep', lambda _: None)
+        github.append(FakeResponse(403, headers={'X-RateLimit-Reset': str(int(time.time()) + 3600)}))
+        assert updater.check_for_update('Windows', '0.9.0') is None
+
+    def test_short_rate_limit_retries(self, github, monkeypatch):
+        monkeypatch.setattr(updater, 'sleep', lambda _: None)
+        monkeypatch.setattr(updater, 'timing_message', lambda *args: None)
+        github.append(FakeResponse(429, headers={'X-RateLimit-Reset': str(int(time.time()) + 2)}))
+        github.append(FakeResponse(json_data=RELEASE))
+        assert updater.check_for_update('Windows', '0.9.0') == 'https://example.org/windows.zip'
+
+    def test_unexpected_status_does_not_loop_forever(self, github):
+        github.append(FakeResponse(500))
+        assert updater.check_for_update('Windows', '0.9.0') is None
+
+
+class TestDownloadAndUpdate:
+    @pytest.mark.parametrize(('headers', 'expected'), [
+        ({'Content-Disposition': 'attachment; filename="arXiv-sorter-Windows.zip"'}, 'temp_arXiv-sorter-Windows.zip'),
+        ({}, 'temp_arXiv-sorter-GUI-Ubuntu.tar.gz'),  # Without the header, the name of the asset in the url
+    ])
+    def test_saved_next_to_the_program(self, monkeypatch, tmp_path, headers, expected):
+        response = FakeResponse(headers=headers)
+        response.content = b'zip'
+        monkeypatch.setattr(updater.requests, 'get', lambda url, **kwargs: response)
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(SystemExit):
+            updater.download_and_update('https://example.org/download/arXiv-sorter-GUI-Ubuntu.tar.gz')
+
+        assert (tmp_path / expected).read_bytes() == b'zip'

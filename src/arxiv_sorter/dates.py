@@ -1,5 +1,5 @@
-import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytz
 
@@ -12,24 +12,25 @@ def daterange(start_date: datetime, end_date: datetime):
         yield start_date + timedelta(n)
 
 
-def check_last_date(folder_name: str, separate_files: bool) -> datetime:
+def check_last_date(folder_name: str | Path, separate_files: bool) -> datetime | None:
     """
     Check the last date of the file in the abstracts folder by its name.
+    Returns None if the folder exists but contains no dated file, and the current date if the folder does not exist.
     """
-    if os.path.exists(folder_name):
-        files = os.listdir(folder_name)
+    folder_path = Path(folder_name)
+    if folder_path.exists():
+        files = list(folder_path.iterdir())
         if separate_files:
-            files = [file for file in files if file.find('.md') == -1]
+            files = [file for file in files if file.is_dir()]
         else:
-            files = [file for file in files if file.find('.md') != -1]  # Remove non-markdown files
-        files = sorted(files)  # Sort files by name
-
-        if len(files) == 0:
-            last_date = None
-        else:
-            last_file = files[-1].split('.')[0]
-            last_date_str = last_file.split('-')  # Split in year, month and day
-            last_date = datetime(int(last_date_str[0]), int(last_date_str[1]), int(last_date_str[2]))
+            files = [file for file in files if file.is_file() and file.suffix == '.md']
+        dates = []
+        for file in files:
+            try:
+                dates.append(datetime.strptime(file.stem, '%Y-%m-%d'))
+            except ValueError:
+                continue
+        last_date = max(dates, default=None)
 
     else:
         last_date = datetime.now()
@@ -41,14 +42,11 @@ def obtain_date(date: str) -> datetime:
     """
     Obtain datetime object from date string in the format: YYYY-MM-DDTHH:MM:SSZ
     """
-    date = date.split('T')
-    date_str = date[0].split('-')  # Split in year, month and day
-    time = date[1].split(':')  # Split in hour, minute and second
+    day, time = date.split('T')
+    year, month, day_of_month = day.split('-')
+    hour, minute, second = time.split(':')
 
-    date_str = datetime(int(date_str[0]), int(date_str[1]), int(date_str[2]), int(time[0]), int(time[1]),
-                        int(time[2][:2]))
-
-    return date_str
+    return datetime(int(year), int(month), int(day_of_month), int(hour), int(minute), int(second[:2]))
 
 
 def current_time_zone():
@@ -58,7 +56,7 @@ def current_time_zone():
 
 
 def current_utc_timestamp() -> float:
-    return datetime.utcnow().timestamp()
+    return datetime.now(UTC).timestamp()
 
 
 def prev_mail(date: datetime) -> datetime:

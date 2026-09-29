@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arxiv-sorter"
+dynamic = ["version"]
+description = "Download, sort and highlight the daily arXiv submissions matching your keywords and authors."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.14"
+dependencies = [
+    "feedparser",
+    "unidecode",
+    "requests",
+    "packaging",
+    "pytz",
+    "pymupdf",
+    "PySide6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "pytest-qt", "ruff", "mypy", "types-requests", "types-pytz"]
+
+[project.scripts]
+arxiv-sorter = "arxiv_sorter.cli:main"
+
+[project.gui-scripts]
+arxiv-sorter-gui = "arxiv_sorter.gui:main"
+
+[project.urls]
+Homepage = "https://github.com/Davtax/arXiv-sorter"
+
+[tool.setuptools.dynamic]
+version = { attr = "arxiv_sorter.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra --strict-markers -m 'not network'"
+markers = [
+    "network: tests that reach the real arXiv / GitHub servers (deselect with -m 'not network')",
+]
+
+[tool.coverage.run]
+source = ["arxiv_sorter"]
+branch = true
+
+[tool.coverage.report]
+skip_empty = true
+exclude_also = [
+    "if __name__ == .__main__.:",
+]
+
+[tool.mypy]
+python_version = "3.14"
+files = ["src"]
+mypy_path = "src"
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["feedparser.*", "unidecode.*", "pymupdf.*"]  # Without type information
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+extend-exclude = ["playground", "test_pdffigures"]
+# Not the repository root, whose packaging/ folder (PyInstaller spec) would be taken for the packaging library
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["SIM108"]  # ternaries are not always clearer
+
+[tool.ruff.lint.isort]
+known-first-party = ["arxiv_sorter"]
+
+[tool.ruff.format]
+quote-style = "preserve"

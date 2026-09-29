@@ -1,6 +1,9 @@
 .idea/
 build/
 *.spec
+!packaging/*.spec
+gui-build/
+gui-dist/
 __pycache__/
 dist/
 
@@ -22,3 +25,8 @@ pdfextract/
 pdffigures2-master/
 playground/
 test_pdffigures/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
