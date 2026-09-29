@@ -22,6 +22,7 @@ def app():
     apply_theme(app, 'system')
 
 
+@pytest.mark.skipif(sys.platform == 'darwin', reason='The macOS style greys the highlight of inactive windows')
 @pytest.mark.parametrize('sequence', [('light', 'dark'), ('dark', 'light'), ('light', 'dark', 'light', 'system')])
 def test_ticks_keep_their_highlight_without_focus(app, sequence):
     """
