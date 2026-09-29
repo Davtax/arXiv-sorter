@@ -13,7 +13,7 @@ from arxiv_sorter import __version__, console
 from arxiv_sorter.arxiv_api import search_entries
 from arxiv_sorter.console import report_written
 from arxiv_sorter.dates import check_last_date, next_mail, prev_mail
-from arxiv_sorter.figures import extract_figures
+from arxiv_sorter.figures import MAX_FIGURES_ENV_VAR, extract_figures, max_figures
 from arxiv_sorter.formatting import fix_entry, write_document
 from arxiv_sorter.protocol import gui_mode
 from arxiv_sorter.search_terms import Severity, check_folder
@@ -133,6 +133,10 @@ def run(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
     else:
         console.detail('Figures disabled (--image)')
 
+    figures_left = max_figures() if args.image else None
+    if figures_left is not None:
+        console.detail(f'At most {_plural(figures_left, "figure")} detected ({MAX_FIGURES_ENV_VAR})')
+
     date_0, date_f = _dates_to_request(args, abstracts_dir)
 
     data_found = False
@@ -168,10 +172,13 @@ def run(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
 
             get_last_new(entries)
 
-            if args.image:
+            n_figures = n_new if figures_left is None else min(n_new, figures_left)
+            if args.image and (figures_left is None or n_figures > 0):
                 image_urls = extract_figures(
-                    str(date.date()), entries[:n_new], temp_dir, abstracts_dir, args.separate, threads=args.threads
-                )
+                    str(date.date()), entries[:n_figures], temp_dir, abstracts_dir, args.separate, threads=args.threads
+                ) + [None] * (n_new - n_figures)
+                if figures_left is not None:
+                    figures_left -= n_figures
             else:
                 image_urls = [None] * n_new
 

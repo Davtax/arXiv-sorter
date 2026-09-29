@@ -27,6 +27,8 @@ concurrency:
 env:
   PYTHON_VERSION: '3.14'
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  # The test runs detect a single figure, instead of downloading every PDF of the mailing list from arXiv
+  ARXIV_SORTER_MAX_FIGURES: '1'
 
 jobs:
   build:
