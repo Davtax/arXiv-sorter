@@ -1,7 +1,7 @@
 import pytest
 
-from app.format_entries import fix_entry
-from app.sort_entries import (
+from arxiv_sorter.formatting import fix_entry
+from arxiv_sorter.sorting import (
     AbstractEnclosure,
     AuthorEnclosure,
     TitleEnclosure,

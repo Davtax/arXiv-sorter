@@ -1,6 +1,6 @@
 from feedparser import FeedParserDict
 
-from app.main import get_last_new
+from arxiv_sorter.pipeline import get_last_new
 
 
 def _entries(*indices: int) -> list[FeedParserDict]:

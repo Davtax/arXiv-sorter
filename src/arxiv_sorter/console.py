@@ -1,23 +1,42 @@
+"""
+Interaction with the user through the terminal (or through the GUI, which runs the program in a separate process).
+"""
 import io
-import re
 import sys
 from os import get_terminal_size
+from pathlib import Path
 from time import sleep, time
 from typing import TextIO
 
-import grequests
-import requests
+from arxiv_sorter.protocol import PROGRESS_TAG, QUESTION_TAG, WRITTEN_TAG, gui_mode
 
-# Set standard output to UTF-8 encoding (the Windows console may use a legacy code page)
-if isinstance(sys.stdout, io.TextIOWrapper):
-    sys.stdout.reconfigure(encoding='utf-8')
+# When run from the GUI, progress bars and questions are sent to it as tagged lines through the standard output
+GUI_MODE = gui_mode()
+
+
+def configure_stdout():
+    """
+    Use UTF-8 (the Windows console may use a legacy code page), and flush every line so the messages are shown right
+    away, also when the output is redirected (e.g. to the GUI or to a log file).
+    """
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
 
 
 def timing_message(total_time: int, message: str, step: int = 1):
     for i in range(0, total_time, step):
-        print(f'Waiting {total_time - i} seconds {message}', end='\r')
+        print(f'Waiting {total_time - i} seconds {message}', end='\r', flush=True)
         sleep(step)
     print('')
+
+
+def report_written(path: Path, n_entries: int, n_new: int):
+    """
+    Tell the GUI that the entries of a mailing list were written (a Markdown file, or a folder with --separate), so it
+    can list them at the end. Format: tag, number of entries, number of new ones and path separated by tabs.
+    """
+    if GUI_MODE:
+        print(f'{WRITTEN_TAG}{n_entries}\t{n_new}\t{path.resolve()}', flush=True)
 
 
 def question(message: str) -> bool:
@@ -26,7 +45,11 @@ def question(message: str) -> bool:
     y -> yes or	n -> no. If the answer is none of this two the question is repeated until a good answer is given.
     If not message is provided, then the default overwriting file message is printed, with the file name provided.
     """
-    temp = input(message + ' [y]/n: ').lower()  # Ask for an answer by keyword input
+    if GUI_MODE:  # The GUI shows the question in a dialog, and writes the answer to the standard input
+        print(QUESTION_TAG + message, flush=True)
+        temp = input().lower()
+    else:
+        temp = input(message + ' [y]/n: ').lower()  # Ask for an answer by keyword input
 
     if temp == 'y' or temp == '':
         return True
@@ -35,70 +58,6 @@ def question(message: str) -> bool:
     else:  # If the answer is not correct
         print('I didn\'t understand your answer.')
         return question(message)  # The function will repeat until a correct answer if provided
-
-
-class ProgressSession:
-    def __init__(self, urls: list[str]):
-        self.pbar = Progressbar(len(urls), prefix='Progress:')
-        self.urls = urls
-
-    def update(self, r=None, *args, **kwargs):
-        if not r.is_redirect:
-            self.pbar.update()
-
-    def __enter__(self):
-        sess = requests.Session()
-        sess.hooks['response'].append(self.update)
-        return sess
-
-    def __exit__(self, *args):
-        self.pbar.close()
-
-
-def get_urls_async(urls: list[str], progress_bar: bool = True) -> list[requests.Response]:
-    headers = {'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'}
-
-    if progress_bar:
-        with ProgressSession(urls) as sess:
-            rs = (grequests.get(url, session=sess, headers=headers) for url in urls)
-
-            return grequests.map(rs, size=5)
-    else:
-        rs = (grequests.get(url, headers=headers) for url in urls)
-        return grequests.map(rs, size=5)
-
-
-def get_image_urls(ids: list[str]) -> list[str]:
-    urls = [f'https://arxiv.org/html/{id_}' for id_ in ids]
-    results = get_urls_async(urls)
-
-    image_urls = []
-    for id_, result in zip(ids, results, strict=True):
-        path = get_image(result)
-        if path == '':
-            image_urls.append(None)
-        else:
-            image_urls.append(f'https://arxiv.org/html/{id_}/{path}')
-
-    return image_urls
-
-
-def get_image(response: requests.Response | None) -> str:
-    """
-    Get the png image from the url and return its source
-    """
-    if response is None:
-        return ''
-
-    fp = response.text
-
-    match = re.search(r'<img.*?src=.*?\.png.*?>', fp)
-    if match is None:
-        return ''
-    else:
-        index_0, index_f = match.span()
-        png_name = re.search(r'src=.*?\.png', fp[index_0:index_f]).group().replace('src="', '')
-        return png_name
 
 
 class Progressbar:
@@ -118,6 +77,11 @@ class Progressbar:
 
     def update(self, j: int = 1):
         self.current += j
+
+        if GUI_MODE:  # Format: tag, current, count and prefix separated by tabs
+            print(f'{PROGRESS_TAG}{self.current}\t{self.count}\t{self.prefix}', flush=True, file=self.out)
+            return
+
         remaining = ((time() - self.start) / self.current) * (self.count - self.current)
 
         try:
@@ -150,5 +114,7 @@ class Progressbar:
         print(msg, end='\r', flush=True, file=self.out)
 
     def close(self):
+        if GUI_MODE:
+            return
         # print('\n', flush=True, file=self.out)
         print('', flush=True, file=self.out)

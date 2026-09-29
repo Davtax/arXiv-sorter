@@ -5,7 +5,7 @@ from typing import TextIO
 
 from feedparser import FeedParserDict
 
-from app.dates_functions import obtain_date
+from arxiv_sorter.dates import obtain_date
 
 # Note: fields are always assigned with `entry[key] = value`. FeedParserDict only redirects attribute *reads* to the
 # dictionary, so `entry.key = value` would create a shadowing attribute and leave the dictionary item outdated.
@@ -141,10 +141,11 @@ def write_article(entry: FeedParserDict, f: TextIO, index: int, n_total: int, im
 
 
 def write_document(entries: list[FeedParserDict], date: datetime, abstracts_dir: str | Path, final: bool,
-                   separate_files: bool, image_urls: list[str | None], version: str | None = None):
+                   separate_files: bool, image_urls: list[str | None], version: str | None = None) -> Path:
     """
     Write the sorted entries of a given date, either in a single Markdown file or in a folder with a file per entry.
     `image_urls` contains the figure of each new entry (index >= 0), which are placed at the beginning of `entries`.
+    Returns the path of the file (or of the folder) written.
     """
     print('Writing entries ...')
 
@@ -154,9 +155,11 @@ def write_document(entries: list[FeedParserDict], date: datetime, abstracts_dir:
         root.mkdir(parents=True, exist_ok=True)
 
         _write_document_split(root, entries, image_urls)
-    else:
-        file_name = abstracts_path / f'{date.date()}.md'
-        _write_document_join(file_name, entries, image_urls, final, version)
+        return root
+
+    file_name = abstracts_path / f'{date.date()}.md'
+    _write_document_join(file_name, entries, image_urls, final, version)
+    return file_name
 
 
 def _count_new(entries: list[FeedParserDict]) -> int:

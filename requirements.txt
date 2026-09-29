@@ -1,7 +1,2 @@
-feedparser
-unidecode
-requests
-packaging
-pytz
-grequests
-pymupdf
+# Dependencies are declared in pyproject.toml
+-e .

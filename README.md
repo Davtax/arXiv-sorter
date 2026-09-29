@@ -80,7 +80,8 @@ The final directory tree should look (if using default paths) something like:
 
 > [!NOTE]  
 > On Mac, when downloading a new version, an unidentified developer warning pops up.
-> To solve that, Right click -> Open -> Open.
+> To solve that, open the program once, then go to System Settings -> Privacy & Security and click Open Anyway
+> (on macOS 14 and older, Right click -> Open -> Open also works).
 > Once solved, the message will disappear.
 
 > [!WARNING]  
@@ -141,6 +142,9 @@ By default, the program will download the .PDF file of the manuscript from arXiv
 This is saved as a .PNG file in a local folder, and linked in the markdown file.
 If the markdown file is deleted, the next execution of the program will clean up the local folder with the figures.
 The detection of the figures is done via the [PDFFigures2](https://github.com/allenai/pdffigures2) library.
+PDFFigures2 is downloaded from this repository the first time (34 MB), and kept in the configuration folder of
+arXiv-sorter (the same folder as the settings of the graphical interface, see below), so it persists when the program
+is moved or updated.
 Sometimes, PFFigures2 is not able to detect the figure, or misunderstand some text as a figure.
 Finally, the extraction of the figure to a .PNG file is done via [PyMuPDF](https://github.com/pymupdf/PyMuPDF).
 After the extraction, the .PDF files saved in local are deleted.
@@ -176,6 +180,9 @@ When running the program from the terminal, you can use the following optional a
 - `--modify` or `-m`: Do not modify the authors file (sort and remove blank lines).
 - `--image` or `-i`: Remove the images to the markdown file.
   The image is the first figure in the abstract.
+- `--threads` or `-t`: Number of threads used to detect the figures, from 1 (default) to the number of CPUs of the
+  system.
+  Each thread processes a PDF at a time, so more threads are faster but use more memory.
 - `--date0`: Specify the date of the first mailing list to be sorted.
   The date should be in the format `YYYYMMDD`.
   If the date is not specified, the program will search for the latest file in the `abstracts` folder.
@@ -183,15 +190,84 @@ When running the program from the terminal, you can use the following optional a
   The date should be in the format `YYYYMMDD`.
   If the date is not specified, this will be the current date.
 
-## Development
+## Graphical interface
 
-The program requires Python 3.14. Install the dependencies (including the development tools) with
+Besides the command line, arXiv-sorter can be used from a graphical interface (built with
+[PySide6](https://doc.qt.io/qtforpython-6/)) that works on Windows, macOS and Linux.
+Download the archive for your system from the [release page](https://github.com/Davtax/arXiv-sorter/releases):
+
+- **Windows**: `arXiv-sorter-GUI-Windows.zip`. Extract `arXiv-sorter-GUI.exe` to the folder where you want to keep
+  your files, and run it.
+- **macOS**: `arXiv-sorter-GUI-macOS.zip`, for Apple silicon. Extract `arXiv-sorter.app` and move it to the folder
+  where you want to keep your files. Since the app is not notarized by Apple, macOS blocks it the first time: open
+  it, then go to System Settings -> Privacy & Security and click Open Anyway.
+- **Linux**: `arXiv-sorter-GUI-Ubuntu.tar.gz`, built on Ubuntu 22.04 (it runs on distributions with glibc 2.35 or
+  newer). Extract it with `tar -xzf arXiv-sorter-GUI-Ubuntu.tar.gz` to the folder where you want to keep your files,
+  and run `./arXiv-sorter-GUI`.
+  Qt requires the XCB cursor library, e.g. `sudo apt install libxcb-cursor0` on Debian and Ubuntu.
+
+On Windows and Linux the program is a single file, which unpacks itself in a temporary folder each time it starts (this
+takes a few seconds), and deletes it when the window is closed.
+If the temporary folder of the system does not allow running programs (e.g. `/tmp` mounted with `noexec`), choose
+another one with the `TMPDIR` environment variable.
+
+By default, the keyword files and the abstracts are next to the program (next to `arXiv-sorter.app` on macOS), and
+other folders can be chosen in the window.
+From the source code (see [Development](#development)), start it with
 
 ```bash
-pip install -r requirements-dev.txt
+arxiv-sorter-gui
 ```
 
-and run it from the source code with `python run.py` (the same optional arguments apply).
+In the window you can:
+
+- Select the keywords and abstracts directories, and open `keywords.txt`, `authors.txt` and `categories.txt` in
+  your text editor.
+- Tick the optional arguments described above, including the verbose output.
+- Search automatically from the last saved abstracts until today, or choose a custom date range (`--date0` and
+  `--datef`).
+- Follow the progress and the messages of the program, and stop it at any time.
+
+The configuration is saved when the program runs and when the window closes, and restored at the next start.
+It is stored in `settings.json` (next to PDFFigures2), inside `%LOCALAPPDATA%\arXiv-sorter` on Windows,
+`~/Library/Preferences/arXiv-sorter` on macOS, and `~/.config/arXiv-sorter` on Linux.
+
+## Development
+
+The program requires Python 3.14. Install it in editable mode, together with the development tools, with
+
+```bash
+pip install -e ".[dev]"
+```
+
+(`pip install -r requirements-dev.txt` does the same).
+This installs the `arxiv-sorter` command (the same optional arguments apply) and the `arxiv-sorter-gui` command, which
+can also be run as `python -m arxiv_sorter` and `python -m arxiv_sorter.gui`.
+When run from Python, the relative paths are relative to the current directory, while the binaries use the directory
+where they are located.
+
+The source code follows the [src layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/):
+
+```bash
+src/arxiv_sorter/
+├── __init__.py      # Version of the program
+├── cli.py           # Command line arguments
+├── pipeline.py      # Main workflow: request, sort and write the entries of each day
+├── arxiv_api.py     # Requests to the arXiv API
+├── dates.py         # Mailing dates
+├── sorting.py       # Search of keywords, authors and categories
+├── formatting.py    # Markdown output
+├── figures.py       # Download of the PDFs and extraction of the first figure
+├── user_files.py    # Keywords, authors and categories files
+├── updater.py       # Check for new versions in GitHub
+├── console.py       # Questions and progress bars
+├── network.py       # Concurrent HTTP requests
+├── system.py        # Platform dependent details
+├── protocol.py      # Communication between the GUI and the program
+└── gui/             # Graphical interface (PySide6)
+```
+
+The files `run.py` and `gui.py` are the launchers used to build the binaries with PyInstaller.
 
 The tests use [pytest](https://docs.pytest.org/) and the code is linted with [ruff](https://docs.astral.sh/ruff/),
 both configured in `pyproject.toml`:

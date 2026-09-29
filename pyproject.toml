@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "arxiv-sorter"
 dynamic = ["version"]
@@ -13,14 +17,30 @@ dependencies = [
     "pytz",
     "grequests",
     "pymupdf",
+    "PySide6",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff"]
 
+[project.scripts]
+arxiv-sorter = "arxiv_sorter.cli:main"
+
+[project.gui-scripts]
+arxiv-sorter-gui = "arxiv_sorter.gui:main"
+
+[project.urls]
+Homepage = "https://github.com/Davtax/arXiv-sorter"
+
+[tool.setuptools.dynamic]
+version = { attr = "arxiv_sorter.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = ["src"]
 addopts = "-ra --strict-markers -m 'not network'"
 markers = [
     "network: tests that reach the real arXiv / GitHub servers (deselect with -m 'not network')",
@@ -40,7 +60,7 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 ignore = ["SIM108"]  # ternaries are not always clearer
 
 [tool.ruff.lint.isort]
-known-first-party = ["app", "updater"]
+known-first-party = ["arxiv_sorter"]
 
 [tool.ruff.format]
 quote-style = "preserve"

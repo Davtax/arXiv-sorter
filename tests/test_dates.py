@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from app.dates_functions import (
+from arxiv_sorter.dates import (
     check_last_date,
     current_utc_timestamp,
     daterange,

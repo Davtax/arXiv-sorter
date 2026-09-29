@@ -8,8 +8,9 @@ import feedparser
 import grequests  # noqa: F401  #  imported for gevent monkey-patching side effect
 import pytz
 
-from app.__meta__ import __version__
-from app.dates_functions import current_time_zone, daterange, obtain_date
+from arxiv_sorter import __version__
+from arxiv_sorter.dates import current_time_zone, daterange, obtain_date
+from arxiv_sorter.system import NO_WINDOW
 
 BASE_URL = 'https://export.arxiv.org/api/query?'
 
@@ -92,7 +93,7 @@ def _fetch_curl(url: str) -> tuple[int, bytes] | None:
         args += ['--header', f'{key}: {value}']
 
     try:
-        result = run(args + [url], capture_output=True, timeout=TIMEOUT + 5)
+        result = run(args + [url], capture_output=True, timeout=TIMEOUT + 5, **NO_WINDOW)
     except (FileNotFoundError, TimeoutExpired):
         return None
 

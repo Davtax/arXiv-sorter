@@ -3,7 +3,7 @@ from datetime import datetime
 
 import pytest
 
-from app.format_entries import (
+from arxiv_sorter.formatting import (
     _fix_equation_inner,
     _remove_white_spaces,
     fix_entry,
@@ -114,8 +114,10 @@ class TestWriteDocument:
         ]
 
     def test_joined_file(self, tmp_path, entries):
-        write_document(entries, datetime(2026, 9, 24), tmp_path, final=True, separate_files=False,
-                       image_urls=['img.png', None], version='1.2.3')
+        path = write_document(entries, datetime(2026, 9, 24), tmp_path, final=True, separate_files=False,
+                              image_urls=['img.png', None], version='1.2.3')
+
+        assert path == tmp_path / '2026-09-24.md'
 
         text = (tmp_path / '2026-09-24.md').read_text(encoding='utf-8')
         assert [line for line in text.splitlines() if line.startswith('(')] == ['(1 / 2)', '(2 / 2)', '(1 / 1)']
@@ -129,10 +131,10 @@ class TestWriteDocument:
         assert 'This file was created at' not in (tmp_path / '2026-09-24.md').read_text(encoding='utf-8')
 
     def test_separate_files(self, tmp_path, entries):
-        write_document(entries, datetime(2026, 9, 24), tmp_path, final=True, separate_files=True,
-                       image_urls=[None, None])
+        folder = write_document(entries, datetime(2026, 9, 24), tmp_path, final=True, separate_files=True,
+                                image_urls=[None, None])
 
-        folder = tmp_path / '2026-09-24'
+        assert folder == tmp_path / '2026-09-24'
         names = sorted(path.name for path in folder.iterdir())
         assert names == ['0_2609.00001v1.md', '1_2609.00002v1.md', '2_2609.00003v2.md']
 

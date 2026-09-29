@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from app import arXiv_api
-from app.arXiv_api import _get_arxiv_feed, _sort_entries, search_entries
+from arxiv_sorter import arxiv_api
+from arxiv_sorter.arxiv_api import _get_arxiv_feed, _sort_entries, search_entries
 
 # 2026-09-21 is a Monday
 MON = datetime(2026, 9, 21, 18)
@@ -50,14 +50,14 @@ class TestSearchEntries:
             urls.append(url)
             return SimpleNamespace(entries=[])
 
-        monkeypatch.setattr(arXiv_api, '_get_arxiv_feed', fake_feed)
+        monkeypatch.setattr(arxiv_api, '_get_arxiv_feed', fake_feed)
         return urls
 
     def test_query_contains_dates_and_categories(self, requested_urls):
         search_entries(['quant-ph', 'cond-mat'], datetime(2026, 9, 21), datetime(2026, 9, 24))
 
         (url,) = requested_urls
-        assert url.startswith(arXiv_api.BASE_URL)
+        assert url.startswith(arxiv_api.BASE_URL)
         assert 'search_query=lastUpdatedDate:[20260921' in url
         assert '+TO+20260924' in url
         assert '+AND+cat:(quant-ph*+OR+cond-mat*)' in url
@@ -76,8 +76,8 @@ class TestSearchEntries:
             urls.append(url)
             return SimpleNamespace(entries=pages[len(urls) - 1])
 
-        monkeypatch.setattr(arXiv_api, 'N_MAX', 2)
-        monkeypatch.setattr(arXiv_api, '_get_arxiv_feed', fake_feed)
+        monkeypatch.setattr(arxiv_api, 'N_MAX', 2)
+        monkeypatch.setattr(arxiv_api, '_get_arxiv_feed', fake_feed)
 
         grouped, _ = search_entries([], datetime(2026, 9, 21), datetime(2026, 9, 22))
 
@@ -118,7 +118,7 @@ class TestGetArxivFeed:
 
     @pytest.fixture(autouse=True)
     def no_sleep(self, monkeypatch):
-        monkeypatch.setattr(arXiv_api, 'T_SLEEP', 0)
+        monkeypatch.setattr(arxiv_api, 'T_SLEEP', 0)
 
     @pytest.fixture
     def curl_calls(self, monkeypatch):
@@ -130,7 +130,7 @@ class TestGetArxivFeed:
             calls.append(url)
             return responses.pop(0) if responses else None
 
-        monkeypatch.setattr(arXiv_api, '_fetch_curl', fake_curl)
+        monkeypatch.setattr(arxiv_api, '_fetch_curl', fake_curl)
         return responses, calls
 
     @staticmethod
@@ -139,7 +139,7 @@ class TestGetArxivFeed:
 
     def test_retries_until_success(self, monkeypatch, curl_calls):
         opener = self.FakeOpener([self._http_error(503), self.FakeResponse(self.FEED)])
-        monkeypatch.setattr(arXiv_api, 'ARXIV_OPENER', opener)
+        monkeypatch.setattr(arxiv_api, 'ARXIV_OPENER', opener)
 
         result = _get_arxiv_feed('https://example.org')
 
@@ -148,21 +148,21 @@ class TestGetArxivFeed:
         assert curl_calls[1] == []  # curl is only used for 406
 
     def test_raises_after_exhausting_retries(self, monkeypatch, curl_calls):
-        opener = self.FakeOpener([self._http_error(503)] * (arXiv_api.N_RETRIES + 1))
-        monkeypatch.setattr(arXiv_api, 'ARXIV_OPENER', opener)
+        opener = self.FakeOpener([self._http_error(503)] * (arxiv_api.N_RETRIES + 1))
+        monkeypatch.setattr(arxiv_api, 'ARXIV_OPENER', opener)
 
         with pytest.raises(RuntimeError, match='503'):
             _get_arxiv_feed('https://example.org')
-        assert opener.calls == arXiv_api.N_RETRIES + 1
+        assert opener.calls == arxiv_api.N_RETRIES + 1
 
     def test_network_errors_are_retried(self, monkeypatch, curl_calls):
         opener = self.FakeOpener([urllib.error.URLError('timed out'), self.FakeResponse(self.FEED)])
-        monkeypatch.setattr(arXiv_api, 'ARXIV_OPENER', opener)
+        monkeypatch.setattr(arxiv_api, 'ARXIV_OPENER', opener)
 
         assert _get_arxiv_feed('https://example.org').entries[0].title == 'T'
 
     def test_406_with_a_valid_feed_is_accepted(self, monkeypatch, curl_calls):
-        monkeypatch.setattr(arXiv_api, 'ARXIV_OPENER', self.FakeOpener([self._http_error(406, self.FEED)]))
+        monkeypatch.setattr(arxiv_api, 'ARXIV_OPENER', self.FakeOpener([self._http_error(406, self.FEED)]))
 
         assert _get_arxiv_feed('https://example.org').entries[0].title == 'T'
         assert curl_calls[1] == []
@@ -170,21 +170,21 @@ class TestGetArxivFeed:
     def test_406_falls_back_to_curl(self, monkeypatch, curl_calls):
         responses, calls = curl_calls
         responses.append((200, self.FEED))
-        monkeypatch.setattr(arXiv_api, 'ARXIV_OPENER', self.FakeOpener([self._http_error(406)]))
+        monkeypatch.setattr(arxiv_api, 'ARXIV_OPENER', self.FakeOpener([self._http_error(406)]))
 
         assert _get_arxiv_feed('https://example.org').entries[0].title == 'T'
         assert calls == ['https://example.org']
 
     def test_406_without_curl_retries(self, monkeypatch, curl_calls):
         opener = self.FakeOpener([self._http_error(406), self.FakeResponse(self.FEED)])
-        monkeypatch.setattr(arXiv_api, 'ARXIV_OPENER', opener)
+        monkeypatch.setattr(arxiv_api, 'ARXIV_OPENER', opener)
 
         assert _get_arxiv_feed('https://example.org').entries[0].title == 'T'
         assert opener.calls == 2
 
     def test_empty_200_is_not_a_feed(self, monkeypatch, curl_calls):
-        opener = self.FakeOpener([self.FakeResponse(b'')] * (arXiv_api.N_RETRIES + 1))
-        monkeypatch.setattr(arXiv_api, 'ARXIV_OPENER', opener)
+        opener = self.FakeOpener([self.FakeResponse(b'')] * (arxiv_api.N_RETRIES + 1))
+        monkeypatch.setattr(arxiv_api, 'ARXIV_OPENER', opener)
 
         with pytest.raises(RuntimeError, match='200'):
             _get_arxiv_feed('https://example.org')
@@ -198,25 +198,25 @@ class TestFetchCurl:
             calls.append(args)
             return SimpleNamespace(returncode=0, stdout=b'<feed/>\n200')
 
-        monkeypatch.setattr(arXiv_api, 'run', fake_run)
+        monkeypatch.setattr(arxiv_api, 'run', fake_run)
 
-        assert arXiv_api._fetch_curl('https://example.org') == (200, b'<feed/>')
+        assert arxiv_api._fetch_curl('https://example.org') == (200, b'<feed/>')
         (args,) = calls
         assert args[0] == 'curl' and args[-1] == 'https://example.org'
-        assert f"User-Agent: {arXiv_api.ARXIV_HEADERS['User-Agent']}" in args
+        assert f"User-Agent: {arxiv_api.ARXIV_HEADERS['User-Agent']}" in args
 
     def test_missing_curl(self, monkeypatch):
         def not_installed(*args, **kwargs):
             raise FileNotFoundError
 
-        monkeypatch.setattr(arXiv_api, 'run', not_installed)
+        monkeypatch.setattr(arxiv_api, 'run', not_installed)
 
-        assert arXiv_api._fetch_curl('https://example.org') is None
+        assert arxiv_api._fetch_curl('https://example.org') is None
 
     def test_curl_error(self, monkeypatch):
-        monkeypatch.setattr(arXiv_api, 'run', lambda *a, **k: SimpleNamespace(returncode=6, stdout=b'\n000'))
+        monkeypatch.setattr(arxiv_api, 'run', lambda *a, **k: SimpleNamespace(returncode=6, stdout=b'\n000'))
 
-        assert arXiv_api._fetch_curl('https://example.org') is None
+        assert arxiv_api._fetch_curl('https://example.org') is None
 
 
 @pytest.mark.network

@@ -4,8 +4,7 @@ import shutil
 import stat
 from contextlib import redirect_stdout
 from pathlib import Path
-from subprocess import run
-from threading import active_count
+from subprocess import DEVNULL, Popen, run
 from time import sleep
 
 import requests
@@ -13,10 +12,17 @@ from feedparser import FeedParserDict
 from pymupdf import Rect
 from pymupdf import open as pymupdf  # TODO: PyMuPDF is too heavy, consider using other library
 
-from app.utils import Progressbar, get_urls_async
+from arxiv_sorter.console import Progressbar
+from arxiv_sorter.network import get_urls_async
+from arxiv_sorter.system import NO_WINDOW, config_dir
 
-PDFFIGURES2_PATH = Path('.arXiv_sorter') / 'pdffigures2-0.0.12.jar'
-PDFFIGURES2_URL = f'https://github.com/Davtax/arXiv-sorter/raw/refs/heads/main/{PDFFIGURES2_PATH.as_posix()}'
+PDFFIGURES2_JAR = 'pdffigures2-0.0.12.jar'
+# Kept in the configuration folder (next to the GUI settings), so it persists wherever the program is run from
+PDFFIGURES2_PATH = config_dir() / PDFFIGURES2_JAR
+# Location used by previous versions, next to the program (relative to the working directory); also where the
+# repository keeps it
+LEGACY_PDFFIGURES2_PATH = Path('.arXiv_sorter') / PDFFIGURES2_JAR
+PDFFIGURES2_URL = f'https://github.com/Davtax/arXiv-sorter/raw/refs/heads/main/.arXiv_sorter/{PDFFIGURES2_JAR}'
 
 
 def download_pdfs(ids_entries: list[str], pdf_folder: Path, batch_size: int = 25, t_sleep: float = 1) -> None:
@@ -48,13 +54,35 @@ def download_pdfs(ids_entries: list[str], pdf_folder: Path, batch_size: int = 25
             f.write(result.content)
 
 
-def detect_figure(pdf_folder: Path, json_folder: Path, threads_num: int) -> None:
-    # Detect figures from PDFs and save JSON files inside json_folder
-    print('Detecting figures in PDF files ...')
+def detect_figure(pdf_folder: Path, json_folder: Path, threads: int, t_poll: float = 0.5) -> None:
+    """
+    Detect the figures of the PDFs with pdffigures2, which saves a JSON file per PDF inside json_folder.
+    pdffigures2 runs in the background, while the JSON files already written are counted to show the progress.
+    """
     json_folder.mkdir(parents=True, exist_ok=True)
-    args = ['java', '-jar', PDFFIGURES2_PATH, pdf_folder, '-e', '-t', str(threads_num), '-d', str(json_folder) + os.sep,
+    n_pdfs = sum(1 for _ in pdf_folder.glob('*.pdf'))
+
+    args = ['java', '-jar', PDFFIGURES2_PATH, pdf_folder, '-e', '-t', str(threads), '-d', str(json_folder) + os.sep,
             '-q']
-    run(args, capture_output=True)
+    # The output is not read, so it is discarded instead of piped (a full pipe would block pdffigures2)
+    process = Popen(args, stdin=DEVNULL, stdout=DEVNULL, stderr=DEVNULL, **NO_WINDOW)
+
+    if n_pdfs == 0:
+        process.wait()
+        return
+
+    pbar = Progressbar(n_pdfs, prefix='Detecting figures')
+    n_done = 0
+    while process.poll() is None:
+        sleep(t_poll)
+        n_json = min(sum(1 for _ in json_folder.glob('*.json')), n_pdfs)
+        if n_json > n_done:
+            pbar.update(n_json - n_done)
+            n_done = n_json
+
+    if n_done < n_pdfs:  # PDFs without a JSON file (e.g. not readable) are also finished
+        pbar.update(n_pdfs - n_done)
+    pbar.close()
 
 
 def _extract_region(id_entry: str, pdf_folder: Path, image_folder: Path, json_entry: dict, dpi: int = 300):
@@ -104,16 +132,31 @@ def clean_previous_figures(abstracts_dir: Path) -> None:
     for date_dir in figures_dir.iterdir():
         markdown_exists = (abstracts_dir / f'{date_dir.name}.md').exists() or (abstracts_dir / date_dir.name).is_dir()
         if date_dir.is_dir() and not markdown_exists:
-            try:
-                shutil.rmtree(date_dir)
-            except PermissionError:
-                print(f'Permission error deleting {date_dir}')
+            remove_folder(date_dir)
+
+
+def remove_folder(folder: Path, retries: int = 3, t_sleep: float = 1) -> bool:
+    """
+    Remove the folder, retrying since it can be locked for a moment (e.g. by the antivirus or a syncing cloud drive).
+    """
+    for attempt in range(retries + 1):
+        try:
+            shutil.rmtree(folder, onexc=remove_readonly)
+            return True
+        except FileNotFoundError:
+            return True
+        except PermissionError:
+            if attempt < retries:
+                sleep(t_sleep)
+
+    print(f'Permission error deleting {folder}, it will be retried in the next execution')
+    return False
 
 
 def check_java() -> bool:
     # Check if java is installed in the system
     try:
-        run(['java', '-version'], capture_output=True)
+        run(['java', '-version'], capture_output=True, **NO_WINDOW)
         return True
     except FileNotFoundError:
         print('Java is not installed. Please install it.')
@@ -122,20 +165,39 @@ def check_java() -> bool:
 
 
 def check_pdffigure2() -> bool:
-    # Check if pdffigure2 is installed in the system, and download it otherwise
+    """
+    Check if pdffigures2 is available in the configuration folder. Otherwise, it is copied from the location used by
+    previous versions, or downloaded from GitHub (only the first time, it is kept for the next runs).
+    """
     if PDFFIGURES2_PATH.is_file():
         return True
 
-    print('pdffigures2 is not installed. Downloading it from GitHub ...')
+    # Written to a temporary file first, so an interrupted copy or download does not leave a broken jar behind
+    partial_path = PDFFIGURES2_PATH.with_suffix('.part')
+
+    try:
+        PDFFIGURES2_PATH.parent.mkdir(parents=True, exist_ok=True)
+        if LEGACY_PDFFIGURES2_PATH.is_file():
+            shutil.copyfile(LEGACY_PDFFIGURES2_PATH, partial_path)
+            partial_path.replace(PDFFIGURES2_PATH)
+            print(f'pdffigures2 copied from {LEGACY_PDFFIGURES2_PATH.resolve()} to {PDFFIGURES2_PATH}')
+            return True
+    except OSError as error:
+        print(f'Unable to save pdffigures2 in {PDFFIGURES2_PATH.parent} ({error}). Running without figure detection.')
+        return False
+
+    print(f'pdffigures2 (used to detect the figures) not found in {PDFFIGURES2_PATH.parent}.')
+    print('Downloading it from GitHub, only needed the first time ...')
     try:
         response = requests.get(PDFFIGURES2_URL, timeout=60)
         response.raise_for_status()
-    except requests.RequestException as error:
+        partial_path.write_bytes(response.content)
+        partial_path.replace(PDFFIGURES2_PATH)
+    except (requests.RequestException, OSError) as error:
         print(f'Unable to download pdffigures2 ({error}). Running without figure detection.')
         return False
 
-    PDFFIGURES2_PATH.parent.mkdir(parents=True, exist_ok=True)
-    PDFFIGURES2_PATH.write_bytes(response.content)
+    print(f'pdffigures2 saved in {PDFFIGURES2_PATH}')
     return True
 
 
@@ -150,12 +212,18 @@ def remove_readonly(func, path, exc_info):
     func(path)
 
 
-def get_images_pdf_scrapper(date: str,
-                            entries: list[FeedParserDict],
-                            temp_dir,
-                            abstracts_dir: Path,
-                            separate_files: bool
-                            ) -> list[str | None]:
+def extract_figures(date: str,
+                    entries: list[FeedParserDict],
+                    temp_dir,
+                    abstracts_dir: Path,
+                    separate_files: bool,
+                    threads: int = 1,
+                    ) -> list[str | None]:
+    """
+    Download the PDFs of the entries and extract their first figure, detected by pdffigures2 with the given number of
+    threads (each one processes a PDF at a time, so more threads are faster but use more memory).
+    Returns the link to the figure of each entry, relative to the abstracts folder (None if no figure was found).
+    """
     figures_dir = abstracts_dir / 'figures'
     figures_dir.mkdir(parents=True, exist_ok=True)
 
@@ -166,13 +234,11 @@ def get_images_pdf_scrapper(date: str,
     json_folder = temporary_date_dir / 'data'
     image_folder = figures_dir / date
 
-    threads_num = active_count()
-
     clean_previous_figures(abstracts_dir)
 
     # Clean image folder
     if image_folder.exists():
-        shutil.rmtree(image_folder, onexc=remove_readonly)
+        remove_folder(image_folder)
 
     create_folders(temporary_date_dir, pdf_folder, json_folder, image_folder)
 
@@ -183,7 +249,7 @@ def get_images_pdf_scrapper(date: str,
     download_pdfs(ids_entries, pdf_folder)
 
     # Detect figures from pdfs
-    detect_figure(pdf_folder, json_folder, threads_num)
+    detect_figure(pdf_folder, json_folder, threads)
 
     # Extract figures from json files
     figure_links = []

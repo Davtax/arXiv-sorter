@@ -1,6 +1,9 @@
 .idea/
 build/
 *.spec
+!packaging/*.spec
+gui-build/
+gui-dist/
 __pycache__/
 dist/
 
@@ -26,3 +29,4 @@ test_pdffigures/
 .ruff_cache/
 .venv/
 venv/
+*.egg-info/

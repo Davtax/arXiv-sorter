@@ -1,21 +1,25 @@
+"""
+Main workflow: request the new submissions, sort them by the user keywords, and write the Markdown files.
+"""
 import argparse
 import os
-import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
 
 from feedparser import FeedParserDict
 
-from app.__meta__ import __version__
-from app.arXiv_api import search_entries
-from app.dates_functions import check_last_date, next_mail, prev_mail
-from app.format_entries import fix_entry, write_document
-from app.pdf_scrapper import get_images_pdf_scrapper
-from app.read_files import read_user_file
-from app.sort_entries import sort_articles
-from app.utils import question
-from updater.updater import check_for_update, download_and_update, get_system_name
+from arxiv_sorter import __version__
+from arxiv_sorter.arxiv_api import search_entries
+from arxiv_sorter.console import question, report_written
+from arxiv_sorter.dates import check_last_date, next_mail, prev_mail
+from arxiv_sorter.figures import extract_figures
+from arxiv_sorter.formatting import fix_entry, write_document
+from arxiv_sorter.protocol import gui_mode
+from arxiv_sorter.sorting import sort_articles
+from arxiv_sorter.system import base_dir, is_frozen
+from arxiv_sorter.updater import check_for_update, download_and_update, get_system_name
+from arxiv_sorter.user_files import read_user_file
 
 
 def get_last_new(entries: list[FeedParserDict]):
@@ -29,20 +33,15 @@ def get_last_new(entries: list[FeedParserDict]):
             break
 
 
-def main(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
+def run(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
     print(f'Current arXiv-sorter version: v{__version__}')
 
-    launcher_path = Path(sys.argv[0])
-    if launcher_path.parent != Path('.'):
-        os.chdir(launcher_path.resolve().parent)  # Change working directory to script directory
-
-    # Check internal usage folder exists
-    arxiv_sorter_folder = Path('.arXiv_sorter')
-    arxiv_sorter_folder.mkdir(exist_ok=True)
+    if is_frozen():  # Relative paths are next to the binary, wherever it is launched from
+        os.chdir(base_dir())
 
     # Check updates of arXiv-sorter
     platform = get_system_name()
-    new_version_url = check_for_update(platform, __version__, _verbose=args.verbose)
+    new_version_url = check_for_update(platform, __version__, gui=gui_mode(), _verbose=args.verbose)
     if new_version_url is not None:
         print(f'New version available: {new_version_url}')
     if args.update and new_version_url is not None and question('Do you want to update arXiv-sorter?'):
@@ -65,7 +64,10 @@ def main(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
     if args.verbose:
         print('Keywords: ' + str(keywords))
         print('Authors: ' + str(authors))
-        print('Categories: ' + str(categories) + '\n')
+        print('Categories: ' + str(categories))
+        if args.image:
+            print(f'Threads to detect the figures: {args.threads}')
+        print()
 
     # Search between last date with data and today
     if args.date0 is not None:
@@ -121,13 +123,15 @@ def main(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
             get_last_new(entries)
 
             if args.image:
-                image_urls = get_images_pdf_scrapper(
-                    str(date.date()), entries[:n_new], temp_dir, abstracts_dir, args.separate
+                image_urls = extract_figures(
+                    str(date.date()), entries[:n_new], temp_dir, abstracts_dir, args.separate, threads=args.threads
                 )
             else:
                 image_urls = [None] * n_new
 
-            write_document(entries, date, abstracts_dir, args.final, args.separate, image_urls, version=__version__)
+            path = write_document(entries, date, abstracts_dir, args.final, args.separate, image_urls,
+                                  version=__version__)
+            report_written(path, len(entries), n_new)
             print()
 
         # If data not found, search one day before previous date

@@ -6,8 +6,8 @@ from time import sleep
 import requests
 from packaging import version
 
-from app.dates_functions import current_utc_timestamp
-from app.utils import timing_message
+from arxiv_sorter.console import timing_message
+from arxiv_sorter.dates import current_utc_timestamp
 
 URL = 'https://api.github.com/repos/Davtax/arXiv-sorter/releases/latest'
 TIMEOUT = 10  # seconds
@@ -26,9 +26,17 @@ def get_system_name() -> str:
         sys.exit(f'Unknown platform {system()}')
 
 
-def check_for_update(platform: str, current_version: str, _verbose: bool = False) -> str | None:
+def asset_name(platform: str, gui: bool = False) -> str:
     """
-    Check in GitHub if there is a new version available, and return the download url of the asset for the platform.
+    Name (without extension) of the release asset for the platform, e.g. arXiv-sorter-Windows or arXiv-sorter-GUI-macOS.
+    """
+    return f'arXiv-sorter-GUI-{platform}' if gui else f'arXiv-sorter-{platform}'
+
+
+def check_for_update(platform: str, current_version: str, gui: bool = False, _verbose: bool = False) -> str | None:
+    """
+    Check in GitHub if there is a new version available, and return the download url of the asset for the platform
+    (of the GUI or of the command line program).
     """
     try:
         while True:
@@ -59,11 +67,12 @@ def check_for_update(platform: str, current_version: str, _verbose: bool = False
     if version.parse(f'v{current_version}') >= version.parse(latest_version):
         return None
 
+    name = asset_name(platform, gui)
     for asset in response.json()['assets']:
-        if platform in asset['name']:
+        if asset['name'].split('.')[0] == name:  # The extension depends on the platform (.zip, .tar.gz)
             return asset['browser_download_url']
 
-    print(f'No asset found for {platform}')
+    print(f'No asset {name} found in the latest release')
     return None
 
 

@@ -3,7 +3,7 @@ import time
 import pytest
 import requests
 
-from updater import updater
+from arxiv_sorter import updater
 
 
 class FakeResponse:
@@ -19,8 +19,10 @@ class FakeResponse:
 RELEASE = {
     'tag_name': 'v1.0.0',
     'assets': [
+        {'name': 'arXiv-sorter-GUI-Windows.zip', 'browser_download_url': 'https://example.org/gui-windows.zip'},
         {'name': 'arXiv-sorter-Windows.zip', 'browser_download_url': 'https://example.org/windows.zip'},
         {'name': 'arXiv-sorter-Ubuntu.zip', 'browser_download_url': 'https://example.org/ubuntu.zip'},
+        {'name': 'arXiv-sorter-GUI-Ubuntu.tar.gz', 'browser_download_url': 'https://example.org/gui-ubuntu.tar.gz'},
     ],
 }
 
@@ -57,6 +59,12 @@ class TestCheckForUpdate:
         github.append(FakeResponse(json_data=RELEASE))
         assert updater.check_for_update('Windows', '0.9.0') == 'https://example.org/windows.zip'
 
+    @pytest.mark.parametrize(('platform', 'expected'), [('Windows', 'https://example.org/gui-windows.zip'),
+                                                        ('Ubuntu', 'https://example.org/gui-ubuntu.tar.gz')])
+    def test_gui_returns_gui_asset(self, github, platform, expected):
+        github.append(FakeResponse(json_data=RELEASE))
+        assert updater.check_for_update(platform, '0.9.0', gui=True) == expected
+
     @pytest.mark.parametrize('current', ['1.0.0', '1.0.1'])
     def test_up_to_date(self, github, current):
         github.append(FakeResponse(json_data=RELEASE))
@@ -65,7 +73,7 @@ class TestCheckForUpdate:
     def test_missing_platform_asset(self, github, capsys):
         github.append(FakeResponse(json_data=RELEASE))
         assert updater.check_for_update('macOS', '0.9.0') is None
-        assert 'No asset found for macOS' in capsys.readouterr().out
+        assert 'No asset arXiv-sorter-macOS found' in capsys.readouterr().out
 
     def test_no_internet(self, github):
         github.append(requests.ConnectionError())
