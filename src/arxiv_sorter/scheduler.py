@@ -211,7 +211,7 @@ def parse_launchd_time(content: bytes) -> time | None:
 
 
 def _launchd_domain() -> str:
-    return f'gui/{os.getuid()}'  # type: ignore[attr-defined]  # Not available (nor used) on Windows
+    return f'gui/{os.getuid()}'  # type: ignore[attr-defined, unused-ignore]  # Not on Windows (nor used)
 
 
 def _launchd_time() -> time | None:
