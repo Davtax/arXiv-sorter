@@ -40,10 +40,12 @@ def test_java_arguments_keep_space_containing_paths_intact(tmp_path, monkeypatch
     pdf_path.mkdir()
     data_path = tmp_path / 'json files'
 
-    detect_figure(pdf_path, data_path, 2)
+    java = tmp_path / 'java runtime' / 'java'
+
+    detect_figure(pdf_path, data_path, 2, java)
 
     assert FakePdffigures2.calls == [
-        ['java', '-jar', PDFFIGURES2_PATH, pdf_path, '-e', '-t', '2', '-d', str(data_path) + os.sep, '-q']]
+        [java, '-jar', PDFFIGURES2_PATH, pdf_path, '-e', '-t', '2', '-d', str(data_path) + os.sep, '-q']]
 
 
 class TestDetectionProgress:
@@ -90,7 +92,7 @@ class TestDetectionProgress:
 
 
 def _fake_pipeline(monkeypatch):
-    monkeypatch.setattr(figures, 'check_java', lambda: True)
+    monkeypatch.setattr(figures, 'find_java', lambda: 'java')
     monkeypatch.setattr(figures, 'check_pdffigure2', lambda: True)
     monkeypatch.setattr(figures, 'download_pdfs', lambda *args: None)
     monkeypatch.setattr(figures, 'detect_figure', lambda *args: None)
@@ -120,7 +122,7 @@ def test_figure_links_are_relative_to_the_entry_folder_when_separated(tmp_path, 
 
 
 def test_without_java_no_figures_are_linked(tmp_path, monkeypatch):
-    monkeypatch.setattr(figures, 'check_java', lambda: False)
+    monkeypatch.setattr(figures, 'find_java', lambda: None)
     temp_dir = SimpleNamespace(name=str(tmp_path / 'tmp'))
     entries = [SimpleNamespace(id='https://arxiv.org/abs/1'), SimpleNamespace(id='https://arxiv.org/abs/2')]
 
@@ -158,7 +160,7 @@ class TestRemoveFolder:
 def test_threads_are_passed_to_pdffigures2(tmp_path, monkeypatch):
     _fake_pipeline(monkeypatch)
     calls = []
-    monkeypatch.setattr(figures, 'detect_figure', lambda pdf_folder, json_folder, threads: calls.append(threads))
+    monkeypatch.setattr(figures, 'detect_figure', lambda pdf_folder, json_folder, threads, java: calls.append(threads))
     temp_dir = SimpleNamespace(name=str(tmp_path / 'tmp'))
 
     extract_figures('2026-01-02', [SimpleNamespace(id='https://arxiv.org/abs/1')], temp_dir, tmp_path / 'abstracts',

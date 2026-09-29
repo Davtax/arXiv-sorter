@@ -4,6 +4,7 @@ Logic of the main window and of the editor of the search files, with pytest-qt.
 import json
 import os
 import sys
+import time
 
 import pytest
 
@@ -13,12 +14,14 @@ if sys.platform.startswith('linux') and not (os.environ.get('DISPLAY') or os.env
 QtCore = pytest.importorskip('PySide6.QtCore')
 pytest.importorskip('pytestqt')
 
+from arxiv_sorter.gui import updates as updates_module  # noqa: E402
 from arxiv_sorter.gui import window as window_module  # noqa: E402
 from arxiv_sorter.gui.search_editor import SearchFilesEditor, abstract_excerpt, highlighted_html  # noqa: E402
 from arxiv_sorter.gui.summary import Outcome  # noqa: E402
 from arxiv_sorter.protocol import LOG_TAG, PROGRESS_TAG, WRITTEN_TAG  # noqa: E402
 from arxiv_sorter.search_terms import Kind  # noqa: E402
 from arxiv_sorter.sorting import AbstractEnclosure  # noqa: E402
+from arxiv_sorter.updater import Release, UpdateError  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -220,6 +223,126 @@ class TestTheme:
         assert second.theme == 'dark'
         assert [action.isChecked() for action in second.theme_actions.actions()] == [False, False, True]
 
+
+
+RELEASE = Release(version='v9.9.9', url='https://example.org/arXiv-sorter-GUI-Windows.zip',
+                  asset='arXiv-sorter-GUI-Windows.zip', page='https://example.org/v9.9.9', notes='New features')
+
+
+@pytest.fixture
+def click(monkeypatch):
+    """Answer the next message boxes built by the window by clicking the button with the given text."""
+    def choose(text):
+        monkeypatch.setattr(window_module.QMessageBox, 'clickedButton',
+                            lambda box: next(button for button in box.buttons() if button.text() == text))
+    return choose
+
+
+class TestUpdates:
+    def test_offered_when_found(self, win, no_modal_dialogs, monkeypatch, click):
+        upgraded = []
+        monkeypatch.setattr(win, 'upgrade', upgraded.append)
+        click('Upgrade')
+
+        win.update_checked(RELEASE, '')
+
+        assert 'Upgrade downloads it' in no_modal_dialogs[-1]
+        assert upgraded == [RELEASE]
+
+    def test_skipped_version_is_remembered(self, win, make_window, tmp_path, no_modal_dialogs):
+        win.update_checked(RELEASE, '')  # The message box closes without a click, like Skip
+
+        assert json.loads((tmp_path / 'settings.json').read_text(encoding='utf-8'))['skipped_version'] == 'v9.9.9'
+        n_dialogs = len(no_modal_dialogs)
+        new_window = make_window()
+        new_window.update_checked(RELEASE, '')
+        assert len(no_modal_dialogs) == n_dialogs  # Not offered again when the window opens
+
+        new_window.manual_update_check = True
+        new_window.update_checked(RELEASE, '')
+        assert len(no_modal_dialogs) == n_dialogs + 1  # But offered when asked from the menu
+
+    def test_offered_after_the_run(self, win, no_modal_dialogs):
+        win.process = QtCore.QProcess(win)
+        win.update_checked(RELEASE, '')
+        assert win.pending_release == RELEASE and not no_modal_dialogs
+
+        win.set_running(True)
+        win.process_finished(0, QtCore.QProcess.ExitStatus.NormalExit)
+
+        assert win.pending_release is None
+        assert 'Upgrade downloads it' in no_modal_dialogs[-1]
+
+    @pytest.mark.parametrize(('error', 'expected'), [('', 'is the latest version'), ('No internet', 'No internet')])
+    def test_manual_check_without_update(self, win, no_modal_dialogs, error, expected):
+        win.manual_update_check = True
+        win.update_checked(None, error)
+        assert expected in str(no_modal_dialogs[-1])
+
+    def test_nothing_shown_at_startup_without_update(self, win, no_modal_dialogs):
+        win.update_checked(None, 'No internet')
+        assert not no_modal_dialogs
+
+    def test_not_checked_from_the_python_sources(self, win, monkeypatch, no_modal_dialogs):
+        monkeypatch.setattr(window_module, 'is_frozen', lambda: False)
+        win.check_for_updates()
+        assert win.update_checker is None and not no_modal_dialogs
+
+        win.check_for_updates(manual=True)
+        assert 'Python sources' in str(no_modal_dialogs[-1])
+
+    def test_checked_in_the_background(self, win, qtbot, monkeypatch):
+        monkeypatch.setattr(window_module, 'is_frozen', lambda: True)
+        monkeypatch.setattr(updates_module, 'latest_release', lambda: {'tag_name': 'v0.0.1', 'assets': []})
+        offered = []
+        monkeypatch.setattr(win, 'offer_update', offered.append)
+
+        win.check_for_updates()
+        with qtbot.waitSignal(win.update_checker.checked, timeout=5000):
+            pass
+
+        assert win.update_checker is None and not offered  # Older than this version
+
+    def test_installed_then_restarted(self, win, qtbot, monkeypatch, tmp_path):
+        program = tmp_path / 'arXiv-sorter-GUI.exe'
+        monkeypatch.setattr(updates_module, 'install_update', lambda release, progress: program)
+        launched, quit_calls = [], []
+        monkeypatch.setattr(window_module, 'launch', launched.append)
+        monkeypatch.setattr(window_module.QApplication, 'quit', lambda: quit_calls.append(True))
+
+        win.upgrade(RELEASE)
+        assert not win.run_button.isEnabled()
+        qtbot.waitUntil(lambda: win.update_installer is None, timeout=5000)
+
+        assert launched == [program] and quit_calls
+        assert (tmp_path / 'settings.json').is_file()
+
+    def test_failed_install(self, win, qtbot, monkeypatch, no_modal_dialogs):
+        def fail(release, progress):
+            raise UpdateError('Unable to write in the folder')
+
+        monkeypatch.setattr(updates_module, 'install_update', fail)
+
+        win.upgrade(RELEASE)
+        qtbot.waitUntil(lambda: win.update_installer is None, timeout=5000)
+
+        assert 'Unable to write in the folder' in no_modal_dialogs[-1]
+        assert win.run_button.isEnabled()
+
+    def test_cancelled_install(self, win, qtbot, monkeypatch, no_modal_dialogs):
+        def cancelled(release, progress):
+            while True:  # Until the progress callback raises UpdateCancelled
+                progress(10, 100)
+                time.sleep(0.01)
+
+        monkeypatch.setattr(updates_module, 'install_update', cancelled)
+
+        win.upgrade(RELEASE)
+        win.update_installer.cancel()
+        qtbot.waitUntil(lambda: win.update_installer is None, timeout=5000)
+
+        assert win.statusBar().currentMessage() == 'Update cancelled'
+        assert not no_modal_dialogs
 
 class TestSearchFilesEditor:
     @pytest.fixture

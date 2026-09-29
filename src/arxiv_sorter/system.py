@@ -20,9 +20,9 @@ APP_NAME = 'arXiv-sorter'
 
 def config_dir() -> Path:
     """
-    Folder of the user configuration, which persists between runs and updates of the program: the GUI settings and the
-    pdffigures2 jar. It is the same folder as QStandardPaths.AppConfigLocation for the GUI, computed without Qt so the
-    command line program can use it too.
+    Folder of the user configuration, which persists between runs and updates of the program: the GUI settings, the
+    pdffigures2 jar and the Java runtime. It is the same folder as QStandardPaths.AppConfigLocation for the GUI,
+    computed without Qt so the command line program can use it too.
     """
     if sys.platform == 'win32':
         base = Path(os.environ.get('LOCALAPPDATA') or Path.home() / 'AppData' / 'Local')
@@ -47,6 +47,14 @@ def is_frozen() -> bool:
     return getattr(sys, 'frozen', False)
 
 
+def installed_path() -> Path:
+    """
+    The installed program, which an update replaces: the .app bundle on macOS, the binary elsewhere.
+    """
+    executable = Path(sys.executable).resolve()
+    return next((parent for parent in executable.parents if parent.suffix == '.app'), executable)
+
+
 def base_dir() -> Path:
     """
     Directory where the user files are by default: next to the binary, or the current directory when run from Python.
@@ -58,12 +66,11 @@ def base_dir() -> Path:
     if not is_frozen():
         return Path.cwd()
 
-    executable = Path(sys.executable).resolve()
-    bundle = next((parent for parent in executable.parents if parent.suffix == '.app'), None)
-    if bundle is None:
-        return executable.parent
+    installed = installed_path()
+    if installed.suffix != '.app':
+        return installed.parent
 
-    folder = bundle.parent
+    folder = installed.parent
     if 'AppTranslocation' not in folder.parts and os.access(folder, os.W_OK):
         return folder
 

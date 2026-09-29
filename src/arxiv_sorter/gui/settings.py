@@ -34,6 +34,7 @@ class Settings:
     date_f: str = ''
 
     theme: str = 'system'  # One of THEMES
+    skipped_version: str = ''  # Release the user chose to skip, e.g. v0.4.0, so it is not offered again
     window_geometry: str = ''  # Base64 encoded Qt geometry
 
     @classmethod

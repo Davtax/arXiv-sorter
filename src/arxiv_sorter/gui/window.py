@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QProgressBar,
+    QProgressDialog,
     QPushButton,
     QRadioButton,
     QSpinBox,
@@ -41,10 +42,12 @@ from arxiv_sorter.gui.search_files import SEARCH_FILES, count_terms, describe
 from arxiv_sorter.gui.settings import SETTINGS_FILE, THEMES, Settings
 from arxiv_sorter.gui.summary import Outcome, WrittenFile, final_message, format_duration
 from arxiv_sorter.gui.theme import apply_theme
+from arxiv_sorter.gui.updates import UpdateChecker, UpdateInstaller
 from arxiv_sorter.log_file import latest_log, logs_dir
 from arxiv_sorter.protocol import GUI_ENV_VAR, LOG_TAG, PROGRESS_TAG, QUESTION_TAG, WORKER_FLAG, WRITTEN_TAG, Level
 from arxiv_sorter.search_terms import Kind, Problem, Severity, check_file, check_folder
 from arxiv_sorter.system import APP_NAME, base_dir, config_dir, is_frozen, kill_process_tree, max_threads
+from arxiv_sorter.updater import Release, launch, remove_old_version
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]  # Folder that contains the arxiv_sorter package
 REPOSITORY_URL = 'https://github.com/Davtax/arXiv-sorter'
@@ -174,6 +177,11 @@ class MainWindow(QMainWindow):
         self.written: list[WrittenFile] = []
         self.start_time = 0.0
         self.theme = 'system'
+        self.skipped_version = ''
+        self.update_checker: UpdateChecker | None = None
+        self.manual_update_check = False  # Asked from the menu, so the result is shown even without a new version
+        self.update_installer: UpdateInstaller | None = None
+        self.pending_release: Release | None = None  # Found during a run, offered once it finishes
 
         self.elapsed_timer = QTimer(self)
         self.elapsed_timer.setInterval(1000)
@@ -280,16 +288,15 @@ class MainWindow(QMainWindow):
         box = QVBoxLayout(group)
 
         self.images_check = QCheckBox('Include the first figure of each new submission')
-        self.images_check.setToolTip('Download the PDFs and extract their first figure (needs Java). Slower, and '
-                                     'arXiv may limit the downloads (untick for --image)')
+        self.images_check.setToolTip('Download the PDFs and extract their first figure (Java is downloaded the first '
+                                     'time if it is not installed). Slower, and arXiv may limit the downloads (untick '
+                                     'for --image)')
         self.final_date_check = QCheckBox('Add a timestamp at the end of the Markdown file')
         self.final_date_check.setToolTip('Untick for --final')
         self.separate_check = QCheckBox('Create a separate file for each submission')
         self.separate_check.setToolTip('A folder per mailing list, with a Markdown file per submission (--separate)')
         self.sort_authors_check = QCheckBox('Sort authors.txt and remove its blank lines')
         self.sort_authors_check.setToolTip('Untick for --modify')
-        self.update_check = QCheckBox('Download new versions of arXiv-sorter when available')
-        self.update_check.setVisible(False)  # Temporarily disabled: the update is not implemented yet
         self.verbose_check = QCheckBox('Show detailed messages')
         self.verbose_check.setToolTip('Useful to understand a problem (--verbose)')
 
@@ -310,7 +317,7 @@ class MainWindow(QMainWindow):
 
         box.addWidget(self.images_check)
         box.addLayout(threads_row)
-        for check in (self.final_date_check, self.separate_check, self.sort_authors_check, self.update_check,
+        for check in (self.final_date_check, self.separate_check, self.sort_authors_check,
                       self.verbose_check):
             box.addWidget(check)
         box.addStretch()
@@ -422,6 +429,8 @@ class MainWindow(QMainWindow):
         self._add_action(help_menu, 'Open the log of the last run', self.open_latest_log)
         self._add_action(help_menu, 'Open the logs folder', lambda: open_path(ensure_dir(logs_dir())))
         help_menu.addSeparator()
+        self._add_action(help_menu, 'Check for updates…', lambda: self.check_for_updates(manual=True)).setMenuRole(
+            QAction.MenuRole.ApplicationSpecificRole)
         self._add_action(help_menu, f'About {APP_NAME}', self.show_about).setMenuRole(QAction.MenuRole.AboutRole)
 
     def _add_action(self, menu, text: str, slot, shortcut=None) -> QAction:
@@ -481,6 +490,7 @@ class MainWindow(QMainWindow):
                         verbose=self.verbose_check.isChecked(), custom_dates=self.custom_dates_radio.isChecked(),
                         date_0=self.date_0_edit.date().toString(Qt.DateFormat.ISODate),
                         date_f=self.date_f_edit.date().toString(Qt.DateFormat.ISODate), theme=self.theme,
+                        skipped_version=self.skipped_version,
                         window_geometry=bytes(self.saveGeometry().toBase64().data()).decode('ascii'), )
 
     def load_settings(self):
@@ -494,7 +504,6 @@ class MainWindow(QMainWindow):
         self.final_date_check.setChecked(settings.final_date)
         self.separate_check.setChecked(settings.separate)
         self.sort_authors_check.setChecked(settings.sort_authors)
-        self.update_check.setChecked(settings.update)
         self.verbose_check.setChecked(settings.verbose)
         self.custom_dates_radio.setChecked(settings.custom_dates)
         self.auto_dates_radio.setChecked(not settings.custom_dates)
@@ -508,6 +517,7 @@ class MainWindow(QMainWindow):
             self.restoreGeometry(QByteArray.fromBase64(settings.window_geometry.encode('ascii')))
         else:
             self.resize(1000, 780)
+        self.skipped_version = settings.skipped_version
         self.set_theme(settings.theme, save=False)
 
     def save_settings(self):
@@ -619,7 +629,8 @@ class MainWindow(QMainWindow):
             '<p>Download, sort and highlight the daily arXiv submissions matching your keywords and authors, as '
             'Markdown files for Obsidian.</p>'
             f'<p><a href="{REPOSITORY_URL}">{REPOSITORY_URL}</a></p>'
-            f'<p>Settings and pdffigures2 are kept in<br><a href="{QUrl.fromLocalFile(str(config_dir())).toString()}">'
+            '<p>Settings, pdffigures2 and Java are kept in<br>'
+            f'<a href="{QUrl.fromLocalFile(str(config_dir())).toString()}">'
             f'{config_dir()}</a></p>'
             '<p>MIT License</p>')
 
@@ -817,6 +828,136 @@ class MainWindow(QMainWindow):
         self.refresh_search_files()  # authors.txt may have been sorted
         QApplication.alert(self)  # Flash the taskbar entry (Dock icon on macOS) if the window is not active
 
+        if self.pending_release is not None:
+            release, self.pending_release = self.pending_release, None
+            self.offer_update(release)
+
+    # ---------------------------------------------------------------- updates
+    def check_for_updates(self, manual: bool = False):
+        """
+        Look for a new version in GitHub, in the background. When the window opens (manual=False), nothing is shown
+        unless there is a new version that was not skipped; when asked from the menu, the result is always shown.
+        """
+        if self.update_checker is not None or self.update_installer is not None:
+            return
+        if not is_frozen():
+            if manual:
+                QMessageBox.information(self, APP_NAME, f'{APP_NAME} v{__version__} runs from its Python sources, so '
+                                        'it is updated from the repository instead.')
+            return
+
+        self.statusBar().showMessage('Checking for updates …', 5000)
+        self.update_checker = UpdateChecker(self)
+        self.manual_update_check = manual
+        self.update_checker.checked.connect(self.update_checked)  # Called in the thread of the window
+        self.update_checker.start()
+
+    def update_checked(self, release: Release | None, error: str):
+        self.update_checker = None
+        manual = self.manual_update_check
+        if release is None:
+            if manual and error:
+                QMessageBox.warning(self, APP_NAME, error)
+            elif manual:
+                QMessageBox.information(self, APP_NAME, f'{APP_NAME} v{__version__} is the latest version.')
+            return
+
+        if not manual and release.version == self.skipped_version:
+            return
+        if self.process is not None:  # Not in the middle of a run
+            self.pending_release = release
+            return
+        self.offer_update(release)
+
+    def offer_update(self, release: Release):
+        """
+        Ask whether to upgrade to the release now, or to skip it (it is not offered again when the window opens).
+        """
+        box = QMessageBox(QMessageBox.Icon.Information, APP_NAME,
+                          f'<b>{APP_NAME} {release.version} is available</b> (you have v{__version__}).', parent=self)
+        page = f' <a href="{release.page}">What is new?</a>' if release.page else ''
+        box.setInformativeText(f'Upgrade downloads it, replaces this version and opens it again. Your settings and '
+                               f'search files are kept.{page}')
+        box.setTextFormat(Qt.TextFormat.RichText)
+        if release.notes:
+            box.setDetailedText(release.notes)
+        upgrade_button = box.addButton('Upgrade', QMessageBox.ButtonRole.AcceptRole)
+        box.addButton('Skip', QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(upgrade_button)
+        box.exec()
+
+        if box.clickedButton() is upgrade_button:
+            self.upgrade(release)
+        else:
+            self.skipped_version = release.version
+            self.save_settings()
+            self.statusBar().showMessage(f'{release.version} skipped. Help → Check for updates… to install it later',
+                                         8000)
+
+    def upgrade(self, release: Release):
+        """
+        Download and install the release, with a progress dialog, then restart with the new version.
+        """
+        dialog = QProgressDialog(f'Downloading {APP_NAME} {release.version} …', 'Cancel', 0, 0, self)
+        dialog.setWindowTitle(APP_NAME)
+        dialog.setWindowModality(Qt.WindowModality.WindowModal)
+        dialog.setMinimumDuration(0)
+        dialog.setAutoClose(False)
+        dialog.setAutoReset(False)
+
+        def show_progress(received: int, total: int):
+            if total and received >= total:
+                dialog.setLabelText(f'Installing {APP_NAME} {release.version} …')
+                dialog.setRange(0, 0)
+                dialog.setCancelButton(None)  # Too late to cancel: the program is being replaced
+            elif total:
+                dialog.setRange(0, total)
+                dialog.setValue(received)
+
+        installer = UpdateInstaller(release, self)
+        installer.progress.connect(show_progress)
+        installer.installed.connect(self.restart_updated)
+        installer.failed.connect(lambda error: self.update_failed(release, error))
+        installer.finished.connect(dialog.deleteLater)
+        installer.finished.connect(installer.deleteLater)
+        dialog.canceled.connect(installer.cancel)
+        self.update_installer = installer
+        self.set_running(True)  # No run while the program is replaced
+        self.stop_button.setEnabled(False)
+        dialog.show()
+        installer.start()
+
+    def update_failed(self, release: Release, error: str):
+        self.update_installer = None
+        self.set_running(False)
+        if not error:
+            self.statusBar().showMessage('Update cancelled', 5000)
+            return
+
+        box = QMessageBox(QMessageBox.Icon.Warning, APP_NAME, f'Unable to update {APP_NAME} to {release.version}.',
+                          parent=self)
+        box.setInformativeText(error)
+        download_button = box.addButton('Open the download page', QMessageBox.ButtonRole.AcceptRole)
+        box.addButton(QMessageBox.StandardButton.Close)
+        box.exec()
+        if box.clickedButton() is download_button:
+            open_url(release.page or f'{REPOSITORY_URL}/releases/latest')
+
+    def restart_updated(self, program: Path):
+        """
+        The new version replaced this one: open it, and close this window.
+        """
+        self.update_installer = None
+        self.set_running(False)
+        self.save_settings()  # Read by the new version when it opens
+        try:
+            launch(program)
+        except OSError as error:
+            QMessageBox.warning(self, APP_NAME, f'{APP_NAME} was updated, but the new version could not be opened '
+                                f'({error}). Open it again from {program}.')
+        self.close()
+        QApplication.quit()
+
     def changeEvent(self, event: QEvent):
         # Back from editing the search files in another program: update their counts
         if event.type() == QEvent.Type.ActivationChange and self.isActiveWindow():
@@ -831,6 +972,9 @@ class MainWindow(QMainWindow):
                 return
             stop_process(self.process)
             self.process.waitForFinished(3000)
+        if self.update_installer is not None:  # Stops the download; the replacement itself only takes a moment
+            self.update_installer.cancel()
+            self.update_installer.wait()
 
         self.save_settings()
         event.accept()
@@ -858,6 +1002,10 @@ def start_gui() -> int:
     app.setApplicationVersion(__version__)
     app.setWindowIcon(app_icon())
 
+    if is_frozen():
+        remove_old_version()  # Left by the last update
+
     window = MainWindow()
     window.show()
+    window.check_for_updates()
     return app.exec()

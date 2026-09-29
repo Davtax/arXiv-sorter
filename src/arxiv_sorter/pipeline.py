@@ -19,7 +19,7 @@ from arxiv_sorter.protocol import gui_mode
 from arxiv_sorter.search_terms import Severity, check_folder
 from arxiv_sorter.sorting import sort_articles
 from arxiv_sorter.system import base_dir, is_frozen
-from arxiv_sorter.updater import check_for_update, download_and_update, get_system_name
+from arxiv_sorter.updater import check_for_update, download_and_update, get_system_name, remove_old_version
 from arxiv_sorter.user_files import read_user_file
 
 MAX_SEARCHES = 10  # Requests to arXiv, going back one mailing list each time, before giving up
@@ -51,13 +51,19 @@ def _day(date: datetime) -> str:
 
 
 def _check_updates(args: argparse.Namespace):
-    new_version_url = check_for_update(get_system_name(), __version__, gui=gui_mode())
-    if new_version_url is None:
+    if gui_mode():  # The window checks for updates itself when it opens
+        return
+    if is_frozen():
+        remove_old_version()
+
+    release = check_for_update(get_system_name(), __version__)
+    if release is None:
         return
 
-    console.info(f'A new version of arXiv-sorter is available: {new_version_url}', icon='🆕')
-    if args.update and console.question('Do you want to download the new version of arXiv-sorter?'):
-        download_and_update(new_version_url)
+    console.info(f'A new version of arXiv-sorter is available: {release.version} ({release.page or release.url})',
+                 icon='🆕')
+    if args.update and is_frozen() and console.question(f'Do you want to update arXiv-sorter to {release.version}?'):
+        download_and_update(release)
 
 
 def _read_search_files(args: argparse.Namespace, keyword_dir: Path) -> tuple[list[str], list[str], list[str]]:

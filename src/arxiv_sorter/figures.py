@@ -4,7 +4,7 @@ import shutil
 import stat
 from contextlib import redirect_stdout
 from pathlib import Path
-from subprocess import DEVNULL, Popen, run
+from subprocess import DEVNULL, Popen
 from time import sleep
 
 import requests
@@ -14,6 +14,7 @@ from pymupdf import open as pymupdf  # TODO: PyMuPDF is too heavy, consider usin
 
 from arxiv_sorter import console
 from arxiv_sorter.console import Progressbar
+from arxiv_sorter.java_runtime import find_java
 from arxiv_sorter.network import get_urls_async
 from arxiv_sorter.system import NO_WINDOW, config_dir
 
@@ -62,15 +63,17 @@ def download_pdfs(ids_entries: list[str], pdf_folder: Path, batch_size: int = 25
                         f'they will have no figure: {", ".join(refused)}')
 
 
-def detect_figure(pdf_folder: Path, json_folder: Path, threads: int, t_poll: float = 0.5) -> None:
+def detect_figure(pdf_folder: Path, json_folder: Path, threads: int, java: str | os.PathLike[str] = 'java',
+                  t_poll: float = 0.5) -> None:
     """
-    Detect the figures of the PDFs with pdffigures2, which saves a JSON file per PDF inside json_folder.
+    Detect the figures of the PDFs with pdffigures2, run by the given java executable, which saves a JSON file per PDF
+    inside json_folder.
     pdffigures2 runs in the background, while the JSON files already written are counted to show the progress.
     """
     json_folder.mkdir(parents=True, exist_ok=True)
     n_pdfs = sum(1 for _ in pdf_folder.glob('*.pdf'))
 
-    args: list[str | os.PathLike[str]] = ['java', '-jar', PDFFIGURES2_PATH, pdf_folder, '-e', '-t', str(threads), '-d',
+    args: list[str | os.PathLike[str]] = [java, '-jar', PDFFIGURES2_PATH, pdf_folder, '-e', '-t', str(threads), '-d',
                                           str(json_folder) + os.sep, '-q']
     # The output is not read, so it is discarded instead of piped (a full pipe would block pdffigures2)
     process = Popen(args, stdin=DEVNULL, stdout=DEVNULL, stderr=DEVNULL, creationflags=NO_WINDOW)
@@ -162,17 +165,6 @@ def remove_folder(folder: Path, retries: int = 3, t_sleep: float = 1) -> bool:
     return False
 
 
-def check_java() -> bool:
-    # Check if java is installed in the system
-    try:
-        run(['java', '-version'], capture_output=True, creationflags=NO_WINDOW)
-        return True
-    except FileNotFoundError:
-        console.warning('Java is not installed, so the figures are skipped (running without figure detection). '
-                        'Install it from https://adoptium.net to include them.')
-        return False
-
-
 def check_pdffigure2() -> bool:
     """
     Check if pdffigures2 is available in the configuration folder. Otherwise, it is copied from the location used by
@@ -252,14 +244,15 @@ def extract_figures(date: str,
 
     create_folders(temporary_date_dir, pdf_folder, json_folder, image_folder)
 
-    if not check_java() or not check_pdffigure2():
+    java = find_java()
+    if java is None or not check_pdffigure2():
         return [None] * len(ids_entries)
 
     # Download pdfs
     download_pdfs(ids_entries, pdf_folder)
 
     # Detect figures from pdfs
-    detect_figure(pdf_folder, json_folder, threads)
+    detect_figure(pdf_folder, json_folder, threads, java)
 
     # Extract figures from json files
     figure_links: list[str | None] = []
