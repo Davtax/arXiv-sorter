@@ -1,21 +1,12 @@
 name: Build
 
-# The binaries are built and tested in the pull requests that change the program or its packaging, so a broken build
-# is found before a release. When a version tag is pushed, e.g. `git tag v0.4.0 && git push origin v0.4.0` (the tag
-# must match the version in arxiv_sorter/__init__.py), the tests run first, and a draft release is created with the
-# binaries, their checksums and their build provenance. Run it from the Actions tab to build any branch, without release.
+# In the pull requests, the tests run first, and the binaries are only built and tested if they pass. In the pull
+# requests into main, which are the releases, the binaries are always built, their build provenance is signed, and they
+# are published by the release workflow when the pull request is merged, without building them again. In the other
+# pull requests, they are only built if the program or its packaging changes. Run it from the Actions tab to build any
+# branch, without release.
 on:
-  push:
-    tags: [ 'v*' ]
-  pull_request:
-    paths:
-      - 'src/**'
-      - 'packaging/**'
-      - 'scripts/**'
-      - 'run.py'
-      - 'gui.py'
-      - 'pyproject.toml'
-      - '.github/workflows/build.yml'
+  pull_request:  # The tests workflow is called from here, so it does not run on its own in the pull requests
   workflow_dispatch:
 
 permissions:
@@ -23,7 +14,7 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}  # A release build is never cancelled
+  cancel-in-progress: true
 
 env:
   PYTHON_VERSION: '3.14'
@@ -32,33 +23,71 @@ env:
   ARXIV_SORTER_MAX_FIGURES: '1'
 
 jobs:
-  # The pull requests already run the tests workflow on their own, so it is only called here before a release (or a
-  # build run by hand)
   tests:
     name: Tests
-    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/tests.yml
+
+  # The binaries are always built in the pull requests into main, and in the others only if they change the program or
+  # its packaging
+  changes:
+    name: Changes to build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read  # To list the changed files
+    outputs:
+      build: ${{ steps.files.outputs.build }}
+    steps:
+      - name: Find the changed files
+        id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [ "$GITHUB_BASE_REF" = main ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename')
+          build=false
+          while read -r file; do
+            case "$file" in
+              src/*|packaging/*|scripts/*|run.py|gui.py|pyproject.toml|.github/workflows/build.yml) build=true ;;
+            esac
+          done <<< "$files"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build on ${{ matrix.name }}
-    needs: tests
-    if: ${{ !failure() && !cancelled() }}  # Also when the tests are skipped (pull requests)
+    needs: [ tests, changes ]
+    if: needs.changes.outputs.build == 'true'  # And the tests passed
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write  # To sign the build provenance
+      attestations: write  # To save it
+    env:
+      # Pull request into main from this repository (not a fork), released by the release workflow when merged
+      RELEASE: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository }}
     strategy:
       fail-fast: false
       matrix:
         include:
           # Linux binaries only run on systems with the same or a newer glibc, so they are built on an older Ubuntu
+          # The programs are named after the system, e.g. arXiv-sorter-CLI-Windows.exe and arXiv-sorter-GUI-Windows.exe
           - os: ubuntu-22.04
             name: Ubuntu
-            gui_executable: gui-dist/arXiv-sorter-GUI
+            gui_program: arXiv-sorter-GUI-Ubuntu
+            gui_executable: gui-dist/arXiv-sorter-GUI-Ubuntu
           - os: windows-latest
             name: Windows
-            gui_executable: gui-dist/arXiv-sorter-GUI.exe
+            gui_program: arXiv-sorter-GUI-Windows.exe
+            gui_executable: gui-dist/arXiv-sorter-GUI-Windows.exe
           - os: macos-latest
             name: macOS
-            gui_executable: gui-dist/arXiv-sorter.app/Contents/MacOS/arXiv-sorter
+            gui_program: arXiv-sorter-GUI-macOS.app
+            gui_executable: gui-dist/arXiv-sorter-GUI-macOS.app/Contents/MacOS/arXiv-sorter-GUI-macOS
     defaults:
       run:
         shell: bash
@@ -87,15 +116,16 @@ jobs:
         run: python run.py -v -d searches_test -f -e
 
       - name: Build the command line binary
-        run: pyinstaller --onefile --paths src -n "arXiv-sorter-${{ matrix.name }}" run.py
+        run: pyinstaller --onefile --paths src -n "arXiv-sorter-CLI-${{ matrix.name }}" run.py
 
+      # With 2 threads, the figures are also extracted by other processes, which the binary starts from itself
       - name: Run the command line binary
-        run: dist/arXiv-sorter-${{ matrix.name }} -v -d ../searches_test -f -e
+        run: dist/arXiv-sorter-CLI-${{ matrix.name }} -v -d ../searches_test -f -e -t 2
 
       - name: Upload the command line binary
         uses: actions/upload-artifact@v7
         with:
-          name: arXiv-sorter-${{ matrix.name }}
+          name: arXiv-sorter-CLI-${{ matrix.name }}
           path: dist/  # With the abstracts of the test run, compared between the systems
           if-no-files-found: error
           retention-days: 14
@@ -116,21 +146,44 @@ jobs:
       - name: Package the GUI (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path gui-dist/arXiv-sorter-GUI.exe -DestinationPath arXiv-sorter-GUI-Windows.zip
+        run: Compress-Archive -Path gui-dist/${{ matrix.gui_program }} -DestinationPath arXiv-sorter-GUI-Windows.zip
 
       - name: Package the GUI (macOS)
         if: runner.os == 'macOS'
-        run: ditto -c -k --sequesterRsrc --keepParent gui-dist/arXiv-sorter.app arXiv-sorter-GUI-macOS.zip
+        run: ditto -c -k --sequesterRsrc --keepParent gui-dist/${{ matrix.gui_program }} arXiv-sorter-GUI-macOS.zip
 
       - name: Package the GUI (Linux)
         if: runner.os == 'Linux'
-        run: tar -czf arXiv-sorter-GUI-Ubuntu.tar.gz -C gui-dist arXiv-sorter-GUI
+        run: tar -czf arXiv-sorter-GUI-Ubuntu.tar.gz -C gui-dist ${{ matrix.gui_program }}
 
-      - name: Upload the GUI
+      # The command line binary is compressed on each system too, to keep its executable permission
+      - name: Package the command line binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist/arXiv-sorter-CLI-Windows.exe -DestinationPath arXiv-sorter-CLI-Windows.zip
+
+      - name: Package the command line binary (macOS and Linux)
+        if: runner.os != 'Windows'
+        run: zip -j "arXiv-sorter-CLI-${{ matrix.name }}.zip" "dist/arXiv-sorter-CLI-${{ matrix.name }}"
+
+      # Signed record that the archives were built by this workflow from this commit, checked with
+      # `gh attestation verify <file> --repo Davtax/arXiv-sorter`
+      - name: Attest the build provenance
+        if: env.RELEASE == 'true'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            arXiv-sorter-CLI-${{ matrix.name }}.zip
+            arXiv-sorter-GUI-${{ matrix.name }}.*
+
+      # The archives of the release (downloaded by the release workflow): both programs of the system
+      - name: Upload the archives
         uses: actions/upload-artifact@v7
         with:
-          name: arXiv-sorter-GUI-${{ matrix.name }}
-          path: arXiv-sorter-GUI-${{ matrix.name }}.*
+          name: release-${{ matrix.name }}
+          path: |
+            arXiv-sorter-CLI-${{ matrix.name }}.zip
+            arXiv-sorter-GUI-${{ matrix.name }}.*
           if-no-files-found: error
           compression-level: 0  # Already compressed
           retention-days: 14
@@ -138,7 +191,6 @@ jobs:
   compare:
     name: Same results on every system
     needs: build
-    if: ${{ !failure() && !cancelled() }}  # Not skipped with the tests (pull requests)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -150,90 +202,37 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      # By name: a pattern like arXiv-sorter-* would also download the archives of the GUI
-      - name: Download the results on Ubuntu
+      - name: Download the results of the command line binaries
         uses: actions/download-artifact@v8
         with:
-          name: arXiv-sorter-Ubuntu
-          path: binaries/arXiv-sorter-Ubuntu
-
-      - name: Download the results on Windows
-        uses: actions/download-artifact@v8
-        with:
-          name: arXiv-sorter-Windows
-          path: binaries/arXiv-sorter-Windows
-
-      - name: Download the results on macOS
-        uses: actions/download-artifact@v8
-        with:
-          name: arXiv-sorter-macOS
-          path: binaries/arXiv-sorter-macOS
+          pattern: arXiv-sorter-CLI-*
+          path: binaries
 
       - name: Compare the abstracts written on each system
         working-directory: binaries
         run: |
           shopt -s nullglob
-          files=(arXiv-sorter-Ubuntu/abstracts/*.md)
+          files=(arXiv-sorter-CLI-Ubuntu/abstracts/*.md)
           if [ ${#files[@]} -eq 0 ]; then
             echo "::error::No abstracts were written by the test run on Ubuntu"
             exit 1
           fi
           for file in "${files[@]}"; do
             name=$(basename "$file")
-            python ../scripts/same_files.py "$file" "arXiv-sorter-Windows/abstracts/$name" "arXiv-sorter-macOS/abstracts/$name"
+            python ../scripts/same_files.py "$file" "arXiv-sorter-CLI-Windows/abstracts/$name" \
+              "arXiv-sorter-CLI-macOS/abstracts/$name"
           done
 
-  release:
-    name: Draft release
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [ build, compare ]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write  # To create the release
-      id-token: write  # To sign the build provenance
-      attestations: write  # To save it
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      # The pull requests are built from a merge with main, so the release workflow checks that the merged commit has
+      # the same files (main did not change after the build)
+      - name: Save the tree of the built commit
+        run: git rev-parse "HEAD^{tree}" > tree.txt
 
-      - name: Check that the tag matches the version of the program
-        run: |
-          version=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' src/arxiv_sorter/__init__.py)
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::The tag $GITHUB_REF_NAME does not match the version v$version in src/arxiv_sorter/__init__.py"
-            exit 1
-          fi
-
-      - name: Download the binaries
-        uses: actions/download-artifact@v8
+      - name: Upload the tree of the built commit
+        uses: actions/upload-artifact@v7
         with:
-          path: binaries
+          name: source-tree
+          path: tree.txt
+          if-no-files-found: error
+          retention-days: 14
 
-      - name: Compress the command line binaries
-        working-directory: binaries
-        run: |
-          for name in Ubuntu Windows macOS; do
-            binary=$(find "arXiv-sorter-$name" -maxdepth 1 -type f -name "arXiv-sorter-$name*")
-            chmod +x "$binary"  # The artifacts do not keep the permissions
-            zip -j "../arXiv-sorter-$name.zip" "$binary"
-          done
-          mv arXiv-sorter-GUI-*/arXiv-sorter-GUI-* ..
-          cd ..
-          sha256sum arXiv-sorter-*.zip arXiv-sorter-*.tar.gz > SHA256SUMS.txt
-          cat SHA256SUMS.txt
-
-      # Signed record that the files were built by this workflow from this commit, checked with
-      # `gh attestation verify <file> --repo Davtax/arXiv-sorter`
-      - name: Attest the build provenance
-        uses: actions/attest-build-provenance@v4
-        with:
-          subject-checksums: SHA256SUMS.txt
-
-      - name: Create the draft release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" --draft --verify-tag --generate-notes --title "arXiv-sorter $GITHUB_REF_NAME" \
-            arXiv-sorter-Ubuntu.zip arXiv-sorter-Windows.zip arXiv-sorter-macOS.zip \
-            arXiv-sorter-GUI-Ubuntu.tar.gz arXiv-sorter-GUI-Windows.zip arXiv-sorter-GUI-macOS.zip SHA256SUMS.txt

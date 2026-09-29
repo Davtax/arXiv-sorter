@@ -3,9 +3,9 @@ name: Tests
 on:
   push:
     branches: [ main ]
-  pull_request:
   workflow_dispatch:  # Run it from the Actions tab (also runs the tests against the real servers)
-  workflow_call:  # First job of a release build, which only builds the binaries if the tests pass
+  # First job of the build workflow, which only builds the binaries if the tests pass (also in the pull requests)
+  workflow_call:
   schedule:
     - cron: '0 6 * * 1'  # Every Monday, to detect changes in the arXiv and GitHub APIs
 
@@ -49,6 +49,30 @@ jobs:
 
       - name: Lint the workflows (actionlint)
         run: actionlint -color
+
+  # Every pull request into main is a new release, so its version must be larger than the one already in main
+  version:
+    name: Version larger than in main
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install packaging (to compare the versions)
+        run: pip install packaging
+
+      - name: Compare the version with the one in main
+        run: |
+          git fetch --depth=1 origin main
+          git show origin/main:src/arxiv_sorter/__init__.py > "$RUNNER_TEMP/main_init.py"
+          python scripts/version_bumped.py "$RUNNER_TEMP/main_init.py" src/arxiv_sorter/__init__.py
 
   test:
     name: Tests on ${{ matrix.os }}

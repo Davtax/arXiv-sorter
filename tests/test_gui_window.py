@@ -5,6 +5,8 @@ import json
 import os
 import sys
 import time
+from datetime import time as time_of_day
+from pathlib import Path
 
 import pytest
 
@@ -14,11 +16,13 @@ if sys.platform.startswith('linux') and not (os.environ.get('DISPLAY') or os.env
 QtCore = pytest.importorskip('PySide6.QtCore')
 pytest.importorskip('pytestqt')
 
+from arxiv_sorter import run_lock, scheduler  # noqa: E402
+from arxiv_sorter.gui import background  # noqa: E402
 from arxiv_sorter.gui import updates as updates_module  # noqa: E402
 from arxiv_sorter.gui import window as window_module  # noqa: E402
 from arxiv_sorter.gui.search_editor import SearchFilesEditor, abstract_excerpt, highlighted_html  # noqa: E402
-from arxiv_sorter.gui.summary import Outcome  # noqa: E402
-from arxiv_sorter.protocol import LOG_TAG, PROGRESS_TAG, WRITTEN_TAG  # noqa: E402
+from arxiv_sorter.gui.summary import Outcome, WrittenFile  # noqa: E402
+from arxiv_sorter.protocol import BUSY_EXIT_CODE, LOG_TAG, PROGRESS_TAG, WRITTEN_TAG  # noqa: E402
 from arxiv_sorter.search_terms import Kind  # noqa: E402
 from arxiv_sorter.sorting import AbstractEnclosure  # noqa: E402
 from arxiv_sorter.updater import Release, UpdateError  # noqa: E402
@@ -54,7 +58,17 @@ def searches(tmp_path):
 
 
 @pytest.fixture
-def make_window(qtbot, tmp_path, monkeypatch, searches):
+def daily_run(monkeypatch):
+    """The scheduler of the operating system, replaced by a variable: the time of the daily run, or None."""
+    state = {'time': None}
+    monkeypatch.setattr(scheduler, 'scheduled_time', lambda: state['time'])
+    monkeypatch.setattr(scheduler, 'schedule', lambda at: state.update(time=at))
+    monkeypatch.setattr(scheduler, 'unschedule', lambda: state.update(time=None))
+    return state
+
+
+@pytest.fixture
+def make_window(qtbot, tmp_path, monkeypatch, searches, daily_run):
     """Windows with their settings in a temporary file, never in the real configuration folder."""
     monkeypatch.setattr(window_module, 'settings_path', lambda: tmp_path / 'settings.json')
 
@@ -80,6 +94,124 @@ def finish(win, exit_code=0, exit_status=QtCore.QProcess.ExitStatus.NormalExit):
     win.process = QtCore.QProcess(win)
     win.set_running(True)
     win.process_finished(exit_code, exit_status)
+
+
+class TestRunning:
+    def test_search_files_cannot_be_edited_during_a_run(self, win, monkeypatch):
+        opened = []
+        monkeypatch.setattr(window_module.SearchFilesEditor, 'exec', lambda editor: opened.append(editor))
+
+        win.process = QtCore.QProcess(win)
+        win.set_running(True)
+        assert not any(button.isEnabled() for button in win.edit_buttons)
+        win.edit_user_file('keywords.txt')
+        assert not opened
+
+        win.process_finished(0, QtCore.QProcess.ExitStatus.NormalExit)
+        assert all(button.isEnabled() for button in win.edit_buttons)
+        win.edit_user_file('keywords.txt')
+        assert len(opened) == 1
+
+
+class TestSchedule:
+    @pytest.fixture
+    def choose(self, monkeypatch):
+        """Answer the dialog of the daily run with the given time (None to remove it), or cancel it."""
+        answer = {}
+
+        def exec_dialog(dialog):
+            if answer.get('cancel'):
+                return False
+            dialog.enabled_check.setChecked(answer['time'] is not None)
+            if answer['time'] is not None:
+                dialog.time_edit.setTime(QtCore.QTime(answer['time'].hour, answer['time'].minute))
+            return True
+
+        monkeypatch.setattr(window_module.ScheduleDialog, 'exec', exec_dialog)
+        return answer
+
+    def test_the_daily_run_is_created_changed_and_removed(self, win, choose, daily_run, tmp_path):
+        assert win.schedule_button.text().endswith('Not scheduled')
+
+        choose['time'] = time_of_day(8, 30)
+        win.edit_schedule()
+        assert daily_run['time'] == time_of_day(8, 30)
+        assert win.schedule_button.text().endswith('Daily at 08:30')
+        saved = json.loads((tmp_path / 'settings.json').read_text(encoding='utf-8'))
+        assert saved['keywords_dir'] == win.keywords_selector.path()  # The daily run uses the saved settings
+
+        choose['time'] = time_of_day(18, 0)
+        win.edit_schedule()
+        assert win.schedule_button.text().endswith('Daily at 18:00')
+
+        choose['cancel'] = True
+        win.edit_schedule()
+        assert daily_run['time'] == time_of_day(18, 0)
+
+        choose.update(cancel=False, time=None)
+        win.edit_schedule()
+        assert daily_run['time'] is None
+        assert win.schedule_button.text().endswith('Not scheduled')
+
+    def test_the_dialog_shows_the_current_time(self, qtbot):
+        dialog = window_module.ScheduleDialog(time_of_day(7, 15))
+        qtbot.addWidget(dialog)
+        assert dialog.enabled_check.isChecked()
+        assert dialog.chosen_time() == time_of_day(7, 15)
+        dialog.enabled_check.setChecked(False)
+        assert dialog.chosen_time() is None
+        assert not dialog.time_edit.isEnabled()
+
+    def test_errors_of_the_scheduler_are_shown(self, win, choose, monkeypatch, no_modal_dialogs):
+        def fail(at):
+            raise scheduler.SchedulerError('schtasks failed: access denied')
+
+        monkeypatch.setattr(scheduler, 'schedule', fail)
+        choose['time'] = time_of_day(8, 0)
+        win.edit_schedule()
+        assert any('access denied' in str(answer) for answer in no_modal_dialogs)
+        assert win.schedule_button.text().endswith('Not scheduled')
+
+
+class TestBackground:
+    FILE = WrittenFile(Path('abstracts/2026-09-29.md'), 120, 7)
+
+    def test_notification_of_new_mailing_lists(self):
+        title, text = background.notification_text(Outcome.FINISHED, [self.FILE, self.FILE])
+        assert '2 mailing lists sorted' in title
+        assert text.startswith('14 submissions new or matching')
+
+    def test_notification_without_new_mailing_lists(self):
+        title, _ = background.notification_text(Outcome.FINISHED, [])
+        assert 'nothing new' in title
+
+    def test_notification_of_errors(self):
+        title, text = background.notification_text(Outcome.ERRORS, [self.FILE], 'No connection')
+        assert 'errors' in title
+        assert text.startswith('No connection\n1 mailing list sorted.')
+        assert 'log' in text
+
+    def test_the_output_of_the_worker_is_collected(self, qtbot, monkeypatch):
+        notifications = []
+        monkeypatch.setattr(background.BackgroundRun, 'notify', lambda run, *message: notifications.append(message))
+        run = background.BackgroundRun(window_module.Settings(keywords_dir='k', abstracts_dir='a'))
+        run.handle_line(f'{WRITTEN_TAG}120\t7\t{self.FILE.path}')
+        run.handle_line(f'{LOG_TAG}error\t❌\tNo connection')
+        run.handle_line(f'{LOG_TAG}error\t❌\tA second error')
+        run.process_finished(1, QtCore.QProcess.ExitStatus.NormalExit)
+
+        assert run.written == [self.FILE]
+        assert run.first_error == 'No connection'
+        assert 'errors' in notifications[0][0]
+
+    def test_the_run_is_skipped_while_another_one_runs(self, qtbot, monkeypatch):
+        notifications = []
+        monkeypatch.setattr(background.BackgroundRun, 'notify', lambda run, *message: notifications.append(message))
+        run = background.BackgroundRun(window_module.Settings(keywords_dir='k', abstracts_dir='a'))
+        run.handle_line(f'{LOG_TAG}error\t⏳\tarXiv-sorter is already running')
+        run.process_finished(BUSY_EXIT_CODE, QtCore.QProcess.ExitStatus.NormalExit)
+
+        assert notifications[0][0].endswith('daily run skipped')
 
 
 class TestOutput:
@@ -211,6 +343,14 @@ class TestSearchFiles:
 
         assert win.process is None
         assert 'keywords.txt, line 1' in no_modal_dialogs[0]
+
+    def test_run_is_not_started_while_another_one_runs(self, win, no_modal_dialogs):
+        with run_lock.RunLock() as lock:  # e.g. the daily run, in the background
+            assert lock.acquire()
+            win.start()
+
+        assert win.process is None
+        assert 'already running' in str(no_modal_dialogs[0])
 
 
 class TestTheme:

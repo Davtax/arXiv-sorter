@@ -1,8 +1,10 @@
-# Pull requests to update the actions of the workflows and the Python dependencies
+# Pull requests to update the actions of the workflows and the Python dependencies, into dev (every pull request into
+# main is a release)
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    target-branch: dev
     schedule:
       interval: monthly
     groups:
@@ -11,6 +13,7 @@ updates:
 
   - package-ecosystem: pip
     directory: /
+    target-branch: dev
     schedule:
       interval: monthly
     groups:

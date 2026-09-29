@@ -45,8 +45,9 @@ RELEASE = {
     'assets': [
         {'name': 'arXiv-sorter-GUI-Windows.zip', 'browser_download_url': 'https://example.org/gui-windows.zip',
          'size': 3, 'digest': 'sha256:abc'},
-        {'name': 'arXiv-sorter-Windows.zip', 'browser_download_url': 'https://example.org/windows.zip'},
-        {'name': 'arXiv-sorter-Ubuntu.zip', 'browser_download_url': 'https://example.org/ubuntu.zip'},
+        {'name': 'arXiv-sorter-CLI-Windows.zip', 'browser_download_url': 'https://example.org/windows.zip'},
+        {'name': 'arXiv-sorter-CLI-Ubuntu.zip', 'browser_download_url': 'https://example.org/ubuntu.zip'},
+        {'name': 'arXiv-sorter-macOS.zip', 'browser_download_url': 'https://example.org/old-name-macos.zip'},
         {'name': 'arXiv-sorter-GUI-Ubuntu.tar.gz', 'browser_download_url': 'https://example.org/gui-ubuntu.tar.gz'},
     ],
 }
@@ -130,7 +131,7 @@ class TestCheckForUpdate:
     def test_missing_platform_asset(self, github, capsys, verbose):
         github.append(FakeResponse(json_data=RELEASE))
         assert updater.check_for_update('macOS', '0.9.0') is None
-        assert 'No asset arXiv-sorter-macOS found' in capsys.readouterr().out
+        assert 'No asset arXiv-sorter-CLI-macOS found' in capsys.readouterr().out
 
     def test_no_internet(self, github, capsys):
         github.append(requests.ConnectionError())
@@ -379,3 +380,10 @@ def test_extract_macos_app(tmp_path):
     archive.write_bytes(zip_bytes({'arXiv-sorter.app/Contents/MacOS/arXiv-sorter': b'new'}))
     program = updater.extract(archive, tmp_path / 'out')
     assert program.name == 'arXiv-sorter.app'
+
+
+@pytest.mark.parametrize(('platform', 'gui', 'expected'), [('Windows', False, 'arXiv-sorter-CLI-Windows'),
+                                                            ('macOS', True, 'arXiv-sorter-GUI-macOS'),
+                                                            ('Ubuntu', False, 'arXiv-sorter-CLI-Ubuntu')])
+def test_the_assets_are_named_after_the_program_and_the_system(platform, gui, expected):
+    assert updater.asset_name(platform, gui) == expected

@@ -1,19 +1,23 @@
 # PyInstaller build of the GUI, run from the root of the repository with
 #     pyinstaller packaging/arxiv-sorter-gui.spec
 #
-# Windows and Linux: a single executable, arXiv-sorter-GUI(.exe). It unpacks itself in a temporary folder when it starts,
-# and the command line program it launches (the GUI binary runs itself with --worker) reuses that folder.
-# macOS: an .app bundle, which the Finder already shows as a single file (PyInstaller deprecates single file bundles).
+# Windows and Linux: a single executable, arXiv-sorter-GUI-Windows.exe or arXiv-sorter-GUI-Ubuntu. It unpacks itself in
+# a temporary folder when it starts, and the command line program it launches (the GUI binary runs itself with --worker)
+# reuses that folder.
+# macOS: an .app bundle, arXiv-sorter-GUI-macOS.app, which the Finder already shows as a single file (PyInstaller
+# deprecates single file bundles).
+# The names end with the system, like the command line binaries (arXiv-sorter-CLI-<system>) and the release assets.
 import sys
 from pathlib import Path
 
 from packaging.version import Version
 
 from arxiv_sorter import __version__
+from arxiv_sorter.updater import asset_name, get_system_name
 
 ROOT = Path(SPECPATH).parent
 NAME = 'arXiv-sorter'
-EXE_NAME = NAME if sys.platform == 'darwin' else f'{NAME}-GUI'
+EXE_NAME = asset_name(get_system_name(), gui=True)  # e.g. arXiv-sorter-GUI-Windows
 BUNDLE_ID = 'io.github.davtax.arxiv-sorter'
 
 # Optional icons, exported from logo/arxiv-sorter-icon.af (Linux desktops take the icon from a .desktop file instead)
@@ -71,10 +75,10 @@ if sys.platform != 'darwin':
     exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], **options)
 else:
     exe = EXE(pyz, a.scripts, [], exclude_binaries=True, **options)
-    coll = COLLECT(exe, a.binaries, a.datas, name=NAME, upx=False)
+    coll = COLLECT(exe, a.binaries, a.datas, name=EXE_NAME, upx=False)
     app = BUNDLE(
         coll,
-        name=f'{NAME}.app',
+        name=f'{EXE_NAME}.app',
         icon=icon,
         bundle_identifier=BUNDLE_ID,
         version=__version__,

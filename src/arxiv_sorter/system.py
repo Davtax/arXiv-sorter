@@ -59,9 +59,9 @@ def base_dir() -> Path:
     """
     Directory where the user files are by default: next to the binary, or the current directory when run from Python.
 
-    A macOS app is a bundle (arXiv-sorter.app/Contents/MacOS/arXiv-sorter), which must not be modified, so the folder
-    that contains the bundle is used instead. When macOS runs a quarantined app from a random read-only location (App
-    Translocation), or that folder is not writable, ~/arXiv-sorter is used.
+    A macOS app is a bundle (arXiv-sorter-GUI-macOS.app/Contents/MacOS/arXiv-sorter-GUI-macOS), which must not be
+    modified, so the folder that contains the bundle is used instead. When macOS runs a quarantined app from a random
+    read-only location (App Translocation), or that folder is not writable, ~/arXiv-sorter is used.
     """
     if not is_frozen():
         return Path.cwd()

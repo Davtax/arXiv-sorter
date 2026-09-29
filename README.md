@@ -44,7 +44,10 @@ image.
 ## Usage
 
 1. (Only the first time) Install Obsidian, and configure a new Obsidian vault (or use the default one).
-2. Download the corresponding zip file from the [release page](https://github.com/Davtax/arXiv-sorter/releases).
+2. Download the zip file of the command line program for your system from the
+   [release page](https://github.com/Davtax/arXiv-sorter/releases): `arXiv-sorter-CLI-Windows.zip`,
+   `arXiv-sorter-CLI-macOS.zip` or `arXiv-sorter-CLI-Ubuntu.zip` (or the graphical interface, see
+   [Graphical interface](#graphical-interface)).
 3. Extract the zip file.
 4. Place the binary file in the directory where you want to save the output file.
 5. (Only the first time) Create the keyword files in the same directory as the binary file.
@@ -66,7 +69,7 @@ The final directory tree should look (if using default paths) something like:
 │   │   ├── YYYYMMDD(1).md
 │   │   ├── YYYYMMDD(2).md
 │   │   └── YYYYMMDD(3).md
-│   ├── arXiv-sorter-*
+│   ├── arXiv-sorter-CLI-*
 │   ├── authors.txt
 │   ├── categories.txt
 └── └── keywords.txt
@@ -196,8 +199,8 @@ When running the program from the terminal, you can use the following optional a
 - `--modify` or `-m`: Do not modify the authors file (sort and remove blank lines).
 - `--image` or `-i`: Remove the images to the markdown file.
   The image is the first figure in the abstract.
-- `--threads` or `-t`: Number of threads used to detect the figures, from 1 (default) to the number of CPUs of the
-  system.
+- `--threads` or `-t`: Number of threads used to detect the figures, and of processes that save them as images, from 1
+  (default) to the number of CPUs of the system.
   Each thread processes a PDF at a time, so more threads are faster but use more memory.
 - `--date0`: Specify the date of the first mailing list to be sorted.
   The date should be in the format `YYYYMMDD`.
@@ -212,14 +215,14 @@ Besides the command line, arXiv-sorter can be used from a graphical interface (b
 [PySide6](https://doc.qt.io/qtforpython-6/)) that works on Windows, macOS and Linux.
 Download the archive for your system from the [release page](https://github.com/Davtax/arXiv-sorter/releases):
 
-- **Windows**: `arXiv-sorter-GUI-Windows.zip`. Extract `arXiv-sorter-GUI.exe` to the folder where you want to keep
+- **Windows**: `arXiv-sorter-GUI-Windows.zip`. Extract `arXiv-sorter-GUI-Windows.exe` to the folder where you want to keep
   your files, and run it.
-- **macOS**: `arXiv-sorter-GUI-macOS.zip`, for Apple silicon. Extract `arXiv-sorter.app` and move it to the folder
+- **macOS**: `arXiv-sorter-GUI-macOS.zip`, for Apple silicon. Extract `arXiv-sorter-GUI-macOS.app` and move it to the folder
   where you want to keep your files. Since the app is not notarized by Apple, macOS blocks it the first time: open
   it, then go to System Settings -> Privacy & Security and click Open Anyway.
 - **Linux**: `arXiv-sorter-GUI-Ubuntu.tar.gz`, built on Ubuntu 22.04 (it runs on distributions with glibc 2.35 or
   newer). Extract it with `tar -xzf arXiv-sorter-GUI-Ubuntu.tar.gz` to the folder where you want to keep your files,
-  and run `./arXiv-sorter-GUI`.
+  and run `./arXiv-sorter-GUI-Ubuntu`.
   Qt requires the XCB cursor library, e.g. `sudo apt install libxcb-cursor0` on Debian and Ubuntu.
 
 On Windows and Linux the program is a single file, which unpacks itself in a temporary folder each time it starts (this
@@ -227,7 +230,7 @@ takes a few seconds), and deletes it when the window is closed.
 If the temporary folder of the system does not allow running programs (e.g. `/tmp` mounted with `noexec`), choose
 another one with the `TMPDIR` environment variable.
 
-By default, the keyword files and the abstracts are next to the program (next to `arXiv-sorter.app` on macOS), and
+By default, the keyword files and the abstracts are next to the program (next to `arXiv-sorter-GUI-macOS.app` on macOS), and
 other folders can be chosen in the window.
 From the source code (see [Development](#development)), start it with
 
@@ -254,6 +257,30 @@ In the window you can:
   in the background. If there is a newer one, a message offers to **Upgrade** (it downloads the new version, replaces
   the program in its folder, and opens it again) or to **Skip** it (it is not offered again when the window opens, but
   *Help → Check for updates…* still installs it). The previous version is deleted the next time the program starts.
+
+### Daily run in the background
+
+arXiv-sorter can run every day at a given time without opening the window: *File → Run every day…*, or the ⏰ button
+in the bottom right corner, which shows the current time of the daily run.
+The same dialog changes the time, or removes the daily run (untick *Run arXiv-sorter every day at*).
+
+The daily run uses the folders and options of the window (saved when the time is chosen, when the program runs and when
+the window closes), always from the last saved abstracts, and shows a notification when it finishes: click it to open
+the latest file, or the log if something went wrong.
+If the computer is off or asleep at that time, it runs as soon as possible (on macOS, only after sleeping, not after
+being off).
+
+The schedule is kept by the operating system, which runs the program with `--scheduled`:
+
+- **Windows**: the task *arXiv-sorter daily run* of the Task Scheduler, while you are logged in.
+- **macOS**: the launch agent `~/Library/LaunchAgents/io.github.davtax.arxiv-sorter.daily.plist`.
+- **Linux**: the systemd user timer `arxiv-sorter-daily.timer` (`systemctl --user list-timers`). The notification is
+  shown with `notify-send`, when available.
+
+Only one run of arXiv-sorter works at a time: if it is already running (from the window, a terminal or the daily run),
+a new run is refused, and a daily run is skipped with a notification.
+
+If you move the program to another folder, choose the time again, so the schedule starts it from its new location.
 
 The configuration is saved when the program runs and when the window closes, and restored at the next start.
 It is stored in `settings.json` (next to PDFFigures2), inside `%LOCALAPPDATA%\arXiv-sorter` on Windows,
@@ -312,37 +339,37 @@ mypy                 # type check
 
 ### Continuous integration
 
-Two GitHub Actions workflows check the changes and build the releases:
+Three GitHub Actions workflows check the changes and publish the releases:
 
-- **Tests** (`.github/workflows/tests.yml`), on every pull request and push to `main`: ruff, mypy and
-  [actionlint](https://github.com/rhysd/actionlint) (for the workflows), and the tests with coverage on Windows, macOS
-  and Linux. Every Monday, and when run by hand from the Actions tab, the tests against the real arXiv and GitHub
-  servers also run.
-- **Build** (`.github/workflows/build.yml`), in the pull requests that change the program or its packaging, and when
-  a version tag is pushed: builds the command line and GUI binaries for the three systems, runs them (detecting a
-  single figure), and checks that they write the same abstracts. For a tag, the tests run first, and the binaries are
-  only built and released if they pass (see below). It can also be run by hand from the Actions tab, to build any
-  branch without release. The binaries can be downloaded from the summary of the run for 14 days.
+- **Tests** (`.github/workflows/tests.yml`), in every pull request (as the first job of the build workflow) and push
+  to `main`: ruff, mypy and [actionlint](https://github.com/rhysd/actionlint) (for the workflows), and the tests with
+  coverage on Windows, macOS and Linux. In the pull requests into `main`, it also checks that `__version__` is larger
+  than the one in `main`. Every Monday, and when run by hand from the Actions tab, the tests against the real arXiv
+  and GitHub servers also run.
+- **Build** (`.github/workflows/build.yml`), in every pull request, after the tests pass: builds the command line and
+  GUI binaries for the three systems, runs them (detecting a single figure), and checks that they write the same
+  abstracts. The binaries are always built in the pull requests into `main`, and in the others only if they change the
+  program or its packaging. It can also be run by hand from the Actions tab, to build any branch. The binaries can be
+  downloaded from the summary of the run for 14 days.
+- **Release** (`.github/workflows/release.yml`), when a pull request into `main` is merged: creates a draft release
+  with the archives built in the pull request (see below).
 
-[Dependabot](.github/dependabot.yml) opens pull requests every month to update the actions and the dependencies.
-The folder `scripts/` contains the helper scripts of the build workflow.
+[Dependabot](.github/dependabot.yml) opens pull requests into `dev` every month to update the actions and the
+dependencies. The folder `scripts/` contains the helper scripts of the workflows.
 
 ### Releases
 
-1. Update `__version__` in `src/arxiv_sorter/__init__.py`, and push it to `main`.
-2. Tag the commit and push the tag:
+Every pull request into `main` is a release, so the changes are made in `dev` (or merged into it):
 
-   ```bash
-   git tag v0.4.0
-   git push origin v0.4.0
-   ```
-
-3. The build workflow runs the tests and creates a draft release with the six archives, their checksums
-   (`SHA256SUMS.txt`) and the notes of the changes. Review it on GitHub and publish it. The workflow stops if a test
-   fails, or if the tag does not match `__version__`.
+1. Update `__version__` in `src/arxiv_sorter/__init__.py` in `dev`.
+2. Open a pull request from `dev` into `main`. The tests run, and then the six archives are built, tested and attested.
+3. Merge it. The release workflow creates a draft release with the archives of the pull request (they are not built
+   again), their checksums (`SHA256SUMS.txt`) and the notes of the changes. Review it on GitHub and publish it, which
+   creates the tag `v<version>` on the merged commit. The workflow stops if `main` changed after the pull request was
+   built (update the pull request with `main` before merging), or if the tag already exists.
 
 Each archive has a signed [build provenance](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations)
-that shows it was built by the workflow from the tagged commit. Check it with
+that shows it was built by the workflow in the pull request of the release. Check it with
 
 ```bash
 gh attestation verify arXiv-sorter-GUI-Windows.zip --repo Davtax/arXiv-sorter

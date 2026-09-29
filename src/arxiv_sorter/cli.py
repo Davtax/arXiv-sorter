@@ -11,6 +11,8 @@ from arxiv_sorter import __version__, console
 from arxiv_sorter.console import configure_stdout
 from arxiv_sorter.log_file import start_log_file
 from arxiv_sorter.pipeline import SearchFilesError, run
+from arxiv_sorter.protocol import BUSY_EXIT_CODE
+from arxiv_sorter.run_lock import RunLock
 from arxiv_sorter.system import max_threads
 
 
@@ -58,8 +60,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument('-u', '--update', action='store_true', help='download new versions of arXiv-sorter')
     parser.add_argument('-i', '--image', action='store_false', help='do not include the figures (faster)')
     parser.add_argument('-t', '--threads', type=threads_type, default=1,
-                        help=f'threads to detect the figures, from 1 (default) to {max_threads()} in this system. More '
-                             'threads are faster, but use more memory')
+                        help=f'threads to detect and extract the figures, from 1 (default) to {max_threads()} in this '
+                             'system. More threads are faster, but use more memory')
     parser.add_argument('-s', '--separate', action='store_true', help='create a separate file for each submission')
     parser.add_argument('-m', '--modify', action='store_false',
                         help='do not modify authors.txt (it is sorted and its blank lines removed by default)')
@@ -80,6 +82,15 @@ def main(argv: list[str] | None = None):
     args = parse_args(argv)
     configure_stdout()
     console.set_verbose(args.verbose)
+
+    lock = RunLock()
+    if not lock.acquire():  # Before the log file, which would only contain this message
+        console.error('arXiv-sorter is already running (from a terminal, the window or the daily run). Try again when '
+                      'it finishes.', icon='⏳')
+        if not args.exit:
+            input('Press Enter to exit …')
+        sys.exit(BUSY_EXIT_CODE)
+
     log_path = start_log_file(sys.argv[1:] if argv is None else argv)
     if log_path is not None:
         console.detail(f'Log file: {log_path}')
@@ -106,6 +117,7 @@ def main(argv: list[str] | None = None):
         exit_code = 1
     finally:
         temp_dir.cleanup()
+        lock.release()
 
     if not args.exit:
         input('Press Enter to exit …')

@@ -6,7 +6,9 @@ import os
 from enum import StrEnum
 
 WORKER_FLAG = '--worker'  # Makes the GUI launcher run the command line program instead (see arxiv_sorter.gui.main)
+SCHEDULED_FLAG = '--scheduled'  # Makes the GUI launcher run in the background (see arxiv_sorter.scheduler)
 GUI_ENV_VAR = 'ARXIV_SORTER_GUI'
+BUSY_EXIT_CODE = 75  # Another run is in progress (EX_TEMPFAIL), see arxiv_sorter.run_lock
 
 # Messages, progress bars, questions and written files are sent to the GUI as tagged lines through the standard output
 LOG_TAG = '@@arxiv-sorter:log@@'
