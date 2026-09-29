@@ -288,8 +288,9 @@ class MainWindow(QMainWindow):
         box = QVBoxLayout(group)
 
         self.images_check = QCheckBox('Include the first figure of each new submission')
-        self.images_check.setToolTip('Download the PDFs and extract their first figure (needs Java). Slower, and '
-                                     'arXiv may limit the downloads (untick for --image)')
+        self.images_check.setToolTip('Download the PDFs and extract their first figure (Java is downloaded the first '
+                                     'time if it is not installed). Slower, and arXiv may limit the downloads (untick '
+                                     'for --image)')
         self.final_date_check = QCheckBox('Add a timestamp at the end of the Markdown file')
         self.final_date_check.setToolTip('Untick for --final')
         self.separate_check = QCheckBox('Create a separate file for each submission')
@@ -628,7 +629,8 @@ class MainWindow(QMainWindow):
             '<p>Download, sort and highlight the daily arXiv submissions matching your keywords and authors, as '
             'Markdown files for Obsidian.</p>'
             f'<p><a href="{REPOSITORY_URL}">{REPOSITORY_URL}</a></p>'
-            f'<p>Settings and pdffigures2 are kept in<br><a href="{QUrl.fromLocalFile(str(config_dir())).toString()}">'
+            '<p>Settings, pdffigures2 and Java are kept in<br>'
+            f'<a href="{QUrl.fromLocalFile(str(config_dir())).toString()}">'
             f'{config_dir()}</a></p>'
             '<p>MIT License</p>')
 

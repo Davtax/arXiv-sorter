@@ -156,6 +156,8 @@ The detection of the figures is done via the [PDFFigures2](https://github.com/al
 PDFFigures2 is downloaded from this repository the first time (34 MB), and kept in the configuration folder of
 arXiv-sorter (the same folder as the settings of the graphical interface, see below), so it persists when the program
 is moved or updated.
+PDFFigures2 runs on Java, which does not need to be installed: if it is not, a Java runtime
+([Eclipse Temurin](https://adoptium.net) 21, about 50 MB) is downloaded the first time and kept in the same folder.
 Sometimes, PFFigures2 is not able to detect the figure, or misunderstand some text as a figure.
 Finally, the extraction of the figure to a .PNG file is done via [PyMuPDF](https://github.com/pymupdf/PyMuPDF).
 After the extraction, the .PDF files saved in local are deleted.

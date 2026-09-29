@@ -20,9 +20,9 @@ APP_NAME = 'arXiv-sorter'
 
 def config_dir() -> Path:
     """
-    Folder of the user configuration, which persists between runs and updates of the program: the GUI settings and the
-    pdffigures2 jar. It is the same folder as QStandardPaths.AppConfigLocation for the GUI, computed without Qt so the
-    command line program can use it too.
+    Folder of the user configuration, which persists between runs and updates of the program: the GUI settings, the
+    pdffigures2 jar and the Java runtime. It is the same folder as QStandardPaths.AppConfigLocation for the GUI,
+    computed without Qt so the command line program can use it too.
     """
     if sys.platform == 'win32':
         base = Path(os.environ.get('LOCALAPPDATA') or Path.home() / 'AppData' / 'Local')
