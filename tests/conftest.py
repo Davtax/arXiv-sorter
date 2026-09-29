@@ -3,6 +3,8 @@ from collections.abc import Callable
 import pytest
 from feedparser import FeedParserDict
 
+from arxiv_sorter import console
+
 
 def _make_entry(
     arxiv_id: str = '2609.01234v1',
@@ -26,3 +28,17 @@ def _make_entry(
 @pytest.fixture
 def make_entry() -> Callable[..., FeedParserDict]:
     return _make_entry
+
+
+@pytest.fixture
+def verbose(monkeypatch):
+    """Show the messages that are only printed with --verbose."""
+    monkeypatch.setattr(console, 'VERBOSE', True)
+
+
+@pytest.fixture(autouse=True)
+def terminal_style(monkeypatch):
+    """Messages as printed in a terminal (not in the GUI), with icons and without colors, whatever runs the tests."""
+    monkeypatch.setattr(console, 'GUI_MODE', False)
+    monkeypatch.setattr(console, 'STYLE', console.Style(icons=True, colors=False))
+    monkeypatch.setattr(console, 'VERBOSE', False)

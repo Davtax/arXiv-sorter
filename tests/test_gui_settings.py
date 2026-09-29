@@ -73,6 +73,24 @@ class TestCliArgs:
         assert '--threads' not in without_figures
 
 
+class TestThemeSetting:
+    def test_follows_the_system_by_default(self, tmp_path):
+        assert Settings.load(tmp_path / 'missing.json', tmp_path).theme == 'system'
+
+    @pytest.mark.parametrize('theme', ['light', 'dark', 'system'])
+    def test_remembered(self, tmp_path, theme):
+        path = tmp_path / 'settings.json'
+        Settings(theme=theme).save(path)
+
+        assert Settings.load(path, tmp_path).theme == theme
+
+    def test_unknown_theme_follows_the_system(self, tmp_path):
+        path = tmp_path / 'settings.json'
+        path.write_text('{"theme": "purple"}', encoding='utf-8')
+
+        assert Settings.load(path, tmp_path).theme == 'system'
+
+
 class TestThreadsSetting:
     @pytest.mark.parametrize(('saved', 'expected'), [(1, 1), (3, 3), (16, 4), (0, 1), (-2, 1)])
     def test_limited_to_the_cpus_of_this_system(self, tmp_path, monkeypatch, saved, expected):

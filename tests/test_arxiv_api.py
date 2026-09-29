@@ -32,13 +32,13 @@ class TestSortEntries:
         assert [e.updated for e in grouped[4]] == ['2026-09-25T20:00:00Z', '2026-09-26T12:00:00Z',
                                                    '2026-09-28T10:00:00Z']
 
-    def test_entries_out_of_range_go_to_the_last_date(self, capsys):
+    def test_entries_out_of_range_go_to_the_last_date(self, capsys, verbose):
         entries = [_entry('2026-09-21T19:00:00Z'), _entry('2026-09-30T12:00:00Z')]
 
         grouped, _ = _sort_entries(entries, MON, datetime(2026, 9, 23, 18))
 
         assert [len(day) for day in grouped] == [1, 1]
-        assert 'not sorted' in capsys.readouterr().out
+        assert '1 entry is later than the last mailing list' in capsys.readouterr().out
 
 
 class TestSearchEntries:

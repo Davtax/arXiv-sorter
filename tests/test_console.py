@@ -4,7 +4,7 @@ import pytest
 
 from arxiv_sorter import console
 from arxiv_sorter.console import Progressbar, question
-from arxiv_sorter.protocol import PROGRESS_TAG, QUESTION_TAG, WRITTEN_TAG
+from arxiv_sorter.protocol import LOG_TAG, PROGRESS_TAG, QUESTION_TAG, WRITTEN_TAG
 
 
 class TestQuestion:
@@ -21,6 +21,81 @@ class TestQuestion:
         assert "didn't understand" in capsys.readouterr().out
 
 
+class TestMessages:
+    def test_icon_before_the_text(self, capsys):
+        console.info('103 entries', icon='📄')
+
+        assert capsys.readouterr().out == '📄 103 entries\n'
+
+    @pytest.mark.parametrize(('function', 'icon'), [(console.success, '✅'), (console.warning, '⚠️'),
+                                                     (console.error, '❌')])
+    def test_default_icon_of_the_level(self, capsys, function, icon):
+        function('text')
+
+        assert capsys.readouterr().out == f'{icon} text\n'
+
+    def test_step_is_separated_from_the_previous_stage(self, capsys):
+        console.step('Mailing list', icon='📅')
+
+        assert capsys.readouterr().out == '\n📅 Mailing list\n'
+
+    def test_details_only_when_verbose(self, capsys, monkeypatch):
+        console.detail('hidden')
+        monkeypatch.setattr(console, 'VERBOSE', True)
+        console.detail('shown')
+
+        assert capsys.readouterr().out == '   shown\n'
+
+    def test_multiline_text_has_a_single_icon(self, capsys):
+        console.error('first\nsecond')
+
+        assert capsys.readouterr().out == '❌ first\nsecond\n'
+
+    def test_plain_style_has_no_icons(self, capsys, monkeypatch):
+        monkeypatch.setattr(console, 'STYLE', console.Style(icons=False, colors=False))
+
+        console.info('text', icon='📄')
+
+        assert capsys.readouterr().out == 'text\n'
+
+    def test_colors(self, capsys, monkeypatch):
+        monkeypatch.setattr(console, 'STYLE', console.Style(icons=False, colors=True))
+
+        console.error('text')
+
+        assert capsys.readouterr().out == '\033[1;31mtext\033[0m\n'
+
+    def test_gui_receives_level_icon_and_text(self, capsys, monkeypatch):
+        monkeypatch.setattr(console, 'GUI_MODE', True)
+
+        console.warning('first\nsecond', icon='🔄')
+
+        assert capsys.readouterr().out == f'{LOG_TAG}warning\t🔄\tfirst\n{LOG_TAG}warning\t🔄\tsecond\n'
+
+
+class FakeStream:
+    def __init__(self, tty: bool):
+        self.tty = tty
+
+    def isatty(self):
+        return self.tty
+
+
+class TestDetectStyle:
+    @pytest.mark.parametrize(('tty', 'environment', 'platform', 'expected'), [
+        (True, {}, 'linux', console.Style(icons=True, colors=True)),
+        (False, {}, 'linux', console.Style(icons=True, colors=False)),  # Redirected to a file
+        (True, {'NO_COLOR': ''}, 'darwin', console.Style(icons=True, colors=False)),
+        (True, {'TERM': 'dumb'}, 'linux', console.Style(icons=True, colors=False)),
+        (True, {}, 'win32', console.Style(icons=False, colors=True)),  # Old Windows console
+        (True, {'WT_SESSION': 'id'}, 'win32', console.Style(icons=True, colors=True)),  # Windows Terminal
+        (False, {}, 'win32', console.Style(icons=True, colors=False)),  # Piped, e.g. to the GUI or a log file
+        (True, {'ARXIV_SORTER_PLAIN': '1'}, 'linux', console.Style(icons=False, colors=False)),
+    ])
+    def test_terminals(self, tty, environment, platform, expected):
+        assert console.detect_style(FakeStream(tty), environment, platform) == expected
+
+
 def test_progressbar_reports_progress():
     out = io.StringIO()
     pbar = Progressbar(4, prefix='Work', out=out)
@@ -30,7 +105,8 @@ def test_progressbar_reports_progress():
     pbar.close()
 
     text = out.getvalue()
-    assert 'Work[' in text
+    assert 'Work  ███' in text
+    assert '░' in text  # Half full at 2/4
     assert '2/4' in text
     assert '4/4' in text
     assert text.endswith('\n')

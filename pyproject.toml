@@ -54,6 +54,8 @@ filterwarnings = [
 line-length = 120
 target-version = "py314"
 extend-exclude = ["playground", "test_pdffigures"]
+# Not the repository root, whose packaging/ folder (PyInstaller spec) would be taken for the packaging library
+src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM"]

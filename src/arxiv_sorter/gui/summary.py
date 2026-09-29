@@ -1,11 +1,9 @@
 """
 Final message shown in the GUI when a run ends.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-
-SEPARATOR = '─' * 60
 
 
 class Outcome(Enum):
@@ -36,43 +34,63 @@ class WrittenFile:
             return None
 
 
+@dataclass
+class Summary:
+    outcome: Outcome
+    status: str  # Short text for the status bar
+    headline: str
+    icon: str
+    files: list[WrittenFile] = field(default_factory=list)
+
+    @property
+    def folder(self) -> Path | None:
+        """
+        Folder of the written files, if they are all in the same one.
+        """
+        folders = {file.path.parent for file in self.files}
+        return folders.pop() if len(folders) == 1 else None
+
+    def lines(self) -> list[str]:
+        """
+        Summary as plain text.
+        """
+        lines = [f'{self.icon} {self.headline}']
+        width = max((len(file.path.name) for file in self.files), default=0)
+        for file in self.files:
+            lines.append(f'  {file.path.name:<{width}}  {describe_file(file)}')
+        if self.files:
+            lines.append(f'Saved in {self.folder}' if self.folder is not None else 'Saved in several folders')
+        return lines
+
+
 def format_duration(seconds: float) -> str:
     minutes, seconds = divmod(round(seconds), 60)
     return f'{minutes} min {seconds:02} s' if minutes else f'{seconds} s'
 
 
-def _plural(count: int, singular: str, plural: str | None = None) -> str:
-    return f'{count} {singular}' if count == 1 else f'{count} {plural or singular + "s"}'
+def plural(count: int, singular: str, plural_form: str | None = None) -> str:
+    return f'{count} {singular}' if count == 1 else f'{count} {plural_form or singular + "s"}'
 
 
-def final_message(outcome: Outcome, elapsed: float, written: list[WrittenFile]) -> tuple[str, list[str]]:
-    """
-    Short status and the lines of the final message.
-    """
+def describe_file(file: WrittenFile) -> str:
+    return f'{plural(file.n_entries, "entry", "entries")}, {file.n_new} new or matching your keywords'
+
+
+def final_message(outcome: Outcome, elapsed: float, written: list[WrittenFile], n_warnings: int = 0) -> Summary:
     duration = format_duration(elapsed)
-    sorted_lists = _plural(len(written), 'mailing list')
+    sorted_lists = plural(len(written), 'mailing list')
+    warnings = f' ({plural(n_warnings, "warning")}, see the messages above)' if n_warnings else ''
 
     if outcome is Outcome.FINISHED:
-        status = f'Done: {sorted_lists} sorted' if written else 'Done: nothing new to sort'
-        headline = f'Done in {duration}: {sorted_lists} sorted.' if written else f'Done in {duration}: nothing new.'
-    elif outcome is Outcome.ERRORS:
-        status = 'Finished with errors'
-        headline = f'Finished with errors in {duration} (see the messages above): {sorted_lists} sorted.'
-    elif outcome is Outcome.STOPPED:
-        status = 'Stopped'
-        headline = f'Stopped after {duration}.' + (f' {sorted_lists.capitalize()} already sorted.' if written else '')
-    else:
-        status = 'Failed'
-        headline = f'Failed after {duration} (see the messages above).'
-
-    lines = [SEPARATOR, headline]
-    if written:
-        width = max(len(file.path.name) for file in written)
-        for file in written:
-            entries = _plural(file.n_entries, 'entry', 'entries')
-            lines.append(f'  {file.path.name:<{width}}  {entries}, {file.n_new} new or with matching keywords')
-        folders = {file.path.parent for file in written}
-        lines.append(f'Saved in {folders.pop()}' if len(folders) == 1 else 'Saved in several folders')
-    lines.append(SEPARATOR)
-
-    return status, lines
+        if written:
+            return Summary(outcome, f'Done: {sorted_lists} sorted', f'Done in {duration}: {sorted_lists} sorted'
+                           f'{warnings}.', '🎉', written)
+        return Summary(outcome, 'Done: nothing new to sort', f'Done in {duration}: nothing new to sort{warnings}.',
+                       '✅', written)
+    if outcome is Outcome.ERRORS:
+        return Summary(outcome, 'Finished with errors', f'Finished with errors in {duration} (see the messages '
+                       f'above): {sorted_lists} sorted.', '❌', written)
+    if outcome is Outcome.STOPPED:
+        already = f' {sorted_lists.capitalize()} already sorted.' if written else ''
+        return Summary(outcome, 'Stopped', f'Stopped after {duration}.{already}', '🛑', written)
+    return Summary(outcome, 'Failed', f'Failed after {duration} (see the messages above).', '❌', written)

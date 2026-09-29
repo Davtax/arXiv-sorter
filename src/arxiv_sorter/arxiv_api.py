@@ -8,7 +8,7 @@ import feedparser
 import grequests  # noqa: F401  #  imported for gevent monkey-patching side effect
 import pytz
 
-from arxiv_sorter import __version__
+from arxiv_sorter import __version__, console
 from arxiv_sorter.dates import current_time_zone, daterange, obtain_date
 from arxiv_sorter.system import NO_WINDOW
 
@@ -24,7 +24,7 @@ N_RETRIES = 3
 TIMEOUT = 30  # seconds
 
 
-def search_entries(categories: list[str], date_0: datetime, date_f: datetime, _verbose: bool = False, ) -> tuple[
+def search_entries(categories: list[str], date_0: datetime, date_f: datetime) -> tuple[
     list[list[feedparser.FeedParserDict]], list[datetime]]:
     """
     Ask the arXiv API for the entries in the given categories and dates.
@@ -51,8 +51,11 @@ def search_entries(categories: list[str], date_0: datetime, date_f: datetime, _v
         n_entries = f"&start={len(total_entries)}&max_results={N_MAX}"
         sort = "&sortBy=lastUpdatedDate&sortOrder=ascending"
 
-        entries = _get_arxiv_feed(BASE_URL + query + n_entries + sort).entries
+        url = BASE_URL + query + n_entries + sort
+        console.detail(f'Request: {url}')
+        entries = _get_arxiv_feed(url).entries
         total_entries += entries
+        console.detail(f'Received {len(entries)} entries ({len(total_entries)} in total)')
 
         if len(entries) < N_MAX:
             break
@@ -125,7 +128,8 @@ def _get_arxiv_feed(url: str) -> feedparser.FeedParserDict:
     for attempt in range(N_RETRIES + 1):
         if attempt > 0:
             wait = T_SLEEP * 2 ** attempt
-            print(f'arXiv API answered with status code {status}, retrying in {wait} seconds ...')
+            console.warning(f'The arXiv API did not answer as expected (status {status}), retrying in {wait} s '
+                            f'(attempt {attempt + 1} of {N_RETRIES + 1}) …', icon='🔄')
             time.sleep(wait)
 
         _wait_between_requests()
@@ -182,7 +186,9 @@ def _sort_entries(entries: list[feedparser.FeedParserDict], date_0: datetime, da
         dates.append(single_date)
 
     if counter < len(entries):
-        print('There are entries that were not sorted. Appending them to the last date.')
+        n_late = len(entries) - counter
+        console.detail(f'{n_late} {"entry is" if n_late == 1 else "entries are"} later than the last mailing list, '
+                       'added to it')
         total_entries_date[-1] += entries[counter:]
 
     return total_entries_date, dates

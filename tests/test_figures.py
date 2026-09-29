@@ -11,11 +11,11 @@ class TestExtractFromJson:
     def test_missing_json(self, tmp_path):
         assert extract_from_json('1234.5678', tmp_path, tmp_path, tmp_path) is False
 
-    def test_invalid_json(self, tmp_path, capsys):
+    def test_invalid_json(self, tmp_path, capsys, verbose):
         (tmp_path / '1234.5678.json').write_text('{not json', encoding='utf-8')
 
         assert extract_from_json('1234.5678', tmp_path, tmp_path, tmp_path) is False
-        assert 'Error decoding' in capsys.readouterr().out
+        assert 'Unable to read the figures detected in 1234.5678' in capsys.readouterr().out
 
     def test_only_tables(self, tmp_path):
         data = [{'figType': 'Table', 'page': 0, 'regionBoundary': {'x1': 0, 'x2': 1, 'y1': 0, 'y2': 1}}]

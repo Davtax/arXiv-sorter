@@ -70,7 +70,7 @@ class TestCheckForUpdate:
         github.append(FakeResponse(json_data=RELEASE))
         assert updater.check_for_update('Windows', current) is None
 
-    def test_missing_platform_asset(self, github, capsys):
+    def test_missing_platform_asset(self, github, capsys, verbose):
         github.append(FakeResponse(json_data=RELEASE))
         assert updater.check_for_update('macOS', '0.9.0') is None
         assert 'No asset arXiv-sorter-macOS found' in capsys.readouterr().out

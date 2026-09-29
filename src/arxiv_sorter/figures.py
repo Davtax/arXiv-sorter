@@ -12,6 +12,7 @@ from feedparser import FeedParserDict
 from pymupdf import Rect
 from pymupdf import open as pymupdf  # TODO: PyMuPDF is too heavy, consider using other library
 
+from arxiv_sorter import console
 from arxiv_sorter.console import Progressbar
 from arxiv_sorter.network import get_urls_async
 from arxiv_sorter.system import NO_WINDOW, config_dir
@@ -30,7 +31,7 @@ def download_pdfs(ids_entries: list[str], pdf_folder: Path, batch_size: int = 25
     Download the PDFs of the entries in batches, to avoid being blocked by arXiv.
     """
     results = []
-    pbar = Progressbar(len(ids_entries), prefix='Downloading PDFs')
+    pbar = Progressbar(len(ids_entries), prefix='Downloading PDFs', icon='📥')
 
     urls = [f'https://arxiv.org/pdf/{id_}' for id_ in ids_entries]
 
@@ -42,16 +43,23 @@ def download_pdfs(ids_entries: list[str], pdf_folder: Path, batch_size: int = 25
         previous = len(results)
     pbar.close()
 
+    failed, refused = [], []
     for id_entry, result in zip(ids_entries, results, strict=True):
         if result is None:
-            print(f'Error in {id_entry}')
+            failed.append(id_entry)
             continue
         elif result.status_code == 403:
-            print(f'403 error in {id_entry}')
+            refused.append(id_entry)
             continue
 
         with (pdf_folder / f'{id_entry}.pdf').open('wb') as f:
             f.write(result.content)
+
+    if failed:
+        console.warning(f'{len(failed)} PDFs could not be downloaded, they will have no figure: {", ".join(failed)}')
+    if refused:
+        console.warning(f'arXiv refused to send {len(refused)} PDFs (error 403, usually after too many downloads), '
+                        f'they will have no figure: {", ".join(refused)}')
 
 
 def detect_figure(pdf_folder: Path, json_folder: Path, threads: int, t_poll: float = 0.5) -> None:
@@ -71,7 +79,7 @@ def detect_figure(pdf_folder: Path, json_folder: Path, threads: int, t_poll: flo
         process.wait()
         return
 
-    pbar = Progressbar(n_pdfs, prefix='Detecting figures')
+    pbar = Progressbar(n_pdfs, prefix='Detecting figures', icon='🔍')
     n_done = 0
     while process.poll() is None:
         sleep(t_poll)
@@ -108,7 +116,7 @@ def extract_from_json(id_entry: str, json_folder: Path, pdf_folder: Path, image_
     except FileNotFoundError:
         return False
     except (UnicodeDecodeError, json.JSONDecodeError):
-        print(f'Error decoding {json_folder / f"{id_entry}.json"}')
+        console.detail(f'Unable to read the figures detected in {id_entry} ({json_folder / f"{id_entry}.json"})')
         return False
 
     # Sort data by page
@@ -149,7 +157,8 @@ def remove_folder(folder: Path, retries: int = 3, t_sleep: float = 1) -> bool:
             if attempt < retries:
                 sleep(t_sleep)
 
-    print(f'Permission error deleting {folder}, it will be retried in the next execution')
+    console.warning(f'Permission error deleting {folder} (it may be open in another program), it will be retried in '
+                    'the next run')
     return False
 
 
@@ -159,8 +168,8 @@ def check_java() -> bool:
         run(['java', '-version'], capture_output=True, **NO_WINDOW)
         return True
     except FileNotFoundError:
-        print('Java is not installed. Please install it.')
-        print('Running without figure detection.')
+        console.warning('Java is not installed, so the figures are skipped (running without figure detection). '
+                        'Install it from https://adoptium.net to include them.')
         return False
 
 
@@ -180,24 +189,25 @@ def check_pdffigure2() -> bool:
         if LEGACY_PDFFIGURES2_PATH.is_file():
             shutil.copyfile(LEGACY_PDFFIGURES2_PATH, partial_path)
             partial_path.replace(PDFFIGURES2_PATH)
-            print(f'pdffigures2 copied from {LEGACY_PDFFIGURES2_PATH.resolve()} to {PDFFIGURES2_PATH}')
+            console.success(f'pdffigures2 copied from {LEGACY_PDFFIGURES2_PATH.resolve()} to {PDFFIGURES2_PATH}')
             return True
     except OSError as error:
-        print(f'Unable to save pdffigures2 in {PDFFIGURES2_PATH.parent} ({error}). Running without figure detection.')
+        console.warning(f'Unable to save pdffigures2 in {PDFFIGURES2_PATH.parent} ({error}). Running without figure '
+                        'detection.')
         return False
 
-    print(f'pdffigures2 (used to detect the figures) not found in {PDFFIGURES2_PATH.parent}.')
-    print('Downloading it from GitHub, only needed the first time ...')
+    console.info('Downloading pdffigures2 (34 MB), the tool that detects the figures. It is only needed the first '
+                 'time …', icon='📦')
     try:
         response = requests.get(PDFFIGURES2_URL, timeout=60)
         response.raise_for_status()
         partial_path.write_bytes(response.content)
         partial_path.replace(PDFFIGURES2_PATH)
     except (requests.RequestException, OSError) as error:
-        print(f'Unable to download pdffigures2 ({error}). Running without figure detection.')
+        console.warning(f'Unable to download pdffigures2 ({error}). Running without figure detection.')
         return False
 
-    print(f'pdffigures2 saved in {PDFFIGURES2_PATH}')
+    console.success(f'pdffigures2 saved in {PDFFIGURES2_PATH}')
     return True
 
 
@@ -253,7 +263,7 @@ def extract_figures(date: str,
 
     # Extract figures from json files
     figure_links = []
-    pbar = Progressbar(len(ids_entries), prefix='Extracting figures')
+    pbar = Progressbar(len(ids_entries), prefix='Extracting figures', icon='🎨')
     for id_entry in ids_entries:
         if extract_from_json(id_entry, json_folder, pdf_folder, image_folder):
             image_path = image_folder / f'{id_entry}.png'
@@ -266,4 +276,6 @@ def extract_figures(date: str,
         pbar.update(1)
     pbar.close()
 
+    n_figures = sum(link is not None for link in figure_links)
+    console.info(f'Figures found for {n_figures} of the {len(ids_entries)} new entries', icon='🎨')
     return figure_links

@@ -1,27 +1,57 @@
 """
-Main window of the GUI. arXiv-sorter itself runs in a separate process, whose output is shown in the window.
+Main window of the GUI. arXiv-sorter itself runs in a separate process, whose messages are shown in the window.
 """
 import codecs
 import os
 import sys
 import time
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QDate, QProcess, QProcessEnvironment, Qt, QUrl
-from PySide6.QtGui import QCloseEvent, QDesktopServices, QFontDatabase, QIcon
-from PySide6.QtWidgets import (QApplication, QCheckBox, QDateEdit, QFileDialog, QFormLayout, QGridLayout, QGroupBox,
-                               QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPlainTextEdit, QProgressBar,
-                               QPushButton, QRadioButton, QSpinBox, QVBoxLayout, QWidget, )
+from PySide6.QtCore import QByteArray, QDate, QEvent, QProcess, QProcessEnvironment, Qt, QTimer, QUrl
+from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QDesktopServices, QFont, QKeySequence
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QDateEdit,
+    QFileDialog,
+    QFormLayout,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QRadioButton,
+    QSpinBox,
+    QStyle,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from arxiv_sorter import __version__
-from arxiv_sorter.gui.settings import SETTINGS_FILE, Settings
-from arxiv_sorter.gui.summary import Outcome, WrittenFile, final_message
-from arxiv_sorter.protocol import GUI_ENV_VAR, PROGRESS_TAG, QUESTION_TAG, WORKER_FLAG, WRITTEN_TAG
+from arxiv_sorter.gui.icons import app_icon, run_icon, stop_icon
+from arxiv_sorter.gui.log_view import LogView
+from arxiv_sorter.gui.search_files import SEARCH_FILES, count_terms, describe
+from arxiv_sorter.gui.settings import SETTINGS_FILE, THEMES, Settings
+from arxiv_sorter.gui.summary import Outcome, WrittenFile, final_message, format_duration
+from arxiv_sorter.gui.theme import apply_theme
+from arxiv_sorter.protocol import GUI_ENV_VAR, LOG_TAG, PROGRESS_TAG, QUESTION_TAG, WORKER_FLAG, WRITTEN_TAG, Level
 from arxiv_sorter.system import APP_NAME, base_dir, config_dir, is_frozen, kill_process_tree, max_threads
 
-USER_FILES = ('keywords.txt', 'authors.txt', 'categories.txt')
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]  # Folder that contains the arxiv_sorter package
+REPOSITORY_URL = 'https://github.com/Davtax/arXiv-sorter'
+DATE_FORMAT = 'ddd d MMM yyyy'  # e.g. Tue 22 Sep 2026
+THREADS_EXTRA_INDENT = 20  # Pixels beyond the text of "Include the first figure", to show the threads belong to it
+
+THEME_NAMES = {'system': 'System', 'light': 'Light', 'dark': 'Dark'}
+THEME_ICONS = {'system': '🌓', 'light': '☀️', 'dark': '🌙'}
+THEME_TOOLTIPS = {'system': 'Follow the light or dark mode of the operating system', 'light': 'Always light',
+                  'dark': 'Always dark'}
 
 
 def settings_path() -> Path:
@@ -53,6 +83,27 @@ def stop_process(process: QProcess):
     process.kill()
 
 
+def open_path(path: Path):
+    QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+
+
+def open_url(url: str):
+    QDesktopServices.openUrl(QUrl(url))
+
+
+def hint_label(text: str) -> QLabel:
+    """
+    Small secondary text, to explain an option.
+    """
+    label = QLabel(text)
+    label.setWordWrap(True)
+    label.setEnabled(False)  # Shown with the muted color of the style
+    font = label.font()
+    font.setPointSizeF(font.pointSizeF() * 0.9)
+    label.setFont(font)
+    return label
+
+
 class PathSelector(QWidget):
     """
     Line edit with buttons to browse for a directory and to open it in the file manager.
@@ -63,9 +114,12 @@ class PathSelector(QWidget):
         self.dialog_title = dialog_title
 
         self.line_edit = QLineEdit()
+        self.line_edit.setClearButtonEnabled(True)
         browse_button = QPushButton('Browse…')
+        browse_button.setToolTip('Choose the folder')
         browse_button.clicked.connect(self.browse)
-        open_button = QPushButton('Open')
+        open_button = QToolButton()
+        open_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
         open_button.setToolTip('Open the folder in the file manager')
         open_button.clicked.connect(self.open_folder)
 
@@ -87,85 +141,119 @@ class PathSelector(QWidget):
             self.set_path(str(Path(folder)))
 
     def open_folder(self):
+        if not self.path():
+            return
         folder = Path(self.path())
         folder.mkdir(parents=True, exist_ok=True)
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder.resolve())))
+        open_path(folder.resolve())
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f'{APP_NAME} v{__version__}')
+        self.setWindowIcon(app_icon())
+        self.setMinimumSize(760, 600)
 
         self.settings_file = settings_path()
         self.process: QProcess | None = None
         self.decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
         self.output_buffer = ''
         self.errors_found = False
+        self.n_warnings = 0
         self.stop_requested = False
         self.written: list[WrittenFile] = []
         self.start_time = 0.0
+        self.theme = 'system'
+
+        self.elapsed_timer = QTimer(self)
+        self.elapsed_timer.setInterval(1000)
+        self.elapsed_timer.timeout.connect(self._update_elapsed)
+        self.search_files_timer = QTimer(self)  # Refresh the counts once the user stops typing the folder
+        self.search_files_timer.setSingleShot(True)
+        self.search_files_timer.setInterval(400)
+        self.search_files_timer.timeout.connect(self.refresh_search_files)
 
         central = QWidget()
         layout = QVBoxLayout(central)
-        layout.addWidget(self._build_paths_group())
+        layout.setSpacing(10)
+        layout.addWidget(self._build_folders_group())
         options_row = QHBoxLayout()
         options_row.addWidget(self._build_dates_group(), stretch=1)
         options_row.addWidget(self._build_options_group(), stretch=1)
         layout.addLayout(options_row)
         layout.addLayout(self._build_run_row())
-        layout.addWidget(self._build_log_group(), stretch=1)
+        layout.addWidget(self._build_messages_group(), stretch=1)
         self.setCentralWidget(central)
 
+        self._build_menus()
+        self._build_status_bar()
         self.load_settings()
+        self.refresh_search_files()
 
     # ---------------------------------------------------------------- widgets
-    def _build_paths_group(self) -> QGroupBox:
-        group = QGroupBox('Paths')
+    def _build_folders_group(self) -> QGroupBox:
+        group = QGroupBox('📁  Folders')
         form = QFormLayout(group)
 
-        self.keywords_selector = PathSelector('Select the keywords directory')
+        self.keywords_selector = PathSelector('Select the folder with the search files')
         self.keywords_selector.setToolTip('Folder with keywords.txt, authors.txt and categories.txt (--directory)')
-        form.addRow('Keywords directory:', self.keywords_selector)
-
-        self.abstracts_selector = PathSelector('Select the abstracts directory')
-        self.abstracts_selector.setToolTip('Folder where the Markdown files are written (--abstracts)')
-        form.addRow('Abstracts directory:', self.abstracts_selector)
+        self.keywords_selector.line_edit.textChanged.connect(lambda: self.search_files_timer.start())
+        form.addRow('Search files:', self.keywords_selector)
 
         files_row = QHBoxLayout()
-        for filename in USER_FILES:
-            button = QPushButton(f'Edit {filename}')
-            button.setToolTip(f'Open {filename} with the default text editor (created if it does not exist)')
-            button.clicked.connect(lambda _=False, name=filename: self.edit_user_file(name))
+        self.search_file_labels: dict[str, QLabel] = {}
+        for search_file in SEARCH_FILES:
+            label = QLabel()
+            self.search_file_labels[search_file.filename] = label
+            button = QToolButton()
+            button.setText('Edit')
+            button.setToolTip(f'Open {search_file.filename} in the default text editor (created if it does not '
+                              'exist). One term per line, # comments a line out.')
+            button.clicked.connect(lambda _=False, name=search_file.filename: self.edit_user_file(name))
+            files_row.addWidget(label)
             files_row.addWidget(button)
+            files_row.addSpacing(12)
         files_row.addStretch()
-        form.addRow('Search files:', files_row)
+        form.addRow('', files_row)
+
+        self.abstracts_selector = PathSelector('Select the folder for the abstracts')
+        self.abstracts_selector.setToolTip('Folder where the Markdown files are saved, e.g. inside your Obsidian '
+                                           'vault (--abstracts)')
+        form.addRow('Abstracts:', self.abstracts_selector)
 
         return group
 
     def _build_dates_group(self) -> QGroupBox:
-        group = QGroupBox('Date range')
+        group = QGroupBox('📅  Date range')
         grid = QGridLayout(group)
 
-        self.auto_dates_radio = QRadioButton('Automatic: from the last saved abstracts until today')
+        self.auto_dates_radio = QRadioButton('Automatic')
+        self.auto_dates_radio.setToolTip('Continue after the last mailing list saved in the abstracts folder')
         self.custom_dates_radio = QRadioButton('Custom range')
+        self.custom_dates_radio.setToolTip('Choose the mailing lists to request (--date0 and --datef)')
         self.auto_dates_radio.setChecked(True)
         self.custom_dates_radio.toggled.connect(self._update_dates_enabled)
 
         today = QDate.currentDate()
         self.date_0_edit = self._date_edit(today.addDays(-7))
-        self.date_0_edit.setToolTip('First mailing date to request (--date0)')
+        self.date_0_edit.setToolTip('First mailing list to request (--date0)')
         self.date_f_edit = self._date_edit(today)
-        self.date_f_edit.setToolTip('Final date (--datef). Submissions are requested until the arXiv deadline '
-                                    '(14:00 ET) of this day, so its own mailing is not included.')
+        self.date_f_edit.setToolTip('Submissions are requested until the arXiv deadline (14:00 ET) of this day, so its '
+                                    'own mailing list is not included (--datef)')
 
         grid.addWidget(self.auto_dates_radio, 0, 0, 1, 4)
-        grid.addWidget(self.custom_dates_radio, 1, 0, 1, 4)
-        grid.addWidget(QLabel('From:'), 2, 0)
-        grid.addWidget(self.date_0_edit, 2, 1)
-        grid.addWidget(QLabel('Until:'), 2, 2)
-        grid.addWidget(self.date_f_edit, 2, 3)
-        grid.setRowStretch(3, 1)
+        grid.addWidget(hint_label('Continues after the last mailing list saved in the abstracts folder.'), 1, 0, 1, 4)
+        grid.addWidget(self.custom_dates_radio, 2, 0, 1, 4)
+        self.date_0_label = QLabel('From')
+        self.date_f_label = QLabel('until')
+        grid.addWidget(self.date_0_label, 3, 0)
+        grid.addWidget(self.date_0_edit, 3, 1)
+        grid.addWidget(self.date_f_label, 3, 2)
+        grid.addWidget(self.date_f_edit, 3, 3)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(3, 1)
+        grid.setRowStretch(4, 1)
 
         self._update_dates_enabled()
         return group
@@ -174,21 +262,27 @@ class MainWindow(QMainWindow):
     def _date_edit(value: QDate) -> QDateEdit:
         edit = QDateEdit(value)
         edit.setCalendarPopup(True)
-        edit.setDisplayFormat('yyyy-MM-dd')
+        edit.setDisplayFormat(DATE_FORMAT)
         edit.setMaximumDate(QDate.currentDate())
         return edit
 
     def _build_options_group(self) -> QGroupBox:
-        group = QGroupBox('Options')
+        group = QGroupBox('⚙️  Options')
         box = QVBoxLayout(group)
 
-        self.images_check = QCheckBox('Include figures (download the PDFs and extract the first figure)')
-        self.final_date_check = QCheckBox('Add the final timestamp to the Markdown file')
-        self.separate_check = QCheckBox('Create a separate file for each manuscript')
-        self.sort_authors_check = QCheckBox('Sort the authors file and remove blank lines')
+        self.images_check = QCheckBox('Include the first figure of each new submission')
+        self.images_check.setToolTip('Download the PDFs and extract their first figure (needs Java). Slower, and '
+                                     'arXiv may limit the downloads (untick for --image)')
+        self.final_date_check = QCheckBox('Add a timestamp at the end of the Markdown file')
+        self.final_date_check.setToolTip('Untick for --final')
+        self.separate_check = QCheckBox('Create a separate file for each submission')
+        self.separate_check.setToolTip('A folder per mailing list, with a Markdown file per submission (--separate)')
+        self.sort_authors_check = QCheckBox('Sort authors.txt and remove its blank lines')
+        self.sort_authors_check.setToolTip('Untick for --modify')
         self.update_check = QCheckBox('Download new versions of arXiv-sorter when available')
         self.update_check.setVisible(False)  # Temporarily disabled: the update is not implemented yet
-        self.verbose_check = QCheckBox('Verbose output')
+        self.verbose_check = QCheckBox('Show detailed messages')
+        self.verbose_check.setToolTip('Useful to understand a problem (--verbose)')
 
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(1, max_threads())
@@ -196,8 +290,12 @@ class MainWindow(QMainWindow):
                                      'More threads are faster, but use more memory (--threads)')
         self.images_check.toggled.connect(self._update_threads_enabled)
         threads_row = QHBoxLayout()
-        threads_row.setContentsMargins(24, 0, 0, 0)  # Indented below "Include figures", which it depends on
-        threads_row.addWidget(QLabel('Threads to detect the figures:'))
+        # Indented past the text of the figures option, which it depends on (measured with the style of the platform)
+        text_start = (self.style().pixelMetric(QStyle.PixelMetric.PM_IndicatorWidth)
+                      + self.style().pixelMetric(QStyle.PixelMetric.PM_CheckBoxLabelSpacing))
+        threads_row.setContentsMargins(text_start + THREADS_EXTRA_INDENT, 0, 0, 0)
+        self.threads_label = QLabel('Threads to detect them:')
+        threads_row.addWidget(self.threads_label)
         threads_row.addWidget(self.threads_spin)
         threads_row.addStretch()
 
@@ -213,54 +311,151 @@ class MainWindow(QMainWindow):
     def _build_run_row(self) -> QHBoxLayout:
         row = QHBoxLayout()
 
-        self.run_button = QPushButton('Run')
+        self.run_button = QPushButton('  Run')
+        self.run_button.setIcon(run_icon())
+        self.run_button.setToolTip('Request, sort and save the new submissions (Ctrl+R)')
+        self.run_button.setShortcut(QKeySequence('Ctrl+R'))
         self.run_button.setDefault(True)
+        self.run_button.setMinimumHeight(38)
+        self.run_button.setMinimumWidth(110)
+        font = self.run_button.font()
+        font.setBold(True)
+        self.run_button.setFont(font)
         self.run_button.clicked.connect(self.start)
-        self.stop_button = QPushButton('Stop')
+
+        self.stop_button = QPushButton('  Stop')
+        self.stop_button.setIcon(stop_icon())
+        self.stop_button.setToolTip('Stop arXiv-sorter. The mailing lists already saved are kept')
+        self.stop_button.setMinimumHeight(38)
         self.stop_button.setEnabled(False)
         self.stop_button.clicked.connect(self.stop)
 
+        self.stage_label = QLabel('Ready when you are 🙂')
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 1)
         self.progress_bar.setValue(0)
-        self.progress_bar.setTextVisible(True)
-
-        self.status_label = QLabel('Ready')
-        self.status_label.setMinimumWidth(200)
+        self.progress_bar.setTextVisible(False)
+        progress_box = QVBoxLayout()
+        progress_box.setSpacing(2)
+        progress_box.addWidget(self.stage_label)
+        progress_box.addWidget(self.progress_bar)
 
         row.addWidget(self.run_button)
         row.addWidget(self.stop_button)
-        row.addWidget(self.progress_bar, stretch=1)
-        row.addWidget(self.status_label, stretch=1)
+        row.addSpacing(8)
+        row.addLayout(progress_box, stretch=1)
         return row
 
-    def _build_log_group(self) -> QGroupBox:
-        group = QGroupBox('Messages')
+    def _build_messages_group(self) -> QGroupBox:
+        group = QGroupBox('💬  Messages')
         box = QVBoxLayout(group)
 
-        self.log = QPlainTextEdit()
-        self.log.setReadOnly(True)
-        self.log.setMaximumBlockCount(20000)
-        self.log.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
-        self.log.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self.log = LogView()
+        font = self.log.font()
+        font.setStyleHint(QFont.StyleHint.SansSerif)
+        self.log.setFont(font)
 
-        clear_button = QPushButton('Clear messages')
+        self.open_latest_button = QPushButton('📖  Open the latest file')
+        self.open_latest_button.setToolTip('Open the last Markdown file saved, e.g. in Obsidian')
+        self.open_latest_button.setEnabled(False)
+        self.open_latest_button.clicked.connect(self.open_latest_file)
+        open_folder_button = QPushButton('📂  Open the abstracts folder')
+        open_folder_button.clicked.connect(self.abstracts_selector.open_folder)
+
+        copy_button = QToolButton()
+        copy_button.setText('Copy')
+        copy_button.setToolTip('Copy the messages to the clipboard, e.g. to report a problem')
+        copy_button.clicked.connect(self.copy_messages)
+        save_button = QToolButton()
+        save_button.setText('Save…')
+        save_button.setToolTip('Save the messages in a text file')
+        save_button.clicked.connect(self.save_messages)
+        clear_button = QToolButton()
+        clear_button.setText('Clear')
         clear_button.clicked.connect(self.log.clear)
+
         buttons = QHBoxLayout()
+        buttons.addWidget(self.open_latest_button)
+        buttons.addWidget(open_folder_button)
         buttons.addStretch()
-        buttons.addWidget(clear_button)
+        for button in (copy_button, save_button, clear_button):
+            buttons.addWidget(button)
 
         box.addWidget(self.log)
         box.addLayout(buttons)
         return group
 
+    def _build_menus(self):
+        file_menu = self.menuBar().addMenu('&File')
+        self._add_action(file_menu, 'Open the abstracts folder', self.abstracts_selector.open_folder, 'Ctrl+O')
+        self._add_action(file_menu, 'Open the settings folder', lambda: open_path(config_dir()))
+        file_menu.addSeparator()
+        self._add_action(file_menu, 'Save the messages…', self.save_messages, QKeySequence.StandardKey.Save)
+        file_menu.addSeparator()
+        self._add_action(file_menu, 'Quit', self.close, QKeySequence.StandardKey.Quit).setMenuRole(
+            QAction.MenuRole.QuitRole)
+
+        view_menu = self.menuBar().addMenu('&View')
+        self.theme_menu = view_menu.addMenu('Theme')
+        self.theme_actions = QActionGroup(self)  # Only one of them is checked
+        for theme in THEMES:
+            action = QAction(THEME_NAMES[theme], self, checkable=True)
+            action.setToolTip(THEME_TOOLTIPS[theme])
+            action.triggered.connect(lambda _=False, name=theme: self.set_theme(name))
+            self.theme_actions.addAction(action)
+            self.theme_menu.addAction(action)
+
+        help_menu = self.menuBar().addMenu('&Help')
+        self._add_action(help_menu, 'User guide', lambda: open_url(f'{REPOSITORY_URL}#readme'),
+                         QKeySequence.StandardKey.HelpContents)
+        self._add_action(help_menu, 'Report a problem', lambda: open_url(f'{REPOSITORY_URL}/issues'))
+        help_menu.addSeparator()
+        self._add_action(help_menu, f'About {APP_NAME}', self.show_about).setMenuRole(QAction.MenuRole.AboutRole)
+
+    def _add_action(self, menu, text: str, slot, shortcut=None) -> QAction:
+        action = QAction(text, self)
+        if shortcut is not None:
+            action.setShortcut(QKeySequence(shortcut))
+        action.triggered.connect(slot)
+        menu.addAction(action)
+        return action
+
+    def _build_status_bar(self):
+        self.elapsed_label = QLabel()
+        self.theme_button = QToolButton()  # Same choices as View → Theme, easier to find
+        self.theme_button.setMenu(self.theme_menu)
+        self.theme_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.theme_button.setAutoRaise(True)
+        self.theme_button.setToolTip('Light or dark theme')
+        self.statusBar().addPermanentWidget(self.elapsed_label)
+        self.statusBar().addPermanentWidget(self.theme_button)
+        self.statusBar().showMessage('Ready')
+
+    def set_theme(self, theme: str, save: bool = True):
+        """
+        Apply the theme (one of THEMES), and remember it for the next time.
+        """
+        self.theme = theme
+        apply_theme(QApplication.instance(), theme)
+        for action, name in zip(self.theme_actions.actions(), THEMES, strict=True):
+            action.setChecked(name == theme)
+        self.theme_button.setText(f'{THEME_ICONS[theme]} {THEME_NAMES[theme]}')
+        if save:
+            self.save_settings()
+
     def _update_threads_enabled(self):
-        self.threads_spin.setEnabled(self.images_check.isChecked() and self.run_button.isEnabled())
+        enabled = self.images_check.isChecked() and self.run_button.isEnabled()
+        self.threads_spin.setEnabled(enabled)
+        self.threads_label.setEnabled(enabled)
 
     def _update_dates_enabled(self):
-        custom = self.custom_dates_radio.isChecked()
-        self.date_0_edit.setEnabled(custom)
-        self.date_f_edit.setEnabled(custom)
+        # The dates (and their labels) only matter for a custom range, and cannot change during a run
+        enabled = self.custom_dates_radio.isChecked() and self.process is None
+        for widget in (self.date_0_label, self.date_0_edit, self.date_f_label, self.date_f_edit):
+            widget.setEnabled(enabled)
+
+    def _update_elapsed(self):
+        self.elapsed_label.setText(f'⏱ {format_duration(time.monotonic() - self.start_time)}')
 
     # --------------------------------------------------------------- settings
     def current_settings(self) -> Settings:
@@ -270,7 +465,7 @@ class MainWindow(QMainWindow):
                         sort_authors=self.sort_authors_check.isChecked(), update=False,
                         verbose=self.verbose_check.isChecked(), custom_dates=self.custom_dates_radio.isChecked(),
                         date_0=self.date_0_edit.date().toString(Qt.DateFormat.ISODate),
-                        date_f=self.date_f_edit.date().toString(Qt.DateFormat.ISODate),
+                        date_f=self.date_f_edit.date().toString(Qt.DateFormat.ISODate), theme=self.theme,
                         window_geometry=self.saveGeometry().toBase64().data().decode('ascii'), )
 
     def load_settings(self):
@@ -297,19 +492,28 @@ class MainWindow(QMainWindow):
         if settings.window_geometry:
             self.restoreGeometry(QByteArray.fromBase64(settings.window_geometry.encode('ascii')))
         else:
-            self.resize(950, 700)
+            self.resize(1000, 780)
+        self.set_theme(settings.theme, save=False)
 
     def save_settings(self):
         try:
             self.current_settings().save(self.settings_file)
         except OSError as error:
-            self.append_log(f'Unable to save the settings in {self.settings_file}: {error}')
+            self.log.add_message(Level.WARNING, f'Unable to save the settings in {self.settings_file}: {error}', '⚠️')
 
     # ------------------------------------------------------------ user files
+    def refresh_search_files(self):
+        folder = Path(self.keywords_selector.path()) if self.keywords_selector.path() else None
+        for search_file in SEARCH_FILES:
+            label = self.search_file_labels[search_file.filename]
+            count = count_terms(folder / search_file.filename) if folder is not None else None
+            label.setText(describe(search_file, count))
+            label.setToolTip(f'{folder / search_file.filename}' if folder is not None else '')
+
     def edit_user_file(self, filename: str):
         folder = self.keywords_selector.path()
         if not folder:
-            QMessageBox.warning(self, APP_NAME, 'Select the keywords directory first.')
+            QMessageBox.information(self, APP_NAME, 'Choose the folder of the search files first.')
             return
 
         file = Path(folder) / filename
@@ -317,9 +521,41 @@ class MainWindow(QMainWindow):
             file.parent.mkdir(parents=True, exist_ok=True)
             file.touch(exist_ok=True)
         except OSError as error:
-            QMessageBox.warning(self, APP_NAME, f'Unable to create {file}: {error}')
+            QMessageBox.warning(self, APP_NAME, f'Unable to create {file}:\n{error}')
             return
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(file.resolve())))
+        open_path(file.resolve())
+
+    def open_latest_file(self):
+        if self.written:
+            open_path(self.written[-1].path)
+
+    def copy_messages(self):
+        QApplication.clipboard().setText(self.log.toPlainText())
+        self.statusBar().showMessage('Messages copied to the clipboard', 3000)
+
+    def save_messages(self):
+        folder = Path(self.abstracts_selector.path() or base_dir())
+        default = folder / f'arXiv-sorter {datetime.now():%Y-%m-%d %H%M}.txt'
+        path, _ = QFileDialog.getSaveFileName(self, 'Save the messages', str(default), 'Text files (*.txt)')
+        if not path:
+            return
+        try:
+            Path(path).write_text(self.log.toPlainText(), encoding='utf-8')
+        except OSError as error:
+            QMessageBox.warning(self, APP_NAME, f'Unable to save the messages:\n{error}')
+            return
+        self.statusBar().showMessage(f'Messages saved in {path}', 5000)
+
+    def show_about(self):
+        QMessageBox.about(
+            self, f'About {APP_NAME}',
+            f'<h3>{APP_NAME} v{__version__}</h3>'
+            '<p>Download, sort and highlight the daily arXiv submissions matching your keywords and authors, as '
+            'Markdown files for Obsidian.</p>'
+            f'<p><a href="{REPOSITORY_URL}">{REPOSITORY_URL}</a></p>'
+            f'<p>Settings and pdffigures2 are kept in<br><a href="{QUrl.fromLocalFile(str(config_dir())).toString()}">'
+            f'{config_dir()}</a></p>'
+            '<p>MIT License</p>')
 
     # ---------------------------------------------------------------- running
     def validate(self, settings: Settings) -> str | None:
@@ -327,11 +563,11 @@ class MainWindow(QMainWindow):
         Error message for invalid settings, or None if they are valid.
         """
         if not settings.keywords_dir:
-            return 'Select the keywords directory.'
+            return 'Choose the folder of the search files (keywords, authors and categories).'
         if not settings.abstracts_dir:
-            return 'Select the abstracts directory.'
+            return 'Choose the folder where the abstracts are saved.'
         if settings.custom_dates and date.fromisoformat(settings.date_0) >= date.fromisoformat(settings.date_f):
-            return 'The "From" date must be earlier than the "Until" date.'
+            return 'The "From" date must be earlier than the "until" date.'
         return None
 
     def start(self):
@@ -341,7 +577,7 @@ class MainWindow(QMainWindow):
         settings = self.current_settings()
         error = self.validate(settings)
         if error is not None:
-            QMessageBox.warning(self, APP_NAME, error)
+            QMessageBox.information(self, APP_NAME, error)
             return
         self.save_settings()
 
@@ -369,20 +605,25 @@ class MainWindow(QMainWindow):
         self.decoder.reset()
         self.output_buffer = ''
         self.errors_found = False
+        self.n_warnings = 0
         self.stop_requested = False
         self.written = []
+        self.open_latest_button.setEnabled(False)
         self.start_time = time.monotonic()
 
+        self.log.clear()
         if settings.verbose:
-            self.append_log('$ ' + ' '.join([program, *arguments]))
+            self.log.add_message(Level.DETAIL, '$ ' + ' '.join([program, *arguments]))
         self.set_running(True)
-        self.set_busy('Starting …')
+        self.set_stage('🚀 Starting …')
+        self._update_elapsed()
+        self.elapsed_timer.start()
         self.process.start()
 
     def stop(self):
         if self.process is None:
             return
-        self.append_log('Stopping arXiv-sorter …')
+        self.log.add_message(Level.WARNING, 'Stopping arXiv-sorter …', '🛑')
         self.stop_requested = True
         stop_process(self.process)
 
@@ -394,21 +635,15 @@ class MainWindow(QMainWindow):
                        self.verbose_check):
             widget.setEnabled(not running)
         self._update_threads_enabled()
-        if running:
-            self.date_0_edit.setEnabled(False)
-            self.date_f_edit.setEnabled(False)
-        else:
-            self._update_dates_enabled()
+        self._update_dates_enabled()
 
-    def set_busy(self, status: str | None = None):
-        self.progress_bar.setRange(0, 0)  # Indeterminate
-        if status is not None:
-            self.status_label.setText(status)
-
-    def append_log(self, text: str):
-        self.log.appendPlainText(text)
-        scroll_bar = self.log.verticalScrollBar()
-        scroll_bar.setValue(scroll_bar.maximum())
+    def set_stage(self, text: str):
+        """
+        Show what arXiv-sorter is doing, with a busy progress bar until the next progress update.
+        """
+        self.stage_label.setText(text)
+        self.statusBar().showMessage(text)
+        self.progress_bar.setRange(0, 0)
 
     def read_output(self):
         data = self.process.readAllStandardOutput().data()
@@ -421,7 +656,9 @@ class MainWindow(QMainWindow):
     def handle_line(self, line: str):
         line = line.rstrip('\r').rsplit('\r', 1)[-1]  # Keep only the last state of lines rewritten with \r
 
-        if line.startswith(PROGRESS_TAG):
+        if line.startswith(LOG_TAG):
+            self.handle_message(line.removeprefix(LOG_TAG))
+        elif line.startswith(PROGRESS_TAG):
             self.update_progress(line.removeprefix(PROGRESS_TAG))
         elif line.startswith(QUESTION_TAG):
             self.ask_question(line.removeprefix(QUESTION_TAG))
@@ -429,12 +666,25 @@ class MainWindow(QMainWindow):
             written = WrittenFile.from_message(line.removeprefix(WRITTEN_TAG))
             if written is not None:
                 self.written.append(written)
-        else:
-            if line.startswith('An error occurred'):
-                self.errors_found = True
-            self.append_log(line)
-            if line.strip() and not set(line.strip()) <= {'-'}:
-                self.status_label.setText(line.strip())
+                self.open_latest_button.setEnabled(True)
+        elif line.strip():
+            self.log.add_plain(line)
+
+    def handle_message(self, message: str):
+        try:
+            level_name, icon, text = message.split('\t', 2)
+            level = Level(level_name)
+        except ValueError:
+            self.log.add_plain(message)
+            return
+
+        self.log.add_message(level, text, icon)
+        if level is Level.ERROR:
+            self.errors_found = True
+        elif level is Level.WARNING:
+            self.n_warnings += 1
+        if level in (Level.STEP, Level.INFO) and text:
+            self.set_stage(f'{icon} {text}'.strip())
 
     def update_progress(self, message: str):
         try:
@@ -444,13 +694,12 @@ class MainWindow(QMainWindow):
             return
 
         if current >= count:  # Wait for the next step
-            self.set_busy()
+            self.progress_bar.setRange(0, 0)
             return
 
         self.progress_bar.setRange(0, count)
         self.progress_bar.setValue(current)
-        self.progress_bar.setFormat(f'{prefix.rstrip(":")} %v/%m')
-        self.status_label.setText(prefix.rstrip(':'))
+        self.stage_label.setText(f'{prefix.rstrip(":")}  ·  {current} / {count}')
 
     def ask_question(self, message: str):
         answer = QMessageBox.question(self, APP_NAME, message)
@@ -459,7 +708,7 @@ class MainWindow(QMainWindow):
 
     def process_error(self, error: QProcess.ProcessError):
         if error == QProcess.ProcessError.FailedToStart:
-            self.append_log(f'Unable to start arXiv-sorter: {self.process.errorString()}')
+            self.log.add_message(Level.ERROR, f'Unable to start arXiv-sorter: {self.process.errorString()}', '❌')
             self.errors_found = True
             self.process_finished(-1, QProcess.ExitStatus.CrashExit)
 
@@ -473,6 +722,8 @@ class MainWindow(QMainWindow):
 
         self.process.deleteLater()
         self.process = None
+        self.elapsed_timer.stop()
+        self._update_elapsed()
         self.set_running(False)
 
         if self.stop_requested:
@@ -485,14 +736,20 @@ class MainWindow(QMainWindow):
             outcome = Outcome.FINISHED
 
         self.progress_bar.setRange(0, 1)
-        self.progress_bar.setFormat('%p%')
         self.progress_bar.setValue(1 if outcome is Outcome.FINISHED else 0)
 
-        status, lines = final_message(outcome, time.monotonic() - self.start_time, self.written)
-        for line in lines:
-            self.append_log(line)
-        self.status_label.setText(status)
+        summary = final_message(outcome, time.monotonic() - self.start_time, self.written, self.n_warnings)
+        self.log.add_summary(summary)
+        self.stage_label.setText(f'{summary.icon} {summary.status}')
+        self.statusBar().showMessage(summary.status)
+        self.refresh_search_files()  # authors.txt may have been sorted
         QApplication.alert(self)  # Flash the taskbar entry (Dock icon on macOS) if the window is not active
+
+    def changeEvent(self, event: QEvent):
+        # Back from editing the search files in another program: update their counts
+        if event.type() == QEvent.Type.ActivationChange and self.isActiveWindow():
+            self.refresh_search_files()
+        super().changeEvent(event)
 
     def closeEvent(self, event: QCloseEvent):
         if self.process is not None:
@@ -511,7 +768,7 @@ def start_gui() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setApplicationVersion(__version__)
-    app.setWindowIcon(QIcon.fromTheme('document-open'))
+    app.setWindowIcon(app_icon())
 
     window = MainWindow()
     window.show()

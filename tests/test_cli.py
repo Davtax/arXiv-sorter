@@ -8,6 +8,20 @@ def four_cpus(monkeypatch):
     monkeypatch.setattr(cli, 'max_threads', lambda: 4)
 
 
+class TestDates:
+    def test_valid_dates(self):
+        args = cli.parse_args(['--date0', '20260921', '--datef', '20260924'])
+
+        assert (args.date0, args.datef) == ('20260921', '20260924')
+
+    @pytest.mark.parametrize('value', ['2026', '2026-09-21', '20261321', 'today'])
+    def test_rejects_invalid_dates(self, capsys, value):
+        with pytest.raises(SystemExit):
+            cli.parse_args(['--date0', value])
+
+        assert 'the format is YYYYMMDD' in capsys.readouterr().err
+
+
 class TestThreads:
     def test_one_thread_by_default(self, four_cpus):
         assert cli.parse_args([]).threads == 1

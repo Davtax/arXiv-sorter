@@ -147,8 +147,6 @@ def write_document(entries: list[FeedParserDict], date: datetime, abstracts_dir:
     `image_urls` contains the figure of each new entry (index >= 0), which are placed at the beginning of `entries`.
     Returns the path of the file (or of the folder) written.
     """
-    print('Writing entries ...')
-
     abstracts_path = Path(abstracts_dir)
     if separate_files:
         root = abstracts_path / str(date.date())

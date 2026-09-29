@@ -9,6 +9,7 @@ from pathlib import Path
 from arxiv_sorter.system import max_threads
 
 SETTINGS_FILE = 'settings.json'
+THEMES = ('system', 'light', 'dark')  # 'system' follows the light or dark mode of the operating system
 
 
 @dataclass
@@ -32,6 +33,7 @@ class Settings:
     date_0: str = ''  # ISO format, YYYY-MM-DD
     date_f: str = ''
 
+    theme: str = 'system'  # One of THEMES
     window_geometry: str = ''  # Base64 encoded Qt geometry
 
     @classmethod
@@ -55,6 +57,8 @@ class Settings:
 
         # The file may come from another computer, with a different number of CPUs
         settings.threads = min(max(settings.threads, 1), max_threads())
+        if settings.theme not in THEMES:
+            settings.theme = 'system'
 
         return settings
 

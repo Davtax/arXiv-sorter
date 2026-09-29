@@ -2,10 +2,12 @@
 Command line interface of arXiv-sorter.
 """
 import argparse
+import sys
 import tempfile
 import traceback
+from datetime import datetime
 
-from arxiv_sorter import __version__
+from arxiv_sorter import __version__, console
 from arxiv_sorter.console import configure_stdout
 from arxiv_sorter.pipeline import run
 from arxiv_sorter.system import max_threads
@@ -25,32 +27,47 @@ def threads_type(value: str) -> int:
     return threads
 
 
+def date_type(value: str) -> str:
+    """
+    Date in the format YYYYMMDD, kept as text.
+    """
+    try:
+        datetime.strptime(value, '%Y%m%d')
+    except ValueError:
+        raise argparse.ArgumentTypeError(f'invalid date {value!r}, the format is YYYYMMDD (e.g. 20260818)') from None
+    return value
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog='arxiv-sorter',
         description='Download, sort and highlight the daily arXiv submissions matching your keywords and authors.',
+        epilog='More information in https://github.com/Davtax/arXiv-sorter#readme',
     )
 
     parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Increase output verbosity')
+    parser.add_argument('-v', '--verbose', action='store_true', help='show detailed messages')
 
-    parser.add_argument('-d', '--directory', help='Specify relative keywords directory (default = ./)', default='./')
-    parser.add_argument('-a', '--abstracts', help='Specify abstracts directory (default = ./abstracts)',
-                        default='./abstracts/')
+    parser.add_argument('-d', '--directory', default='./',
+                        help='folder with keywords.txt, authors.txt and categories.txt (default: current folder)')
+    parser.add_argument('-a', '--abstracts', default='./abstracts/',
+                        help='folder where the Markdown files are saved (default: ./abstracts)')
 
-    parser.add_argument('-f', '--final', action='store_false', help='Remove final date string in MarkDown file')
-    parser.add_argument('-u', '--update', action='store_true', help='Update arXiv-sorter')
-    parser.add_argument('-i', '--image', action='store_false', help='Remove images from abstracts')
-    parser.add_argument('-s', '--separate', action='store_true', help='Separate each entry in a different file')
-    parser.add_argument('-m', '--modify', action='store_false',
-                        help='Dont modify the authors file (sort and remove blank lines)')
+    parser.add_argument('-f', '--final', action='store_false', help='do not add a timestamp at the end of the files')
+    parser.add_argument('-u', '--update', action='store_true', help='download new versions of arXiv-sorter')
+    parser.add_argument('-i', '--image', action='store_false', help='do not include the figures (faster)')
     parser.add_argument('-t', '--threads', type=threads_type, default=1,
-                        help=f'Threads to detect the figures, from 1 (default) to {max_threads()} in this system. More '
+                        help=f'threads to detect the figures, from 1 (default) to {max_threads()} in this system. More '
                              'threads are faster, but use more memory')
-    parser.add_argument('-e', '--exit', action='store_true', help='Exit the program, without asking to press enter')
+    parser.add_argument('-s', '--separate', action='store_true', help='create a separate file for each submission')
+    parser.add_argument('-m', '--modify', action='store_false',
+                        help='do not modify authors.txt (it is sorted and its blank lines removed by default)')
+    parser.add_argument('-e', '--exit', action='store_true', help='exit at the end, without waiting for Enter')
 
-    parser.add_argument('--date0', help='Specify initial date (YYYYMMDD), e.g. 20260818', default=None)
-    parser.add_argument('--datef', help='Specify final date (YYYYMMDD), e.g. 20260818', default=None)
+    parser.add_argument('--date0', type=date_type, default=None,
+                        help='first mailing list to request, as YYYYMMDD (default: after the last one saved)')
+    parser.add_argument('--datef', type=date_type, default=None,
+                        help='request the submissions until this date, as YYYYMMDD (default: today)')
 
     return parser.parse_args(argv)
 
@@ -61,19 +78,31 @@ def main(argv: list[str] | None = None):
     """
     args = parse_args(argv)
     configure_stdout()
+    console.set_verbose(args.verbose)
 
+    exit_code = 0
     temp_dir = tempfile.TemporaryDirectory()
     try:  # Catch potential errors
         run(args, temp_dir)
+        if not console.GUI_MODE:  # The GUI shows its own summary
+            console.step('All done', icon='🎉')
+    except KeyboardInterrupt:
+        console.warning('Stopped by the user', icon='🛑')
+        exit_code = 130
     except Exception as e:
-        print(f'An error occurred: {e}')
+        console.error(f'An error occurred: {e}')
         if args.verbose:
-            traceback.print_exc()
+            console.detail(traceback.format_exc().rstrip())
+        else:
+            console.info('Run it again with --verbose (or tick "Show detailed messages" in the window) to see the '
+                         'details', icon='💡')
+        exit_code = 1
     finally:
         temp_dir.cleanup()
 
     if not args.exit:
-        input('Press Enter to exit...')
+        input('Press Enter to exit …')
+    sys.exit(exit_code)
 
 
 if __name__ == '__main__':

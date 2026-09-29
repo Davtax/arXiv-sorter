@@ -3,14 +3,28 @@ Communication between the GUI and the arXiv-sorter process it runs. Kept free of
 load Qt in the worker process nor gevent in the GUI.
 """
 import os
+from enum import StrEnum
 
 WORKER_FLAG = '--worker'  # Makes the GUI launcher run the command line program instead (see arxiv_sorter.gui.main)
 GUI_ENV_VAR = 'ARXIV_SORTER_GUI'
 
-# Progress bars, questions and written files are sent to the GUI as tagged lines through the standard output
+# Messages, progress bars, questions and written files are sent to the GUI as tagged lines through the standard output
+LOG_TAG = '@@arxiv-sorter:log@@'
 PROGRESS_TAG = '@@arxiv-sorter:progress@@'
 QUESTION_TAG = '@@arxiv-sorter:question@@'
 WRITTEN_TAG = '@@arxiv-sorter:written@@'
+
+
+class Level(StrEnum):
+    """
+    Kind of message, which sets how it is shown (color, icon, and whether it is shown at all).
+    """
+    STEP = 'step'  # Start of a new stage of the run, shown as a heading
+    INFO = 'info'
+    SUCCESS = 'success'
+    WARNING = 'warning'  # Something went wrong, but the run goes on
+    ERROR = 'error'  # The run could not finish
+    DETAIL = 'detail'  # Only shown with --verbose
 
 
 def gui_mode() -> bool:

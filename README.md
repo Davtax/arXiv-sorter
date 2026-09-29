@@ -161,6 +161,10 @@ However, it can be entirely disabled with the `--image` flag (see below).
 
 ## Optional arguments
 
+The messages in the terminal use colors and emojis when the terminal supports them.
+The old Windows console shows emojis as empty boxes, so there they are left out (Windows Terminal shows them).
+Set the environment variable `ARXIV_SORTER_PLAIN=1` to print plain text, or `NO_COLOR=1` to only remove the colors.
+
 When running the program from the terminal, you can use the following optional arguments:
 
 - `--help` or `-h`: Show the help message and exit.
@@ -221,12 +225,16 @@ arxiv-sorter-gui
 
 In the window you can:
 
-- Select the keywords and abstracts directories, and open `keywords.txt`, `authors.txt` and `categories.txt` in
-  your text editor.
-- Tick the optional arguments described above, including the verbose output.
+- Select the keywords and abstracts directories, see how many keywords, authors and categories you are searching, and
+  open `keywords.txt`, `authors.txt` and `categories.txt` in your text editor.
+- Tick the optional arguments described above, including the detailed (verbose) messages.
 - Search automatically from the last saved abstracts until today, or choose a custom date range (`--date0` and
   `--datef`).
-- Follow the progress and the messages of the program, and stop it at any time.
+- Follow the progress and the messages of the program (warnings and errors are highlighted), and stop it at any time.
+- When it finishes, open the new Markdown files directly from the summary, or with *Open the latest file*.
+- Copy or save the messages, e.g. to report a problem (*Help → Report a problem*).
+- Choose a light or dark theme, or follow the one of the system (*View → Theme*, or the button in the bottom right
+  corner).
 
 The configuration is saved when the program runs and when the window closes, and restored at the next start.
 It is stored in `settings.json` (next to PDFFigures2), inside `%LOCALAPPDATA%\arXiv-sorter` on Windows,
