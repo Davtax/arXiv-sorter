@@ -53,6 +53,8 @@ def _enable_windows_colors() -> bool:
     """
     Enable the ANSI escape codes in the Windows console (on by default in Windows Terminal, but not in the old console).
     """
+    if sys.platform != 'win32':  # ctypes.windll only exists (and is only typed) on Windows
+        return False
     try:
         import ctypes
 
