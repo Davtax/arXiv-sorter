@@ -268,6 +268,7 @@ def extract_figures(date: str,
     detect_figure(pdf_folder, json_folder, threads, java)
 
     # Extract figures from json files
+    # ToDo: use a thread pool to extract the figures in parallel, since it is slow and CPU intensive
     figure_links: list[str | None] = []
     pbar = Progressbar(len(ids_entries), prefix='Extracting figures', icon='🎨')
     for id_entry in ids_entries:

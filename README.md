@@ -255,6 +255,27 @@ In the window you can:
   the program in its folder, and opens it again) or to **Skip** it (it is not offered again when the window opens, but
   *Help → Check for updates…* still installs it). The previous version is deleted the next time the program starts.
 
+### Daily run in the background
+
+arXiv-sorter can run every day at a given time without opening the window: *File → Run every day…*, or the ⏰ button
+in the bottom right corner, which shows the current time of the daily run.
+The same dialog changes the time, or removes the daily run (untick *Run arXiv-sorter every day at*).
+
+The daily run uses the folders and options of the window (saved when the time is chosen, when the program runs and when
+the window closes), always from the last saved abstracts, and shows a notification when it finishes: click it to open
+the latest file, or the log if something went wrong.
+If the computer is off or asleep at that time, it runs as soon as possible (on macOS, only after sleeping, not after
+being off).
+
+The schedule is kept by the operating system, which runs the program with `--scheduled`:
+
+- **Windows**: the task *arXiv-sorter daily run* of the Task Scheduler, while you are logged in.
+- **macOS**: the launch agent `~/Library/LaunchAgents/io.github.davtax.arxiv-sorter.daily.plist`.
+- **Linux**: the systemd user timer `arxiv-sorter-daily.timer` (`systemctl --user list-timers`). The notification is
+  shown with `notify-send`, when available.
+
+If you move the program to another folder, choose the time again, so the schedule starts it from its new location.
+
 The configuration is saved when the program runs and when the window closes, and restored at the next start.
 It is stored in `settings.json` (next to PDFFigures2), inside `%LOCALAPPDATA%\arXiv-sorter` on Windows,
 `~/Library/Preferences/arXiv-sorter` on macOS, and `~/.config/arXiv-sorter` on Linux.

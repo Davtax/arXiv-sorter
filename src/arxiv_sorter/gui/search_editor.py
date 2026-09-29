@@ -268,6 +268,7 @@ class SearchFilesEditor(QDialog):
         self.own_result = QTextBrowser()
 
         form = QFormLayout()
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)  # Not the default on macOS
         form.addRow('Title:', self.own_title)
         form.addRow('Authors:', self.own_authors)
         form.addRow('Abstract:', self.own_abstract)

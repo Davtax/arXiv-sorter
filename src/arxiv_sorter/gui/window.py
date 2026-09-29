@@ -5,12 +5,15 @@ import codecs
 import os
 import sys
 import time
+from dataclasses import replace
 from datetime import date, datetime
+from datetime import time as time_of_day
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QDate, QEvent, QProcess, QProcessEnvironment, Qt, QTimer, QUrl
-from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QDesktopServices, QFont, QKeySequence
+from PySide6.QtCore import QByteArray, QDate, QEvent, QProcess, QProcessEnvironment, QSize, Qt, QTimer, QUrl
+from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QColor, QDesktopServices, QFont, QKeySequence, QPalette
 from PySide6.QtWidgets import (
+    QAbstractButton,
     QApplication,
     QCheckBox,
     QDateEdit,
@@ -34,9 +37,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from arxiv_sorter import __version__
+from arxiv_sorter import __version__, scheduler
 from arxiv_sorter.gui.icons import app_icon, run_icon, stop_icon
 from arxiv_sorter.gui.log_view import COLORS, LogView, is_dark
+from arxiv_sorter.gui.schedule import ScheduleDialog, describe_schedule
 from arxiv_sorter.gui.search_editor import SearchFilesEditor
 from arxiv_sorter.gui.search_files import SEARCH_FILES, count_terms, describe
 from arxiv_sorter.gui.settings import SETTINGS_FILE, THEMES, Settings
@@ -54,6 +58,12 @@ REPOSITORY_URL = 'https://github.com/Davtax/arXiv-sorter'
 WINDOWS_APP_ID = 'Davtax.arXiv-sorter.GUI'  # Identity of the application in the Windows taskbar
 DATE_FORMAT = 'ddd d MMM yyyy'  # e.g. Tue 22 Sep 2026
 THREADS_EXTRA_INDENT = 20  # Pixels beyond the text of "Include the first figure", to show the threads belong to it
+# The macOS style draws the push buttons taller than its standard height as square bevel buttons, and every tool button
+# square, so there the buttons keep their standard height and small buttons are push buttons as well
+MACOS = sys.platform == 'darwin'
+MIN_WINDOW_SIZE = QSize(760, 600)
+SECTION_BORDER_WEIGHT = 0.25  # Color of the frame of the sections on macOS, from the background (0) to the text (1)
+RUN_BUTTON_HEIGHT = 38
 
 THEME_NAMES = {'system': 'System', 'light': 'Light', 'dark': 'Dark'}
 THEME_ICONS = {'system': '🌓', 'light': '☀️', 'dark': '🌙'}
@@ -81,6 +91,20 @@ def worker_command() -> tuple[str, list[str]]:
     return str(python), ['-m', 'arxiv_sorter']
 
 
+def worker_environment() -> QProcessEnvironment:
+    """
+    Environment of the worker process: tagged messages for the GUI, sent right away and in UTF-8.
+    """
+    environment = QProcessEnvironment.systemEnvironment()
+    environment.insert(GUI_ENV_VAR, '1')
+    environment.insert('PYTHONUNBUFFERED', '1')
+    environment.insert('PYTHONIOENCODING', 'utf-8')
+    if not is_frozen():  # Make the package importable by the worker, even if it is not installed
+        python_path = [str(PACKAGE_ROOT), environment.value('PYTHONPATH')]
+        environment.insert('PYTHONPATH', os.pathsep.join(filter(None, python_path)))
+    return environment
+
+
 def stop_process(process: QProcess):
     """
     Kill the worker process together with the programs it started (java, curl), which would keep running otherwise.
@@ -101,6 +125,46 @@ def open_url(url: str):
 def ensure_dir(folder: Path) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
     return folder
+
+
+def small_button(text: str) -> QAbstractButton:
+    """
+    Compact button for secondary actions: a tool button, or a small rounded push button on macOS.
+    """
+    if not MACOS:
+        button = QToolButton()
+        button.setText(text)
+        return button
+    button = QPushButton(text)
+    button.setAttribute(Qt.WidgetAttribute.WA_MacSmallSize)
+    return button
+
+
+def expanding_form(parent: QWidget | None = None) -> QFormLayout:
+    """
+    Form whose fields take the whole width, with the labels on the left, on every platform (by default, macOS keeps
+    the fields at their preferred width and aligns the labels to the right).
+    """
+    form = QFormLayout(parent)
+    form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+    form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+    return form
+
+
+def style_section(group: QGroupBox):
+    """
+    On macOS, draw the group box like on Windows: a rounded frame with the title on its top border, and some room
+    between the frame and its content. The macOS style puts the title above the frame, touching it.
+    """
+    if not MACOS:
+        return
+    palette = group.palette()
+    window, text = palette.color(QPalette.ColorRole.Window), palette.color(QPalette.ColorRole.WindowText)
+    border = QColor.fromRgbF(*(w + SECTION_BORDER_WEIGHT * (t - w) for w, t in zip(window.getRgbF()[:3],
+                                                                                    text.getRgbF()[:3], strict=True)))
+    group.setStyleSheet(f'QGroupBox {{ border: 1px solid {border.name()}; border-radius: 6px; margin-top: 0.7em; '
+                        'padding: 8px 4px 4px 4px; }'
+                        'QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }')
 
 
 def hint_label(text: str) -> QLabel:
@@ -130,8 +194,10 @@ class PathSelector(QWidget):
         browse_button = QPushButton('Browse…')
         browse_button.setToolTip('Choose the folder')
         browse_button.clicked.connect(self.browse)
-        open_button = QToolButton()
+        open_button = QPushButton() if MACOS else QToolButton()
         open_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
+        if MACOS:  # Only as wide as the icon, instead of the minimum width of the push buttons
+            open_button.setFixedWidth(48)
         open_button.setToolTip('Open the folder in the file manager')
         open_button.clicked.connect(self.open_folder)
 
@@ -165,7 +231,6 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(f'{APP_NAME} v{__version__}')
         self.setWindowIcon(app_icon())
-        self.setMinimumSize(760, 600)
 
         self.settings_file = settings_path()
         self.process: QProcess | None = None
@@ -205,13 +270,17 @@ class MainWindow(QMainWindow):
 
         self._build_menus()
         self._build_status_bar()
+        # Never smaller than the layout needs, which depends on the style (the macOS widgets are taller), or Qt squeezes
+        # the widgets until they are unreadable
+        self.setMinimumSize(self.minimumSizeHint().expandedTo(MIN_WINDOW_SIZE))
         self.load_settings()
         self.refresh_search_files()
 
     # ---------------------------------------------------------------- widgets
     def _build_folders_group(self) -> QGroupBox:
         group = QGroupBox('📁  Folders')
-        form = QFormLayout(group)
+        style_section(group)
+        form = expanding_form(group)
 
         self.keywords_selector = PathSelector('Select the folder with the search files')
         self.keywords_selector.setToolTip('Folder with keywords.txt, authors.txt and categories.txt (--directory)')
@@ -220,14 +289,15 @@ class MainWindow(QMainWindow):
 
         files_row = QHBoxLayout()
         self.search_file_labels: dict[str, QLabel] = {}
+        self.edit_buttons: list[QAbstractButton] = []  # Disabled during a run, which reads (and sorts) the files
         for search_file in SEARCH_FILES:
             label = QLabel()
             self.search_file_labels[search_file.filename] = label
-            button = QToolButton()
-            button.setText('Edit')
+            button = small_button('Edit')
             button.setToolTip(f'Edit {search_file.filename}, checking the mistakes while you type, and preview the '
                               'submissions it would find')
             button.clicked.connect(lambda _=False, name=search_file.filename: self.edit_user_file(name))
+            self.edit_buttons.append(button)
             files_row.addWidget(label)
             files_row.addWidget(button)
             files_row.addSpacing(12)
@@ -243,6 +313,7 @@ class MainWindow(QMainWindow):
 
     def _build_dates_group(self) -> QGroupBox:
         group = QGroupBox('📅  Date range')
+        style_section(group)
         grid = QGridLayout(group)
 
         self.auto_dates_radio = QRadioButton('Automatic')
@@ -281,10 +352,17 @@ class MainWindow(QMainWindow):
         edit.setCalendarPopup(True)
         edit.setDisplayFormat(DATE_FORMAT)
         edit.setMaximumDate(QDate.currentDate())
+        if MACOS:
+            # The style draws the frame of a combo box, and the text field inside with its own background, as a darker
+            # box. A style sheet (unlike a palette) survives the style being created again when the theme changes, but
+            # it makes the text field shorter, so the height of the date edit is kept
+            edit.setMinimumHeight(edit.sizeHint().height())
+            edit.lineEdit().setStyleSheet('background: transparent; border: none')
         return edit
 
     def _build_options_group(self) -> QGroupBox:
         group = QGroupBox('⚙️  Options')
+        style_section(group)
         box = QVBoxLayout(group)
 
         self.images_check = QCheckBox('Include the first figure of each new submission')
@@ -302,6 +380,8 @@ class MainWindow(QMainWindow):
 
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(1, max_threads())
+        self.threads_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.threads_spin.setMinimumWidth(self.threads_spin.fontMetrics().horizontalAdvance('0000') + 30)  # Arrows
         self.threads_spin.setToolTip(f'Threads to detect the figures, up to {max_threads()} (CPUs of this system). '
                                      'More threads are faster, but use more memory (--threads)')
         self.images_check.toggled.connect(self._update_threads_enabled)
@@ -332,7 +412,8 @@ class MainWindow(QMainWindow):
         self.run_button.setToolTip('Request, sort and save the new submissions (Ctrl+R)')
         self.run_button.setShortcut(QKeySequence('Ctrl+R'))
         self.run_button.setDefault(True)
-        self.run_button.setMinimumHeight(38)
+        if not MACOS:
+            self.run_button.setMinimumHeight(RUN_BUTTON_HEIGHT)
         self.run_button.setMinimumWidth(110)
         font = self.run_button.font()
         font.setBold(True)
@@ -342,7 +423,9 @@ class MainWindow(QMainWindow):
         self.stop_button = QPushButton('  Stop')
         self.stop_button.setIcon(stop_icon())
         self.stop_button.setToolTip('Stop arXiv-sorter. The mailing lists already saved are kept')
-        self.stop_button.setMinimumHeight(38)
+        if not MACOS:
+            self.stop_button.setMinimumHeight(RUN_BUTTON_HEIGHT)
+        self.stop_button.setMinimumWidth(110)
         self.stop_button.setEnabled(False)
         self.stop_button.clicked.connect(self.stop)
 
@@ -364,6 +447,7 @@ class MainWindow(QMainWindow):
 
     def _build_messages_group(self) -> QGroupBox:
         group = QGroupBox('💬  Messages')
+        style_section(group)
         box = QVBoxLayout(group)
 
         self.log = LogView()
@@ -378,16 +462,13 @@ class MainWindow(QMainWindow):
         open_folder_button = QPushButton('📂  Open the abstracts folder')
         open_folder_button.clicked.connect(self.abstracts_selector.open_folder)
 
-        copy_button = QToolButton()
-        copy_button.setText('Copy')
+        copy_button = small_button('Copy')
         copy_button.setToolTip('Copy the messages to the clipboard, e.g. to report a problem')
         copy_button.clicked.connect(self.copy_messages)
-        save_button = QToolButton()
-        save_button.setText('Save…')
+        save_button = small_button('Save…')
         save_button.setToolTip('Save the messages in a text file')
         save_button.clicked.connect(self.save_messages)
-        clear_button = QToolButton()
-        clear_button.setText('Clear')
+        clear_button = small_button('Clear')
         clear_button.clicked.connect(self.log.clear)
 
         buttons = QHBoxLayout()
@@ -405,6 +486,8 @@ class MainWindow(QMainWindow):
         file_menu = self.menuBar().addMenu('&File')
         self._add_action(file_menu, 'Open the abstracts folder', self.abstracts_selector.open_folder, 'Ctrl+O')
         self._add_action(file_menu, 'Open the settings folder', lambda: open_path(config_dir()))
+        file_menu.addSeparator()
+        self._add_action(file_menu, 'Run every day…', self.edit_schedule)
         file_menu.addSeparator()
         self._add_action(file_menu, 'Save the messages…', self.save_messages, QKeySequence.StandardKey.Save)
         file_menu.addSeparator()
@@ -443,12 +526,34 @@ class MainWindow(QMainWindow):
 
     def _build_status_bar(self):
         self.elapsed_label = QLabel()
-        self.theme_button = QToolButton()  # Same choices as View → Theme, easier to find
+        # Same choices as View → Theme, easier to find
+        if MACOS:  # The tool button draws its menu arrow over the text there
+            self.theme_button = QPushButton()
+            self.theme_button.setAttribute(Qt.WidgetAttribute.WA_MacSmallSize)
+            self.theme_button.setFlat(True)
+        else:
+            self.theme_button = QToolButton()
+            self.theme_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+            self.theme_button.setAutoRaise(True)
         self.theme_button.setMenu(self.theme_menu)
-        self.theme_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        self.theme_button.setAutoRaise(True)
         self.theme_button.setToolTip('Light or dark theme')
+
+        # Same as File → Run every day…, showing the time of the daily run
+        self.schedule_button: QAbstractButton
+        if MACOS:
+            self.schedule_button = QPushButton()
+            self.schedule_button.setAttribute(Qt.WidgetAttribute.WA_MacSmallSize)
+            self.schedule_button.setFlat(True)
+        else:
+            schedule_button = QToolButton()
+            schedule_button.setAutoRaise(True)
+            self.schedule_button = schedule_button
+        self.schedule_button.setToolTip('Run arXiv-sorter every day in the background, change the time, or stop it')
+        self.schedule_button.clicked.connect(self.edit_schedule)
+        self.refresh_schedule()
+
         self.statusBar().addPermanentWidget(self.elapsed_label)
+        self.statusBar().addPermanentWidget(self.schedule_button)
         self.statusBar().addPermanentWidget(self.theme_button)
         self.statusBar().showMessage('Ready')
 
@@ -463,6 +568,8 @@ class MainWindow(QMainWindow):
         for action, name in zip(self.theme_actions.actions(), THEMES, strict=True):
             action.setChecked(name == theme)
         self.theme_button.setText(f'{THEME_ICONS[theme]} {THEME_NAMES[theme]}')
+        for group in self.findChildren(QGroupBox):  # The color of their frame depends on the theme
+            style_section(group)
         self.refresh_search_files()  # Their warning colors depend on the theme
         if save:
             self.save_settings()
@@ -513,12 +620,13 @@ class MainWindow(QMainWindow):
             if saved_date.isValid():
                 edit.setDate(min(saved_date, QDate.currentDate()))
 
+        self.skipped_version = settings.skipped_version
+        self.set_theme(settings.theme, save=False)
+        # After the theme: creating the style again resets the size of a window that is not shown yet (macOS)
         if settings.window_geometry:
             self.restoreGeometry(QByteArray.fromBase64(settings.window_geometry.encode('ascii')))
         else:
             self.resize(1000, 780)
-        self.skipped_version = settings.skipped_version
-        self.set_theme(settings.theme, save=False)
 
     def save_settings(self):
         try:
@@ -581,8 +689,11 @@ class MainWindow(QMainWindow):
 
     def edit_user_file(self, filename: str, line: int | None = None):
         """
-        Open the editor of the search files on the given file (and line).
+        Open the editor of the search files on the given file (and line). Not during a run, which reads the files and
+        may sort authors.txt.
         """
+        if self.process is not None:
+            return
         folder = self.keywords_selector.path()
         if not folder:
             QMessageBox.information(self, APP_NAME, 'Choose the folder of the search files first.')
@@ -634,6 +745,47 @@ class MainWindow(QMainWindow):
             f'{config_dir()}</a></p>'
             '<p>MIT License</p>')
 
+    # --------------------------------------------------------------- schedule
+    def refresh_schedule(self) -> time_of_day | None:
+        """
+        Show the time of the daily run, as kept by the operating system.
+        """
+        try:
+            at = scheduler.scheduled_time()
+        except scheduler.SchedulerError:
+            at = None
+        self.schedule_button.setText(f'⏰ {describe_schedule(at)}')
+        return at
+
+    def edit_schedule(self):
+        """
+        Run arXiv-sorter every day at the time chosen by the user, change the time, or stop it. The daily run uses the
+        settings saved in the settings file, so they are saved first.
+        """
+        current = self.refresh_schedule()
+        dialog = ScheduleDialog(current, self)
+        if not dialog.exec():
+            return
+        chosen = dialog.chosen_time()
+
+        settings = self.current_settings()
+        if chosen is not None:
+            error = self.validate(replace(settings, custom_dates=False))
+            if error is not None:
+                QMessageBox.information(self, APP_NAME, error)
+                return
+        self.save_settings()
+
+        try:
+            if chosen is not None:
+                scheduler.schedule(chosen)
+            elif current is not None:
+                scheduler.unschedule()
+        except scheduler.SchedulerError as error:
+            QMessageBox.warning(self, APP_NAME, f'Unable to change the daily run: {error}')
+        at = self.refresh_schedule()
+        self.statusBar().showMessage(f'Daily run: {describe_schedule(at).lower()}', 5000)
+
     # ---------------------------------------------------------------- running
     def validate(self, settings: Settings) -> str | None:
         """
@@ -663,18 +815,10 @@ class MainWindow(QMainWindow):
         program, arguments = worker_command()
         arguments += settings.to_cli_args()
 
-        environment = QProcessEnvironment.systemEnvironment()
-        environment.insert(GUI_ENV_VAR, '1')
-        environment.insert('PYTHONUNBUFFERED', '1')
-        environment.insert('PYTHONIOENCODING', 'utf-8')
-        if not is_frozen():  # Make the package importable by the worker, even if it is not installed
-            python_path = [str(PACKAGE_ROOT), environment.value('PYTHONPATH')]
-            environment.insert('PYTHONPATH', os.pathsep.join(filter(None, python_path)))
-
         self.process = QProcess(self)
         self.process.setProgram(program)
         self.process.setArguments(arguments)
-        self.process.setProcessEnvironment(environment)
+        self.process.setProcessEnvironment(worker_environment())
         self.process.setWorkingDirectory(str(base_dir()))
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self.process.readyReadStandardOutput.connect(self.read_output)
@@ -711,7 +855,7 @@ class MainWindow(QMainWindow):
         self.stop_button.setEnabled(running)
         for widget in (self.keywords_selector, self.abstracts_selector, self.auto_dates_radio, self.custom_dates_radio,
                        self.images_check, self.final_date_check, self.separate_check, self.sort_authors_check,
-                       self.verbose_check):
+                       self.verbose_check, *self.edit_buttons):
             widget.setEnabled(not running)
         self._update_threads_enabled()
         self._update_dates_enabled()
