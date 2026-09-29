@@ -298,8 +298,8 @@ class TestUpdates:
         monkeypatch.setattr(win, 'offer_update', offered.append)
 
         win.check_for_updates()
-        with qtbot.waitSignal(win.update_checker.checked, timeout=5000):
-            pass
+        # The thread may answer before a waitSignal would connect, so the result handled by the window is awaited
+        qtbot.waitUntil(lambda: win.update_checker is None, timeout=5000)
 
         assert win.update_checker is None and not offered  # Older than this version
 
