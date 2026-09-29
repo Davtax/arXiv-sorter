@@ -1,10 +1,11 @@
 name: Build
 
-# The binaries are built and tested on every change of the program, and a draft release is created when a version tag
-# is pushed, e.g. `git tag v0.4.0 && git push origin v0.4.0` (the tag must match the version in arxiv_sorter/__init__.py)
+# The binaries are built and tested in the pull requests that change the program or its packaging, so a broken build
+# is found before a release. When a version tag is pushed, e.g. `git tag v0.4.0 && git push origin v0.4.0` (the tag
+# must match the version in arxiv_sorter/__init__.py), the tests run first, and a draft release is created with the
+# binaries, their checksums and their build provenance. Run it from the Actions tab to build any branch, without release.
 on:
   push:
-    branches: [ main ]
     tags: [ 'v*' ]
   pull_request:
     paths:
@@ -27,10 +28,21 @@ concurrency:
 env:
   PYTHON_VERSION: '3.14'
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  # The test runs detect a single figure, instead of downloading every PDF of the mailing list from arXiv
+  ARXIV_SORTER_MAX_FIGURES: '1'
 
 jobs:
+  # The pull requests already run the tests workflow on their own, so it is only called here before a release (or a
+  # build run by hand)
+  tests:
+    name: Tests
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/tests.yml
+
   build:
     name: Build on ${{ matrix.name }}
+    needs: tests
+    if: ${{ !failure() && !cancelled() }}  # Also when the tests are skipped (pull requests)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -126,6 +138,7 @@ jobs:
   compare:
     name: Same results on every system
     needs: build
+    if: ${{ !failure() && !cancelled() }}  # Not skipped with the tests (pull requests)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -178,6 +191,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write  # To create the release
+      id-token: write  # To sign the build provenance
+      attestations: write  # To save it
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -204,7 +219,16 @@ jobs:
             zip -j "../arXiv-sorter-$name.zip" "$binary"
           done
           mv arXiv-sorter-GUI-*/arXiv-sorter-GUI-* ..
-          ls -la ..
+          cd ..
+          sha256sum arXiv-sorter-*.zip arXiv-sorter-*.tar.gz > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      # Signed record that the files were built by this workflow from this commit, checked with
+      # `gh attestation verify <file> --repo Davtax/arXiv-sorter`
+      - name: Attest the build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-checksums: SHA256SUMS.txt
 
       - name: Create the draft release
         env:
@@ -212,4 +236,4 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag --generate-notes --title "arXiv-sorter $GITHUB_REF_NAME" \
             arXiv-sorter-Ubuntu.zip arXiv-sorter-Windows.zip arXiv-sorter-macOS.zip \
-            arXiv-sorter-GUI-Ubuntu.tar.gz arXiv-sorter-GUI-Windows.zip arXiv-sorter-GUI-macOS.zip
+            arXiv-sorter-GUI-Ubuntu.tar.gz arXiv-sorter-GUI-Windows.zip arXiv-sorter-GUI-macOS.zip SHA256SUMS.txt

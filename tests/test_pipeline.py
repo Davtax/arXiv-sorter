@@ -103,6 +103,59 @@ class TestRun:
         assert len(list(workspace.abstracts.glob('*.md'))) == 1
 
 
+class TestFigureLimit:
+    """ARXIV_SORTER_MAX_FIGURES, set by the CI: at most that many PDFs are downloaded in a run."""
+
+    @pytest.fixture
+    def run_with_figures(self, workspace, tmp_path, monkeypatch, make_entry):
+        days = {datetime(2026, 9, 22, 18): [make_entry(arxiv_id='2609.00001v1'), make_entry(arxiv_id='2609.00002v1')],
+                datetime(2026, 9, 23, 18): [make_entry(arxiv_id='2609.00003v1')]}
+        monkeypatch.setattr(pipeline, 'search_entries', FakeArxiv(days))
+        calls = []
+
+        def extract_figures(date, entries, *args, **kwargs):
+            calls.append((date, len(entries)))
+            return [f'figures/{date}/{i}.png' for i in range(len(entries))]
+
+        monkeypatch.setattr(pipeline, 'extract_figures', extract_figures)
+        links = []
+        monkeypatch.setattr(pipeline, 'write_document',
+                            lambda entries, date, directory, final, separate, image_urls, **kwargs:
+                            links.append(image_urls) or tmp_path / 'written.md')
+        monkeypatch.setattr(pipeline, 'report_written', lambda *args: None)
+
+        def run():
+            args = parse_args(['-d', str(workspace.searches), '-a', str(workspace.abstracts), '-e', '--date0',
+                               '20260922', '--datef', '20260924'])
+            with tempfile.TemporaryDirectory() as temp_dir:
+                pipeline.run(args, tempfile.TemporaryDirectory(dir=temp_dir))
+            return calls, links
+
+        return run
+
+    def test_without_limit_every_new_entry_has_a_figure(self, run_with_figures, monkeypatch):
+        monkeypatch.delenv(pipeline.MAX_FIGURES_ENV_VAR, raising=False)
+
+        calls, links = run_with_figures()
+
+        assert calls == [('2026-09-22', 2), ('2026-09-23', 1)]
+
+    def test_limit_is_shared_by_every_mailing_list(self, run_with_figures, monkeypatch):
+        monkeypatch.setenv(pipeline.MAX_FIGURES_ENV_VAR, '1')
+
+        calls, links = run_with_figures()
+
+        assert calls == [('2026-09-22', 1)]  # The PDFs of the next mailing list are not even downloaded
+        assert [len(urls) for urls in links] == [2, 1]
+        assert links[0][1] is None and links[1] == [None]
+
+    @pytest.mark.parametrize('value, expected', [('3', 3), ('-1', 0), ('many', None), ('', None)])
+    def test_value_of_the_variable(self, monkeypatch, value, expected):
+        monkeypatch.setenv(pipeline.MAX_FIGURES_ENV_VAR, value)
+
+        assert pipeline.max_figures() == expected
+
+
 def _entries(*indices: int) -> list[FeedParserDict]:
     return [FeedParserDict(index=index, last_new=False) for index in indices]
 

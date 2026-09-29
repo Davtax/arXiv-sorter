@@ -312,15 +312,17 @@ mypy                 # type check
 
 ### Continuous integration
 
-Two GitHub Actions workflows check every change:
+Two GitHub Actions workflows check the changes and build the releases:
 
 - **Tests** (`.github/workflows/tests.yml`), on every pull request and push to `main`: ruff, mypy and
   [actionlint](https://github.com/rhysd/actionlint) (for the workflows), and the tests with coverage on Windows, macOS
   and Linux. Every Monday, and when run by hand from the Actions tab, the tests against the real arXiv and GitHub
   servers also run.
-- **Build** (`.github/workflows/build.yml`), when the program or its packaging change: builds the command line and GUI
-  binaries for the three systems, runs them, and checks that they write the same abstracts. The binaries can be
-  downloaded from the summary of the run for 14 days.
+- **Build** (`.github/workflows/build.yml`), in the pull requests that change the program or its packaging, and when
+  a version tag is pushed: builds the command line and GUI binaries for the three systems, runs them (detecting a
+  single figure), and checks that they write the same abstracts. For a tag, the tests run first, and the binaries are
+  only built and released if they pass (see below). It can also be run by hand from the Actions tab, to build any
+  branch without release. The binaries can be downloaded from the summary of the run for 14 days.
 
 [Dependabot](.github/dependabot.yml) opens pull requests every month to update the actions and the dependencies.
 The folder `scripts/` contains the helper scripts of the build workflow.
@@ -335,5 +337,13 @@ The folder `scripts/` contains the helper scripts of the build workflow.
    git push origin v0.4.0
    ```
 
-3. The build workflow creates a draft release with the six archives and the notes of the changes. Review it on GitHub
-   and publish it. The workflow stops if the tag does not match `__version__`.
+3. The build workflow runs the tests and creates a draft release with the six archives, their checksums
+   (`SHA256SUMS.txt`) and the notes of the changes. Review it on GitHub and publish it. The workflow stops if a test
+   fails, or if the tag does not match `__version__`.
+
+Each archive has a signed [build provenance](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations)
+that shows it was built by the workflow from the tagged commit. Check it with
+
+```bash
+gh attestation verify arXiv-sorter-GUI-Windows.zip --repo Davtax/arXiv-sorter
+```

@@ -5,6 +5,7 @@ on:
     branches: [ main ]
   pull_request:
   workflow_dispatch:  # Run it from the Actions tab (also runs the tests against the real servers)
+  workflow_call:  # First job of a release build, which only builds the binaries if the tests pass
   schedule:
     - cron: '0 6 * * 1'  # Every Monday, to detect changes in the arXiv and GitHub APIs
 
@@ -12,7 +13,8 @@ permissions:
   contents: read
 
 concurrency:  # A new push cancels the runs of the previous one
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Not named after github.workflow, which is the build workflow when called from it (same group: a deadlock)
+  group: tests-${{ github.ref }}
   cancel-in-progress: true
 
 env:

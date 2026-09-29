@@ -25,6 +25,19 @@ PDFFIGURES2_PATH = config_dir() / PDFFIGURES2_JAR
 # repository keeps it
 LEGACY_PDFFIGURES2_PATH = Path('.arXiv_sorter') / PDFFIGURES2_JAR
 PDFFIGURES2_URL = f'https://github.com/Davtax/arXiv-sorter/raw/refs/heads/main/.arXiv_sorter/{PDFFIGURES2_JAR}'
+# Maximum of figures detected in a run, set by the CI so its test runs do not download every PDF from arXiv
+MAX_FIGURES_ENV_VAR = 'ARXIV_SORTER_MAX_FIGURES'
+
+
+def max_figures() -> int | None:
+    """
+    Maximum of figures detected in a run, given by the environment variable ARXIV_SORTER_MAX_FIGURES (None if it is not
+    set, or not a number: no limit).
+    """
+    try:
+        return max(int(os.environ[MAX_FIGURES_ENV_VAR]), 0)
+    except (KeyError, ValueError):
+        return None
 
 
 def download_pdfs(ids_entries: list[str], pdf_folder: Path, batch_size: int = 25, t_sleep: float = 1) -> None:
