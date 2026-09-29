@@ -49,9 +49,11 @@ def download_pdfs(ids_entries: list[str], pdf_folder: Path, batch_size: int = 25
 
 
 def detect_figure(pdf_folder: Path, json_folder: Path, threads_num: int) -> None:
-    # Detect figures from pdfs in pdf_folder, and save .json files in json_folder
+    # Detect figures from PDFs and save JSON files inside json_folder
     print('Detecting figures in PDF files ...')
-    args = ['java', '-jar', PDFFIGURES2_PATH, pdf_folder, '-e', '-t', str(threads_num), '-d', json_folder, '-q']
+    json_folder.mkdir(parents=True, exist_ok=True)
+    args = ['java', '-jar', PDFFIGURES2_PATH, pdf_folder, '-e', '-t', str(threads_num), '-d', str(json_folder) + os.sep,
+            '-q']
     run(args, capture_output=True)
 
 
@@ -148,8 +150,12 @@ def remove_readonly(func, path, exc_info):
     func(path)
 
 
-def get_images_pdf_scrapper(date: str, entries: list[FeedParserDict], temp_dir, abstracts_dir: Path,
-                            separate_files: bool) -> list[str | None]:
+def get_images_pdf_scrapper(date: str,
+                            entries: list[FeedParserDict],
+                            temp_dir,
+                            abstracts_dir: Path,
+                            separate_files: bool
+                            ) -> list[str | None]:
     figures_dir = abstracts_dir / 'figures'
     figures_dir.mkdir(parents=True, exist_ok=True)
 

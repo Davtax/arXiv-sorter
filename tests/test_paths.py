@@ -1,4 +1,5 @@
 """Path handling: custom and space-containing directories must work end to end."""
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -14,7 +15,7 @@ def test_java_arguments_keep_space_containing_paths_intact(tmp_path, monkeypatch
 
     detect_figure(pdf_path, data_path, 2)
 
-    assert calls == [['java', '-jar', PDFFIGURES2_PATH, pdf_path, '-e', '-t', '2', '-d', data_path, '-q']]
+    assert calls == [['java', '-jar', PDFFIGURES2_PATH, pdf_path, '-e', '-t', '2', '-d', str(data_path) + os.sep, '-q']]
 
 
 def _fake_pipeline(monkeypatch):
