@@ -83,7 +83,7 @@ def get_image_urls(ids: list[str]) -> list[str]:
     return image_urls
 
 
-def get_image(response: requests.Response) -> str:
+def get_image(response: requests.Response | None) -> str:
     """
     Get the png image from the url and return its source
     """
