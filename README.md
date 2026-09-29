@@ -185,9 +185,8 @@ When running the program from the terminal, you can use the following optional a
 - `--abstracts` or `-a`: Specify the directory where the abstracts are located.
   The default value is the `abstracts` folder in the current directory (`/abstracts`).
 - `--final` or `-f`: Remove the final time stamp from the markdown file.
-- `--update` or `-u`: Check if there is a new version of the program available in GitHub, and update the program if
-  true.
-  (TO BE IMPLEMENTED)
+- `--update` or `-u`: If there is a new version of the program in GitHub, ask to download it and replace the binary
+  with it (then run the program again). Without it, new versions are only announced.
 - `--exit` or `-e`: Exit the program without the need to press `Enter` at the end.
   This option is useful if you want to run the program in a cron job, and you don't want to keep the terminal open.
 - `--separate` or `-s`: Create a separate markdown file for each manuscript.
@@ -249,6 +248,10 @@ In the window you can:
   problem*).
 - Choose a light or dark theme, or follow the one of the system (*View → Theme*, or the button in the bottom right
   corner).
+- Update to new versions: when the window opens, it checks the [latest release](https://github.com/Davtax/arXiv-sorter/releases/latest)
+  in the background. If there is a newer one, a message offers to **Upgrade** (it downloads the new version, replaces
+  the program in its folder, and opens it again) or to **Skip** it (it is not offered again when the window opens, but
+  *Help → Check for updates…* still installs it). The previous version is deleted the next time the program starts.
 
 The configuration is saved when the program runs and when the window closes, and restored at the next start.
 It is stored in `settings.json` (next to PDFFigures2), inside `%LOCALAPPDATA%\arXiv-sorter` on Windows,
@@ -283,7 +286,7 @@ src/arxiv_sorter/
 ├── user_files.py    # Keywords, authors and categories files
 ├── search_terms.py  # Check of the search files (mistakes with their file and line)
 ├── preview.py       # Matches of the search terms in the latest mailing list (search files editor)
-├── updater.py       # Check for new versions in GitHub
+├── updater.py       # New versions in GitHub: check, download and replace the binary
 ├── console.py       # Messages, questions and progress bars
 ├── log_file.py      # Log file of each run
 ├── network.py       # Concurrent HTTP requests (pool of threads)

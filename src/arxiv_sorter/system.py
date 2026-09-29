@@ -47,6 +47,14 @@ def is_frozen() -> bool:
     return getattr(sys, 'frozen', False)
 
 
+def installed_path() -> Path:
+    """
+    The installed program, which an update replaces: the .app bundle on macOS, the binary elsewhere.
+    """
+    executable = Path(sys.executable).resolve()
+    return next((parent for parent in executable.parents if parent.suffix == '.app'), executable)
+
+
 def base_dir() -> Path:
     """
     Directory where the user files are by default: next to the binary, or the current directory when run from Python.
@@ -58,12 +66,11 @@ def base_dir() -> Path:
     if not is_frozen():
         return Path.cwd()
 
-    executable = Path(sys.executable).resolve()
-    bundle = next((parent for parent in executable.parents if parent.suffix == '.app'), None)
-    if bundle is None:
-        return executable.parent
+    installed = installed_path()
+    if installed.suffix != '.app':
+        return installed.parent
 
-    folder = bundle.parent
+    folder = installed.parent
     if 'AppTranslocation' not in folder.parts and os.access(folder, os.W_OK):
         return folder
 

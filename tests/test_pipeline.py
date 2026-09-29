@@ -7,6 +7,7 @@ from feedparser import FeedParserDict
 from arxiv_sorter import pipeline
 from arxiv_sorter.cli import parse_args
 from arxiv_sorter.pipeline import MAX_SEARCHES, SearchFilesError, get_last_new
+from arxiv_sorter.updater import Release
 
 
 @pytest.fixture
@@ -128,3 +129,35 @@ def test_nothing_marked_when_every_entry_is_updated():
     get_last_new(entries)
 
     assert not any(entry.last_new for entry in entries)
+
+
+class TestCheckUpdates:
+    RELEASE = Release(version='v9.9.9', url='https://example.org/arXiv-sorter-Windows.zip',
+                      asset='arXiv-sorter-Windows.zip', page='https://example.org/v9.9.9')
+
+    @pytest.fixture
+    def updates(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(pipeline, 'gui_mode', lambda: False)
+        monkeypatch.setattr(pipeline, 'check_for_update', lambda *args, **kwargs: self.RELEASE)
+        monkeypatch.setattr(pipeline, 'download_and_update', calls.append)
+        monkeypatch.setattr(pipeline, 'remove_old_version', lambda: None)
+        monkeypatch.setattr(pipeline.console, 'question', lambda text: True)
+        return calls
+
+    def test_binary_updated(self, updates, monkeypatch):
+        monkeypatch.setattr(pipeline, 'is_frozen', lambda: True)
+        pipeline._check_updates(parse_args(['-u']))
+        assert updates == [self.RELEASE]
+
+    @pytest.mark.parametrize(('argv', 'frozen'), [([], True), (['-u'], False)])
+    def test_only_announced(self, updates, monkeypatch, capsys, argv, frozen):
+        monkeypatch.setattr(pipeline, 'is_frozen', lambda: frozen)
+        pipeline._check_updates(parse_args(argv))
+        assert not updates
+        assert 'A new version of arXiv-sorter is available: v9.9.9' in capsys.readouterr().out
+
+    def test_not_checked_from_the_gui(self, monkeypatch):
+        monkeypatch.setattr(pipeline, 'gui_mode', lambda: True)
+        monkeypatch.setattr(pipeline, 'check_for_update', lambda *args, **kwargs: pytest.fail('checked'))
+        pipeline._check_updates(parse_args([]))
