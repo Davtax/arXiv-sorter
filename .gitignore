@@ -30,3 +30,5 @@ test_pdffigures/
 .venv/
 venv/
 *.egg-info/
+
+.claude/*
