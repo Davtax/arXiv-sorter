@@ -20,7 +20,7 @@ def _remove_white_spaces(text: str) -> str:
 
 def _clean_text(text: str) -> str:
     """
-    Remove line breaks, duplicate white spaces and backticks, which break the markdown format.
+    Remove line breaks, duplicate white spaces and backticks, which break the Markdown format.
     """
     text = text.replace('\n', ' ')  # The raw data contains carriage returns
     text = _remove_white_spaces(text)
@@ -56,7 +56,7 @@ def _fix_authors(entry: FeedParserDict):
 
 def _fix_equation_inner(text: str) -> str:
     """
-    Fix the equations to proper visualization in the markdown file.
+    Fix the equations to proper visualization in the Markdown file.
     """
     index_0 = text.find('$')  # Find the beginning equation
     while index_0 != -1:
@@ -82,7 +82,7 @@ def _fix_equation_inner(text: str) -> str:
 
         index_0 = text.find('$', index_1 + 1)  # Find the beginning of the next equation
 
-    # Replace common HTML characters which are not supported by markdown
+    # Replace common HTML characters which are not supported by Markdown
     text = text.replace('&lt;', '<')
     text = text.replace('&gt;', '>')
 
@@ -107,7 +107,7 @@ def _fix_date(entry: FeedParserDict):
 
 def fix_entry(entry: FeedParserDict):
     """
-    Fix the entry to proper visualization in the markdown file.
+    Fix the entry to proper visualization in the Markdown file.
     """
     _fix_title(entry)
     _fix_abstract(entry)
@@ -118,7 +118,7 @@ def fix_entry(entry: FeedParserDict):
 
 def write_article(entry: FeedParserDict, f: TextIO, index: int, n_total: int, image_url: str | None = None):
     """
-    Write the article to the markdown file. `index` is zero-based.
+    Write the article to the Markdown file. `index` is zero-based.
     """
     f.write(f'({index + 1} / {n_total})\n\n')
     f.write(f'Title: **{entry.title}**\n\n')
@@ -143,7 +143,7 @@ def write_article(entry: FeedParserDict, f: TextIO, index: int, n_total: int, im
 def write_document(entries: list[FeedParserDict], date: datetime, abstracts_dir: str | Path, final: bool,
                    separate_files: bool, image_urls: list[str | None], version: str | None = None):
     """
-    Write the sorted entries of a given date, either in a single markdown file or in a folder with a file per entry.
+    Write the sorted entries of a given date, either in a single Markdown file or in a folder with a file per entry.
     `image_urls` contains the figure of each new entry (index >= 0), which are placed at the beginning of `entries`.
     """
     print('Writing entries ...')
