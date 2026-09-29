@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from subprocess import TimeoutExpired, run
 
 import feedparser
-import grequests  # noqa: F401  #  imported for gevent monkey-patching side effect
 import pytz
 
 from arxiv_sorter import __version__, console
@@ -16,7 +15,7 @@ BASE_URL = 'https://export.arxiv.org/api/query?'
 
 N_MAX = 1000  # Maximum number of entries per request
 T_SLEEP = 3  # seconds between requests
-T_PREVIOUS_REQUEST = 0  # UTC seconds from the previous request
+T_PREVIOUS_REQUEST = 0.0  # UTC seconds from the previous request
 
 ARXIV_OPENER = urllib.request.build_opener()
 ARXIV_HEADERS = {"User-Agent": f"arxiv-sorter/{__version__}", "Accept": "application/atom+xml", }
@@ -45,7 +44,7 @@ def search_entries(categories: list[str], date_0: datetime, date_f: datetime) ->
     if categories:
         query += "+AND+cat:(" + "+OR+".join(f"{category}*" for category in categories) + ")"
 
-    total_entries = []
+    total_entries: list[feedparser.FeedParserDict] = []
 
     while True:
         n_entries = f"&start={len(total_entries)}&max_results={N_MAX}"
@@ -96,7 +95,7 @@ def _fetch_curl(url: str) -> tuple[int, bytes] | None:
         args += ['--header', f'{key}: {value}']
 
     try:
-        result = run(args + [url], capture_output=True, timeout=TIMEOUT + 5, **NO_WINDOW)
+        result = run(args + [url], capture_output=True, timeout=TIMEOUT + 5, creationflags=NO_WINDOW)
     except (FileNotFoundError, TimeoutExpired):
         return None
 
@@ -124,7 +123,7 @@ def _get_arxiv_feed(url: str) -> feedparser.FeedParserDict:
     requests that miss its cache, while accepting the same request from other clients. On a 406 the request is
     repeated through curl, and in any case retried with an exponential backoff.
     """
-    status = None
+    status: int | str | None = None  # HTTP status code, or the reason of a connection error
     for attempt in range(N_RETRIES + 1):
         if attempt > 0:
             wait = T_SLEEP * 2 ** attempt
@@ -162,7 +161,7 @@ def _sort_entries(entries: list[feedparser.FeedParserDict], date_0: datetime, da
     Group the entries by mailing date. Entries from weekdays are separated, and the ones from Friday to Monday (before
     the deadline) are grouped together in the Friday mail.
     """
-    total_entries_date = []
+    total_entries_date: list[list[feedparser.FeedParserDict]] = []
     dates = []
 
     entries = sorted(entries, key=lambda x: x.updated)  # Sort entries by date (sometimes arXiv does not sort them)

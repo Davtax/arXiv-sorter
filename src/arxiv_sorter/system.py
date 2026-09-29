@@ -8,8 +8,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Keyword arguments for subprocess.run, so console programs (java, curl) do not open a terminal window on Windows
-NO_WINDOW = {'creationflags': subprocess.CREATE_NO_WINDOW} if sys.platform == 'win32' else {}
+# creationflags of subprocess, so console programs (java, curl) do not open a terminal window on Windows (0 elsewhere)
+if sys.platform == 'win32':
+    NO_WINDOW = subprocess.CREATE_NO_WINDOW
+else:
+    NO_WINDOW = 0
 
 
 APP_NAME = 'arXiv-sorter'
@@ -87,7 +90,7 @@ def kill_process_tree(pid: int):
     Kill the process together with the programs it started (e.g. java), which would keep running otherwise.
     """
     if sys.platform == 'win32':
-        subprocess.run(['taskkill', '/T', '/F', '/PID', str(pid)], capture_output=True, **NO_WINDOW)
+        subprocess.run(['taskkill', '/T', '/F', '/PID', str(pid)], capture_output=True, creationflags=NO_WINDOW)
         return
 
     for process_id in [pid, *descendant_pids(pid)]:  # Collected before killing, since orphans are adopted by init

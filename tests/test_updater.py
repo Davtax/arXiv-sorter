@@ -94,3 +94,20 @@ class TestCheckForUpdate:
     def test_unexpected_status_does_not_loop_forever(self, github):
         github.append(FakeResponse(500))
         assert updater.check_for_update('Windows', '0.9.0') is None
+
+
+class TestDownloadAndUpdate:
+    @pytest.mark.parametrize(('headers', 'expected'), [
+        ({'Content-Disposition': 'attachment; filename="arXiv-sorter-Windows.zip"'}, 'temp_arXiv-sorter-Windows.zip'),
+        ({}, 'temp_arXiv-sorter-GUI-Ubuntu.tar.gz'),  # Without the header, the name of the asset in the url
+    ])
+    def test_saved_next_to_the_program(self, monkeypatch, tmp_path, headers, expected):
+        response = FakeResponse(headers=headers)
+        response.content = b'zip'
+        monkeypatch.setattr(updater.requests, 'get', lambda url, **kwargs: response)
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(SystemExit):
+            updater.download_and_update('https://example.org/download/arXiv-sorter-GUI-Ubuntu.tar.gz')
+
+        assert (tmp_path / expected).read_bytes() == b'zip'

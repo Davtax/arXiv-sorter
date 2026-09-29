@@ -35,16 +35,20 @@ from PySide6.QtWidgets import (
 
 from arxiv_sorter import __version__
 from arxiv_sorter.gui.icons import app_icon, run_icon, stop_icon
-from arxiv_sorter.gui.log_view import LogView
+from arxiv_sorter.gui.log_view import COLORS, LogView, is_dark
+from arxiv_sorter.gui.search_editor import SearchFilesEditor
 from arxiv_sorter.gui.search_files import SEARCH_FILES, count_terms, describe
 from arxiv_sorter.gui.settings import SETTINGS_FILE, THEMES, Settings
 from arxiv_sorter.gui.summary import Outcome, WrittenFile, final_message, format_duration
 from arxiv_sorter.gui.theme import apply_theme
+from arxiv_sorter.log_file import latest_log, logs_dir
 from arxiv_sorter.protocol import GUI_ENV_VAR, LOG_TAG, PROGRESS_TAG, QUESTION_TAG, WORKER_FLAG, WRITTEN_TAG, Level
+from arxiv_sorter.search_terms import Kind, Problem, Severity, check_file, check_folder
 from arxiv_sorter.system import APP_NAME, base_dir, config_dir, is_frozen, kill_process_tree, max_threads
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]  # Folder that contains the arxiv_sorter package
 REPOSITORY_URL = 'https://github.com/Davtax/arXiv-sorter'
+WINDOWS_APP_ID = 'Davtax.arXiv-sorter.GUI'  # Identity of the application in the Windows taskbar
 DATE_FORMAT = 'ddd d MMM yyyy'  # e.g. Tue 22 Sep 2026
 THREADS_EXTRA_INDENT = 20  # Pixels beyond the text of "Include the first figure", to show the threads belong to it
 
@@ -89,6 +93,11 @@ def open_path(path: Path):
 
 def open_url(url: str):
     QDesktopServices.openUrl(QUrl(url))
+
+
+def ensure_dir(folder: Path) -> Path:
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
 
 
 def hint_label(text: str) -> QLabel:
@@ -208,8 +217,8 @@ class MainWindow(QMainWindow):
             self.search_file_labels[search_file.filename] = label
             button = QToolButton()
             button.setText('Edit')
-            button.setToolTip(f'Open {search_file.filename} in the default text editor (created if it does not '
-                              'exist). One term per line, # comments a line out.')
+            button.setToolTip(f'Edit {search_file.filename}, checking the mistakes while you type, and preview the '
+                              'submissions it would find')
             button.clicked.connect(lambda _=False, name=search_file.filename: self.edit_user_file(name))
             files_row.addWidget(label)
             files_row.addWidget(button)
@@ -410,6 +419,9 @@ class MainWindow(QMainWindow):
                          QKeySequence.StandardKey.HelpContents)
         self._add_action(help_menu, 'Report a problem', lambda: open_url(f'{REPOSITORY_URL}/issues'))
         help_menu.addSeparator()
+        self._add_action(help_menu, 'Open the log of the last run', self.open_latest_log)
+        self._add_action(help_menu, 'Open the logs folder', lambda: open_path(ensure_dir(logs_dir())))
+        help_menu.addSeparator()
         self._add_action(help_menu, f'About {APP_NAME}', self.show_about).setMenuRole(QAction.MenuRole.AboutRole)
 
     def _add_action(self, menu, text: str, slot, shortcut=None) -> QAction:
@@ -436,10 +448,13 @@ class MainWindow(QMainWindow):
         Apply the theme (one of THEMES), and remember it for the next time.
         """
         self.theme = theme
-        apply_theme(QApplication.instance(), theme)
+        app = QApplication.instance()
+        if isinstance(app, QApplication):
+            apply_theme(app, theme)
         for action, name in zip(self.theme_actions.actions(), THEMES, strict=True):
             action.setChecked(name == theme)
         self.theme_button.setText(f'{THEME_ICONS[theme]} {THEME_NAMES[theme]}')
+        self.refresh_search_files()  # Their warning colors depend on the theme
         if save:
             self.save_settings()
 
@@ -466,7 +481,7 @@ class MainWindow(QMainWindow):
                         verbose=self.verbose_check.isChecked(), custom_dates=self.custom_dates_radio.isChecked(),
                         date_0=self.date_0_edit.date().toString(Qt.DateFormat.ISODate),
                         date_f=self.date_f_edit.date().toString(Qt.DateFormat.ISODate), theme=self.theme,
-                        window_geometry=self.saveGeometry().toBase64().data().decode('ascii'), )
+                        window_geometry=bytes(self.saveGeometry().toBase64().data()).decode('ascii'), )
 
     def load_settings(self):
         settings = Settings.load(self.settings_file, base_dir())
@@ -503,27 +518,78 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ user files
     def refresh_search_files(self):
+        """
+        Count the terms of each search file, and flag the files with mistakes (details in the tooltip).
+        """
         folder = Path(self.keywords_selector.path()) if self.keywords_selector.path() else None
         for search_file in SEARCH_FILES:
             label = self.search_file_labels[search_file.filename]
-            count = count_terms(folder / search_file.filename) if folder is not None else None
-            label.setText(describe(search_file, count))
-            label.setToolTip(f'{folder / search_file.filename}' if folder is not None else '')
+            if folder is None:
+                label.setText(describe(search_file, None))
+                label.setToolTip('')
+                label.setStyleSheet('')
+                continue
 
-    def edit_user_file(self, filename: str):
+            path = folder / search_file.filename
+            problems = check_file(path, Kind(path.stem))
+            errors = [problem for problem in problems if problem.severity is Severity.ERROR]
+            text = describe(search_file, count_terms(path))
+            tooltip = str(path)
+            if problems:
+                text = f'{"❌" if errors else "⚠️"} {text}'
+                tooltip += '\n\n' + '\n'.join(str(problem) for problem in problems)
+            label.setText(text)
+            label.setToolTip(tooltip)
+            level = Level.ERROR if errors else Level.WARNING if problems else None
+            color = COLORS[is_dark(self.palette())].get(level) if level is not None else None
+            label.setStyleSheet(f'color: {color}; font-weight: bold' if color else '')
+
+    def confirm_search_files(self) -> bool:
+        """
+        Before a run: True if the search files have no mistakes. Otherwise they are listed, with the option to edit
+        the first file with mistakes.
+        """
+        errors = self.search_file_errors()
+        if not errors:
+            return True
+
+        box = QMessageBox(QMessageBox.Icon.Warning, APP_NAME, 'The search files have mistakes, so arXiv-sorter '
+                          'would stop before sorting. Fix them first:', parent=self)
+        box.setInformativeText('\n'.join(f'• {problem}' for problem in errors))
+        edit_button = box.addButton(f'Edit {errors[0].filename}', QMessageBox.ButtonRole.AcceptRole)
+        box.addButton(QMessageBox.StandardButton.Cancel)
+        box.exec()
+        if box.clickedButton() is edit_button:
+            self.edit_user_file(errors[0].filename, errors[0].line)
+        return False
+
+    def search_file_errors(self) -> list[Problem]:
+        folder = self.keywords_selector.path()
+        if not folder:
+            return []
+        return [problem for problem in check_folder(Path(folder)) if problem.severity is Severity.ERROR]
+
+    def edit_user_file(self, filename: str, line: int | None = None):
+        """
+        Open the editor of the search files on the given file (and line).
+        """
         folder = self.keywords_selector.path()
         if not folder:
             QMessageBox.information(self, APP_NAME, 'Choose the folder of the search files first.')
             return
 
-        file = Path(folder) / filename
-        try:
-            file.parent.mkdir(parents=True, exist_ok=True)
-            file.touch(exist_ok=True)
-        except OSError as error:
-            QMessageBox.warning(self, APP_NAME, f'Unable to create {file}:\n{error}')
+        editor = SearchFilesEditor(Path(folder).resolve(), self)
+        editor.open_file(filename, line)
+        editor.exec()
+        self.refresh_search_files()
+
+    def open_latest_log(self):
+        path = latest_log()
+        if path is None:
+            QMessageBox.information(self, APP_NAME, 'There are no log files yet. One is written each time '
+                                    'arXiv-sorter runs.')
             return
-        open_path(file.resolve())
+        open_path(path)
 
     def open_latest_file(self):
         if self.written:
@@ -578,6 +644,8 @@ class MainWindow(QMainWindow):
         error = self.validate(settings)
         if error is not None:
             QMessageBox.information(self, APP_NAME, error)
+            return
+        if not self.confirm_search_files():
             return
         self.save_settings()
 
@@ -646,7 +714,9 @@ class MainWindow(QMainWindow):
         self.progress_bar.setRange(0, 0)
 
     def read_output(self):
-        data = self.process.readAllStandardOutput().data()
+        if self.process is None:
+            return
+        data = bytes(self.process.readAllStandardOutput().data())
         self.output_buffer += self.decoder.decode(data)
 
         *lines, self.output_buffer = self.output_buffer.split('\n')
@@ -688,8 +758,8 @@ class MainWindow(QMainWindow):
 
     def update_progress(self, message: str):
         try:
-            current, count, prefix = message.split('\t', 2)
-            current, count = int(current), int(count)
+            current_text, count_text, prefix = message.split('\t', 2)
+            current, count = int(current_text), int(count_text)
         except ValueError:
             return
 
@@ -704,10 +774,11 @@ class MainWindow(QMainWindow):
     def ask_question(self, message: str):
         answer = QMessageBox.question(self, APP_NAME, message)
         reply = 'y' if answer == QMessageBox.StandardButton.Yes else 'n'
-        self.process.write(f'{reply}\n'.encode())
+        if self.process is not None:  # Unless it was stopped while the question was shown
+            self.process.write(f'{reply}\n'.encode())
 
     def process_error(self, error: QProcess.ProcessError):
-        if error == QProcess.ProcessError.FailedToStart:
+        if error == QProcess.ProcessError.FailedToStart and self.process is not None:
             self.log.add_message(Level.ERROR, f'Unable to start arXiv-sorter: {self.process.errorString()}', '❌')
             self.errors_found = True
             self.process_finished(-1, QProcess.ExitStatus.CrashExit)
@@ -739,7 +810,8 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(1 if outcome is Outcome.FINISHED else 0)
 
         summary = final_message(outcome, time.monotonic() - self.start_time, self.written, self.n_warnings)
-        self.log.add_summary(summary)
+        problems = outcome in (Outcome.ERRORS, Outcome.FAILED) or self.n_warnings > 0
+        self.log.add_summary(summary, latest_log() if problems else None)
         self.stage_label.setText(f'{summary.icon} {summary.status}')
         self.statusBar().showMessage(summary.status)
         self.refresh_search_files()  # authors.txt may have been sorted
@@ -764,7 +836,23 @@ class MainWindow(QMainWindow):
         event.accept()
 
 
+def set_windows_app_id():
+    """
+    Give the application its own identity in the Windows taskbar. Otherwise, when run from Python, it is grouped with
+    Python and shows the icon of Python instead of its own.
+    """
+    if sys.platform != 'win32':
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(WINDOWS_APP_ID)
+    except (AttributeError, OSError):
+        pass
+
+
 def start_gui() -> int:
+    set_windows_app_id()  # Before any window is created
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setApplicationVersion(__version__)

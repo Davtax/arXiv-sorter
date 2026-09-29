@@ -7,6 +7,7 @@ from collections.abc import Callable
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap, QPolygonF
 
+APP_ICON_TEXT = 'aXs'
 ARXIV_RED = QColor('#b31b1b')
 RUN_GREEN = QColor('#2ea043')
 STOP_RED = QColor('#d93025')
@@ -36,10 +37,11 @@ def app_icon() -> QIcon:
 
         font = QFont()
         font.setBold(True)
-        font.setPixelSize(max(int(size * 0.5), 8))
+        font.setPixelSize(max(int(size * 0.4), 6))
+        font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 92)  # Three letters fit in the small sizes
         painter.setFont(font)
         painter.setPen(Qt.GlobalColor.white)
-        painter.drawText(QRectF(0, 0, size, size * 0.96), Qt.AlignmentFlag.AlignCenter, 'aX')
+        painter.drawText(QRectF(0, 0, size, size * 0.96), Qt.AlignmentFlag.AlignCenter, APP_ICON_TEXT)
 
     return _draw_icon(draw)
 

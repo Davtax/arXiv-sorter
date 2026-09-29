@@ -15,13 +15,12 @@ dependencies = [
     "requests",
     "packaging",
     "pytz",
-    "grequests",
     "pymupdf",
     "PySide6",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+dev = ["pytest", "pytest-qt", "ruff", "mypy", "types-requests", "types-pytz"]
 
 [project.scripts]
 arxiv-sorter = "arxiv_sorter.cli:main"
@@ -45,10 +44,18 @@ addopts = "-ra --strict-markers -m 'not network'"
 markers = [
     "network: tests that reach the real arXiv / GitHub servers (deselect with -m 'not network')",
 ]
-filterwarnings = [
-    # grequests monkey-patches ssl through gevent after it has been imported
-    "ignore::gevent.monkey.MonkeyPatchWarning",
-]
+
+[tool.mypy]
+python_version = "3.14"
+files = ["src"]
+mypy_path = "src"
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["feedparser.*", "unidecode.*", "pymupdf.*"]  # Without type information
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 120

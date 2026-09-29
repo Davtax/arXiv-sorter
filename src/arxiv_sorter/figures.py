@@ -70,10 +70,10 @@ def detect_figure(pdf_folder: Path, json_folder: Path, threads: int, t_poll: flo
     json_folder.mkdir(parents=True, exist_ok=True)
     n_pdfs = sum(1 for _ in pdf_folder.glob('*.pdf'))
 
-    args = ['java', '-jar', PDFFIGURES2_PATH, pdf_folder, '-e', '-t', str(threads), '-d', str(json_folder) + os.sep,
-            '-q']
+    args: list[str | os.PathLike[str]] = ['java', '-jar', PDFFIGURES2_PATH, pdf_folder, '-e', '-t', str(threads), '-d',
+                                          str(json_folder) + os.sep, '-q']
     # The output is not read, so it is discarded instead of piped (a full pipe would block pdffigures2)
-    process = Popen(args, stdin=DEVNULL, stdout=DEVNULL, stderr=DEVNULL, **NO_WINDOW)
+    process = Popen(args, stdin=DEVNULL, stdout=DEVNULL, stderr=DEVNULL, creationflags=NO_WINDOW)
 
     if n_pdfs == 0:
         process.wait()
@@ -165,7 +165,7 @@ def remove_folder(folder: Path, retries: int = 3, t_sleep: float = 1) -> bool:
 def check_java() -> bool:
     # Check if java is installed in the system
     try:
-        run(['java', '-version'], capture_output=True, **NO_WINDOW)
+        run(['java', '-version'], capture_output=True, creationflags=NO_WINDOW)
         return True
     except FileNotFoundError:
         console.warning('Java is not installed, so the figures are skipped (running without figure detection). '
@@ -262,7 +262,7 @@ def extract_figures(date: str,
     detect_figure(pdf_folder, json_folder, threads)
 
     # Extract figures from json files
-    figure_links = []
+    figure_links: list[str | None] = []
     pbar = Progressbar(len(ids_entries), prefix='Extracting figures', icon='🎨')
     for id_entry in ids_entries:
         if extract_from_json(id_entry, json_folder, pdf_folder, image_folder):

@@ -1,9 +1,10 @@
+import logging
 from collections.abc import Callable
 
 import pytest
 from feedparser import FeedParserDict
 
-from arxiv_sorter import console
+from arxiv_sorter import console, log_file
 
 
 def _make_entry(
@@ -34,6 +35,16 @@ def make_entry() -> Callable[..., FeedParserDict]:
 def verbose(monkeypatch):
     """Show the messages that are only printed with --verbose."""
     monkeypatch.setattr(console, 'VERBOSE', True)
+
+
+@pytest.fixture(autouse=True)
+def logs_in_tmp(tmp_path, monkeypatch):
+    """Log files of the tests are written in a temporary folder, never in the configuration folder of the user."""
+    monkeypatch.setattr(log_file, 'logs_dir', lambda: tmp_path / 'logs')
+    yield
+    for handler in [handler for handler in log_file.LOGGER.handlers if isinstance(handler, logging.FileHandler)]:
+        log_file.LOGGER.removeHandler(handler)
+        handler.close()
 
 
 @pytest.fixture(autouse=True)

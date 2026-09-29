@@ -65,8 +65,7 @@ def _find_re(text: str, keywords_list: list[str], enclosure: list[str], normaliz
         text = text[:index_0] + enclosure[0] + text[index_0:index_f] + enclosure[1] + text[index_f:]
 
     if keyword_index == len(keywords_list) + 1:
-        keyword_index = None
-
+        return text, None
     return text, keyword_index
 
 

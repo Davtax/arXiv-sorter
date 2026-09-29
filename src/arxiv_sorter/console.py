@@ -6,6 +6,7 @@ terminal they get an icon and a color when the terminal supports them; in the GU
 the window shows them with its own style.
 """
 import io
+import logging
 import os
 import sys
 from dataclasses import dataclass
@@ -14,6 +15,7 @@ from pathlib import Path
 from time import sleep, time
 from typing import TextIO
 
+from arxiv_sorter.log_file import LOGGER
 from arxiv_sorter.protocol import LOG_TAG, PROGRESS_TAG, QUESTION_TAG, WRITTEN_TAG, Level, gui_mode
 
 # When run from the GUI, messages, progress bars and questions are sent to it as tagged lines (see protocol.py)
@@ -22,6 +24,8 @@ GUI_MODE = gui_mode()
 PLAIN_ENV_VAR = 'ARXIV_SORTER_PLAIN'  # Set to 1 to print without icons nor colors
 
 ICONS = {Level.SUCCESS: '✅', Level.WARNING: '⚠️', Level.ERROR: '❌'}  # Default icon of each level
+LOG_LEVELS = {Level.STEP: logging.INFO, Level.INFO: logging.INFO, Level.SUCCESS: logging.INFO,
+              Level.WARNING: logging.WARNING, Level.ERROR: logging.ERROR, Level.DETAIL: logging.DEBUG}
 ANSI = {Level.STEP: '\033[1;36m', Level.SUCCESS: '\033[32m', Level.WARNING: '\033[33m', Level.ERROR: '\033[1;31m',
         Level.DETAIL: '\033[2m'}
 ANSI_RESET = '\033[0m'
@@ -95,6 +99,7 @@ def message(level: Level, text: str, icon: str = ''):
     """
     Print a message. `icon` (an emoji) replaces the default icon of the level.
     """
+    LOGGER.log(LOG_LEVELS[level], text)  # Every message is kept in the log file, also the details
     if level is Level.DETAIL and not VERBOSE:
         return
 
@@ -167,6 +172,7 @@ def question(text: str) -> bool:
     else:
         icon = '❓ ' if STYLE.icons else ''
         answer = input(f'{icon}{text} [Y/n]: ').strip().lower()
+    LOGGER.info(f'Question: {text} Answer: {answer!r}')
 
     if answer in ('y', 'yes', ''):
         return True
@@ -197,6 +203,7 @@ class Progressbar:
         self.icon = icon
         self.out = out if out is not None else sys.stdout
 
+        self.terminal_size: os.terminal_size | None
         try:
             self.terminal_size = get_terminal_size()
         except OSError:

@@ -16,10 +16,19 @@ from arxiv_sorter.dates import check_last_date, next_mail, prev_mail
 from arxiv_sorter.figures import extract_figures
 from arxiv_sorter.formatting import fix_entry, write_document
 from arxiv_sorter.protocol import gui_mode
+from arxiv_sorter.search_terms import Severity, check_folder
 from arxiv_sorter.sorting import sort_articles
 from arxiv_sorter.system import base_dir, is_frozen
 from arxiv_sorter.updater import check_for_update, download_and_update, get_system_name
 from arxiv_sorter.user_files import read_user_file
+
+MAX_SEARCHES = 10  # Requests to arXiv, going back one mailing list each time, before giving up
+
+
+class SearchFilesError(Exception):
+    """
+    The search files contain mistakes (already reported), so the run is stopped before requesting arXiv.
+    """
 
 
 def get_last_new(entries: list[FeedParserDict]):
@@ -63,6 +72,18 @@ def _read_search_files(args: argparse.Namespace, keyword_dir: Path) -> tuple[lis
     console.detail(f'Keywords: {", ".join(keywords) or "none"}')
     console.detail(f'Authors: {", ".join(authors) or "none"}')
     console.detail(f'Categories: {", ".join(categories) or "all"}')
+
+    # Checked after reading them, so the line numbers are the ones of authors.txt once sorted
+    problems = check_folder(keyword_dir)
+    for problem in problems:
+        if problem.severity is Severity.WARNING:
+            console.warning(str(problem))
+    errors = [problem for problem in problems if problem.severity is Severity.ERROR]
+    if errors:
+        for problem in errors:
+            console.error(str(problem))
+        raise SearchFilesError(f'{_plural(len(errors), "mistake")} in the search files, fix '
+                               f'{"it" if len(errors) == 1 else "them"} and run arXiv-sorter again')
 
     authors = [r'\b' + author + r'\b' for author in authors]  # Only full matches of the names
     return keywords, authors, categories
@@ -109,7 +130,13 @@ def run(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
     date_0, date_f = _dates_to_request(args, abstracts_dir)
 
     data_found = False
-    while not data_found:  # Keep searching until data is found
+    for n_search in range(1, MAX_SEARCHES + 1):  # Keep searching until data is found, or MAX_SEARCHES requests
+        if n_search > 1:  # Nothing found yet: search one mailing list before the previous date
+            console.info(f'Nothing new yet, looking one mailing list earlier ({n_search} of {MAX_SEARCHES})',
+                         icon='🔙')
+            date_f = date_0
+            date_0 = prev_mail(date_0)
+
         console.step(f'Requesting the submissions from {_day(date_0)} to {_day(date_f)}', icon='📡')
 
         entries_dates, dates = search_entries(categories, date_0, date_f)
@@ -147,7 +174,9 @@ def run(args: argparse.Namespace, temp_dir: tempfile.TemporaryDirectory):
             report_written(path, len(entries), n_new)
             console.success(f'Saved {path.name}', icon='💾')
 
-        if not data_found:  # Search one mailing list before the previous date
-            console.info('Nothing new yet, looking one mailing list earlier', icon='🔙')
-        date_f = date_0
-        date_0 = prev_mail(date_0)
+        if data_found:
+            return
+
+    console.warning(f'No submissions found in the last {MAX_SEARCHES} requests to arXiv. Check that the categories in '
+                    'categories.txt exist (e.g. quant-ph or cond-mat.mes-hall), or try again later if arXiv is not '
+                    'answering as usual.')

@@ -85,9 +85,14 @@ The final directory tree should look (if using default paths) something like:
 > Once solved, the message will disappear.
 
 > [!WARNING]  
-> Sometimes the arXiv API does not respond, and the program will keep running indefinitely.
-> In this case, you can close the terminal, and the program will stop.
-> Try to run the program in a few minutes.
+> Sometimes the arXiv API does not respond as usual.
+> The program retries the requests, and if a mailing list has no submissions, it looks for the previous one, up to 10
+> requests. After that it stops with a warning: check the categories in `categories.txt`, or try again in a few
+> minutes.
+
+Each run writes a log file with all the messages, including the details only shown with `--verbose`, in the `logs`
+folder next to the settings (see [Graphical interface](#graphical-interface)).
+The last 30 are kept, and they are useful to report a problem.
 
 ## Keywords
 
@@ -104,6 +109,12 @@ You can combine regular expressions with the `&` character, e.g., `spin[- ]orbit
 that contain both (`spin-orbit` or `spin orbit`) and `spin qubit` at the same time.
 Finally, you can use the `#` character at the beginning of the line to comment it out so the program will ignore that
 line.
+
+Before requesting arXiv, the program checks the search files: an invalid regular expression (e.g. `spin[ qubit`) or an
+empty term next to `&` (which would match every manuscript) stops the run, with the file and line of the mistake.
+Lines of `categories.txt` that do not look like arXiv categories are reported as warnings.
+In the graphical interface, the files can be edited with these checks while typing, and with a preview of the
+manuscripts of the latest mailing list that would match (*Edit* next to the number of keywords, authors and categories).
 
 After the program is run, the authors inside the `authors.txt` file will be sorted alphabetically by the surname.
 When searching for author, the program automatically normalize the author names provided by the user, to use unicode
@@ -225,14 +236,17 @@ arxiv-sorter-gui
 
 In the window you can:
 
-- Select the keywords and abstracts directories, see how many keywords, authors and categories you are searching, and
-  open `keywords.txt`, `authors.txt` and `categories.txt` in your text editor.
+- Select the keywords and abstracts directories, and see how many keywords, authors and categories you are searching
+  (files with mistakes are flagged with ❌).
+- Edit `keywords.txt`, `authors.txt` and `categories.txt`, with the mistakes highlighted while typing, and preview which
+  submissions of the latest mailing list they would find.
 - Tick the optional arguments described above, including the detailed (verbose) messages.
 - Search automatically from the last saved abstracts until today, or choose a custom date range (`--date0` and
   `--datef`).
 - Follow the progress and the messages of the program (warnings and errors are highlighted), and stop it at any time.
 - When it finishes, open the new Markdown files directly from the summary, or with *Open the latest file*.
-- Copy or save the messages, e.g. to report a problem (*Help → Report a problem*).
+- Copy or save the messages, or open the log file of the last run, e.g. to report a problem (*Help → Report a
+  problem*).
 - Choose a light or dark theme, or follow the one of the system (*View → Theme*, or the button in the bottom right
   corner).
 
@@ -267,9 +281,12 @@ src/arxiv_sorter/
 ├── formatting.py    # Markdown output
 ├── figures.py       # Download of the PDFs and extraction of the first figure
 ├── user_files.py    # Keywords, authors and categories files
+├── search_terms.py  # Check of the search files (mistakes with their file and line)
+├── preview.py       # Matches of the search terms in the latest mailing list (search files editor)
 ├── updater.py       # Check for new versions in GitHub
-├── console.py       # Questions and progress bars
-├── network.py       # Concurrent HTTP requests
+├── console.py       # Messages, questions and progress bars
+├── log_file.py      # Log file of each run
+├── network.py       # Concurrent HTTP requests (pool of threads)
 ├── system.py        # Platform dependent details
 ├── protocol.py      # Communication between the GUI and the program
 └── gui/             # Graphical interface (PySide6)
@@ -277,13 +294,15 @@ src/arxiv_sorter/
 
 The files `run.py` and `gui.py` are the launchers used to build the binaries with PyInstaller.
 
-The tests use [pytest](https://docs.pytest.org/) and the code is linted with [ruff](https://docs.astral.sh/ruff/),
-both configured in `pyproject.toml`:
+The tests use [pytest](https://docs.pytest.org/) (with [pytest-qt](https://pytest-qt.readthedocs.io/) for the
+graphical interface), the code is linted with [ruff](https://docs.astral.sh/ruff/) and type checked with
+[mypy](https://mypy.readthedocs.io/), all configured in `pyproject.toml`:
 
 ```bash
 pytest               # unit tests (no internet connection required)
 pytest -m network    # tests that make real requests to the arXiv API
 ruff check .         # lint (use --fix to fix the automatically fixable issues)
+mypy                 # type check
 ```
 
 Both run in GitHub Actions on every push and pull request.

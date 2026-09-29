@@ -9,7 +9,8 @@ from datetime import datetime
 
 from arxiv_sorter import __version__, console
 from arxiv_sorter.console import configure_stdout
-from arxiv_sorter.pipeline import run
+from arxiv_sorter.log_file import start_log_file
+from arxiv_sorter.pipeline import SearchFilesError, run
 from arxiv_sorter.system import max_threads
 
 
@@ -79,6 +80,9 @@ def main(argv: list[str] | None = None):
     args = parse_args(argv)
     configure_stdout()
     console.set_verbose(args.verbose)
+    log_path = start_log_file(sys.argv[1:] if argv is None else argv)
+    if log_path is not None:
+        console.detail(f'Log file: {log_path}')
 
     exit_code = 0
     temp_dir = tempfile.TemporaryDirectory()
@@ -89,13 +93,16 @@ def main(argv: list[str] | None = None):
     except KeyboardInterrupt:
         console.warning('Stopped by the user', icon='🛑')
         exit_code = 130
+    except SearchFilesError as e:  # The mistakes are already listed, with their file and line
+        console.error(str(e))
+        exit_code = 1
     except Exception as e:
         console.error(f'An error occurred: {e}')
-        if args.verbose:
-            console.detail(traceback.format_exc().rstrip())
-        else:
-            console.info('Run it again with --verbose (or tick "Show detailed messages" in the window) to see the '
-                         'details', icon='💡')
+        console.detail(traceback.format_exc().rstrip())  # Always in the log file, on screen with --verbose
+        if not args.verbose:
+            where = f'in the log file {log_path}, or ' if log_path is not None else ''
+            console.info(f'The details are {where}shown with --verbose (or "Show detailed messages" in the window)',
+                         icon='💡')
         exit_code = 1
     finally:
         temp_dir.cleanup()

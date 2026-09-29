@@ -42,14 +42,11 @@ def obtain_date(date: str) -> datetime:
     """
     Obtain datetime object from date string in the format: YYYY-MM-DDTHH:MM:SSZ
     """
-    date = date.split('T')
-    date_str = date[0].split('-')  # Split in year, month and day
-    time = date[1].split(':')  # Split in hour, minute and second
+    day, time = date.split('T')
+    year, month, day_of_month = day.split('-')
+    hour, minute, second = time.split(':')
 
-    date_str = datetime(int(date_str[0]), int(date_str[1]), int(date_str[2]), int(time[0]), int(time[1]),
-                        int(time[2][:2]))
-
-    return date_str
+    return datetime(int(year), int(month), int(day_of_month), int(hour), int(minute), int(second[:2]))
 
 
 def current_time_zone():

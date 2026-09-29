@@ -1,50 +1,51 @@
 """
-Concurrent HTTP requests to arXiv.
+Concurrent HTTP requests to arXiv, with a pool of threads.
 """
 import re
+from concurrent.futures import ThreadPoolExecutor
 
-import grequests
 import requests
 
 from arxiv_sorter.console import Progressbar
 
-
-class ProgressSession:
-    def __init__(self, urls: list[str]):
-        self.pbar = Progressbar(len(urls), prefix='Progress:')
-        self.urls = urls
-
-    def update(self, r=None, *args, **kwargs):
-        if not r.is_redirect:
-            self.pbar.update()
-
-    def __enter__(self):
-        sess = requests.Session()
-        sess.hooks['response'].append(self.update)
-        return sess
-
-    def __exit__(self, *args):
-        self.pbar.close()
+MAX_WORKERS = 5  # Simultaneous requests
+TIMEOUT = 60  # seconds
+HEADERS = {'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'}
 
 
-def get_urls_async(urls: list[str], progress_bar: bool = True) -> list[requests.Response]:
-    headers = {'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'}
-
-    if progress_bar:
-        with ProgressSession(urls) as sess:
-            rs = (grequests.get(url, session=sess, headers=headers) for url in urls)
-
-            return grequests.map(rs, size=5)
-    else:
-        rs = (grequests.get(url, headers=headers) for url in urls)
-        return grequests.map(rs, size=5)
+def _get(url: str) -> requests.Response | None:
+    """
+    GET request, or None if it failed (no connection, timeout, ...).
+    """
+    try:
+        return requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+    except requests.RequestException:
+        return None
 
 
-def get_image_urls(ids: list[str]) -> list[str]:
+def get_urls_async(urls: list[str], progress_bar: bool = True) -> list[requests.Response | None]:
+    """
+    Request the urls concurrently. The responses are in the same order as the urls, with None for the failed ones.
+    """
+    pbar = Progressbar(len(urls), prefix='Progress:') if progress_bar and urls else None
+    responses: list[requests.Response | None] = []
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        for response in executor.map(_get, urls):  # Yields in the order of the urls
+            responses.append(response)
+            if pbar is not None:
+                pbar.update()
+
+    if pbar is not None:
+        pbar.close()
+    return responses
+
+
+def get_image_urls(ids: list[str]) -> list[str | None]:
     urls = [f'https://arxiv.org/html/{id_}' for id_ in ids]
     results = get_urls_async(urls)
 
-    image_urls = []
+    image_urls: list[str | None] = []
     for id_, result in zip(ids, results, strict=True):
         path = get_image(result)
         if path == '':
@@ -69,5 +70,6 @@ def get_image(response: requests.Response | None) -> str:
         return ''
     else:
         index_0, index_f = match.span()
-        png_name = re.search(r'src=.*?\.png', fp[index_0:index_f]).group().replace('src="', '')
+        source = re.search(r'src=.*?\.png', fp[index_0:index_f])
+        png_name = source.group().replace('src="', '') if source is not None else ''
         return png_name

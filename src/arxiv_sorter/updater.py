@@ -81,7 +81,11 @@ def download_and_update(download_url: str):
     TODO: replace the running binary with the downloaded one, the program exits after the download for now.
     """
     response = requests.get(download_url, timeout=TIMEOUT)
-    filename = response.headers.get("Content-Disposition").split("filename=")[1]
+    disposition = response.headers.get('Content-Disposition', '')
+    if 'filename=' in disposition:
+        filename = disposition.split('filename=')[1].strip('"')
+    else:  # Name of the asset in the url
+        filename = download_url.rsplit('/', 1)[-1]
     downloaded_path = Path(f'temp_{filename}')
     downloaded_path.write_bytes(response.content)
 

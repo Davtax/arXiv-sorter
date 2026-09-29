@@ -115,8 +115,11 @@ class LogView(QTextBrowser):
         """
         self._add(self._render_plain, text)
 
-    def add_summary(self, summary: Summary):
-        self._add(self._render_summary, summary)
+    def add_summary(self, summary: Summary, log_path: Path | None = None):
+        """
+        Summary of the run, with a link to the log file if given (e.g. to report a problem).
+        """
+        self._add(self._render_summary, summary, log_path)
 
     def _render_message(self, level: Level, text: str, icon: str, time: datetime) -> str:
         muted = self._muted()
@@ -140,7 +143,7 @@ class LogView(QTextBrowser):
     def _render_plain(self, text: str) -> str:
         return f'<p style="color:{self._muted()}; font-family:monospace; white-space:pre">{html.escape(text)}</p>'
 
-    def _render_summary(self, summary: Summary) -> str:
+    def _render_summary(self, summary: Summary, log_path: Path | None) -> str:
         color = self._color(OUTCOME_LEVELS[summary.outcome])
         rows = ''.join(f'<tr><td>📄&nbsp;{file_link(file.path, file.path.name)}</td>'
                        f'<td style="padding-left:16px">{html.escape(describe_file(file))}</td></tr>'
@@ -153,4 +156,5 @@ class LogView(QTextBrowser):
         headline = (f'<p style="margin-top:6px"><b style="color:{color}; font-size:large">{summary.icon}&nbsp;'
                     f'{html.escape(summary.headline)}</b></p>')
         table = f'<table style="margin-left:8px">{rows}</table>' if rows else ''
-        return f'<hr>{headline}{table}{folder}'
+        log = f'<p>📜 All the details are in the log file {file_link(log_path, log_path.name)}</p>' if log_path else ''
+        return f'<hr>{headline}{table}{folder}{log}'

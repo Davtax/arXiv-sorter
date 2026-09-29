@@ -18,8 +18,14 @@ def read_user_file(file_name: str | Path, sort: bool = False) -> list[str]:
         lines = sorted(lines, key=_sorting_key)
         file_path.write_text(''.join(f'{line}\n' for line in lines), encoding='utf-8')
 
-    lines = [line for line in lines if not line.lstrip().startswith('#')]  # Remove comments
+    return normalize_lines(lines)
 
+
+def normalize_lines(lines: list[str]) -> list[str]:
+    """
+    Search terms of the lines of a file: without empty lines, comments (#) nor repetitions, normalized.
+    """
+    lines = [line for line in lines if line.strip() and not line.lstrip().startswith('#')]
     return _obtain_unique_lines(lines)
 
 
