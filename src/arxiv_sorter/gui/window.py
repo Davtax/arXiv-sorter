@@ -133,9 +133,9 @@ def small_button(text: str) -> QAbstractButton:
     Compact button for secondary actions: a tool button, or a small rounded push button on macOS.
     """
     if not MACOS:
-        button = QToolButton()
-        button.setText(text)
-        return button
+        tool_button = QToolButton()
+        tool_button.setText(text)
+        return tool_button
     button = QPushButton(text)
     button.setAttribute(Qt.WidgetAttribute.WA_MacSmallSize)
     return button
@@ -161,8 +161,8 @@ def style_section(group: QGroupBox):
         return
     palette = group.palette()
     window, text = palette.color(QPalette.ColorRole.Window), palette.color(QPalette.ColorRole.WindowText)
-    border = QColor.fromRgbF(*(w + SECTION_BORDER_WEIGHT * (t - w) for w, t in zip(window.getRgbF()[:3],
-                                                                                    text.getRgbF()[:3], strict=True)))
+    border = QColor.fromRgbF(*(w + SECTION_BORDER_WEIGHT * (t - w) for w, t in zip(
+        (window.redF(), window.greenF(), window.blueF()), (text.redF(), text.greenF(), text.blueF()), strict=True)))
     group.setStyleSheet(f'QGroupBox {{ border: 1px solid {border.name()}; border-radius: 6px; margin-top: 0.7em; '
                         'padding: 8px 4px 4px 4px; }'
                         'QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }')
@@ -528,14 +528,16 @@ class MainWindow(QMainWindow):
     def _build_status_bar(self):
         self.elapsed_label = QLabel()
         # Same choices as View → Theme, easier to find
+        self.theme_button: QPushButton | QToolButton
         if MACOS:  # The tool button draws its menu arrow over the text there
             self.theme_button = QPushButton()
             self.theme_button.setAttribute(Qt.WidgetAttribute.WA_MacSmallSize)
             self.theme_button.setFlat(True)
         else:
-            self.theme_button = QToolButton()
-            self.theme_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-            self.theme_button.setAutoRaise(True)
+            theme_button = QToolButton()
+            theme_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+            theme_button.setAutoRaise(True)
+            self.theme_button = theme_button
         self.theme_button.setMenu(self.theme_menu)
         self.theme_button.setToolTip('Light or dark theme')
 
