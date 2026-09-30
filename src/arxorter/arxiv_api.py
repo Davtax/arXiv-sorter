@@ -2,7 +2,8 @@ import ssl
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from subprocess import TimeoutExpired, run
 
 import certifi
@@ -34,6 +35,7 @@ ARXIV_OPENER = urllib.request.build_opener(urllib.request.HTTPSHandler(context=_
 ARXIV_HEADERS = {"User-Agent": f"arxorter/{__version__}", "Accept": "application/atom+xml", }
 N_RETRIES = 3
 TIMEOUT = 30  # seconds
+MAX_RETRY_AFTER = 120  # seconds, longest wait asked by arXiv (Retry-After) that is respected between retries
 
 
 def search_entries(categories: list[str], date_0: datetime, date_f: datetime) -> tuple[
@@ -87,13 +89,34 @@ def _wait_between_requests():
     T_PREVIOUS_REQUEST = time.time()
 
 
-def _fetch_urllib(url: str) -> tuple[int, bytes]:
+def _retry_after(value: str | None) -> float | None:
+    """
+    Seconds to wait from a Retry-After header, given as seconds or as an HTTP date (None if missing or invalid).
+    """
+    if not value:
+        return None
+    value = value.strip()
+    if value.isdigit():
+        return float(value)
+    try:
+        date = parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    if date.tzinfo is None:  # HTTP dates are in GMT
+        date = date.replace(tzinfo=UTC)
+    return max(0.0, (date - datetime.now(tz=UTC)).total_seconds())
+
+
+def _fetch_urllib(url: str) -> tuple[int, bytes, float | None]:
+    """
+    Status, content and the seconds asked to wait before the next request (Retry-After, e.g. with a 429 or 503).
+    """
     request = urllib.request.Request(url, headers=ARXIV_HEADERS)
     try:
         with ARXIV_OPENER.open(request, timeout=TIMEOUT) as response:
-            return response.status, response.read()
+            return response.status, response.read(), None
     except urllib.error.HTTPError as error:
-        return error.code, error.read()
+        return error.code, error.read(), _retry_after(error.headers.get('Retry-After') if error.headers else None)
 
 
 def _fetch_curl(url: str) -> tuple[int, bytes] | None:
@@ -134,21 +157,23 @@ def _get_arxiv_feed(url: str) -> feedparser.FeedParserDict:
 
     Since September 2026, arXiv's CDN throttles some HTTP clients by answering 406 (usually with an empty body) to
     requests that miss its cache, while accepting the same request from other clients. On a 406 the request is
-    repeated through curl, and in any case retried with an exponential backoff.
+    repeated through curl, and in any case retried with an exponential backoff. When arXiv asks to wait longer
+    (Retry-After, e.g. with a 429 for too many requests), the wait is extended, up to MAX_RETRY_AFTER.
     """
     status: int | str | None = None  # HTTP status code, or the reason of a connection error
+    retry_after: float | None = None
     for attempt in range(N_RETRIES + 1):
         if attempt > 0:
-            wait = T_SLEEP * 2 ** attempt
-            console.warning(f'The arXiv API did not answer as expected (status {status}), retrying in {wait} s '
+            wait = max(T_SLEEP * 2 ** attempt, min(retry_after or 0, MAX_RETRY_AFTER))
+            console.warning(f'The arXiv API did not answer as expected (status {status}), retrying in {wait:g} s '
                             f'(attempt {attempt + 1} of {N_RETRIES + 1}) …', icon='🔄')
             time.sleep(wait)
 
         _wait_between_requests()
         try:
-            status, content = _fetch_urllib(url)
+            status, content, retry_after = _fetch_urllib(url)
         except urllib.error.URLError as error:  # No connection, timeout, ...
-            status, content = str(error.reason), b''
+            status, content, retry_after = str(error.reason), b'', None
 
         # Sometimes arXiv answers 406 with a valid feed in the body
         if status == 200 or status == 406:

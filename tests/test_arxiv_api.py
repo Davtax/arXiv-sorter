@@ -1,7 +1,9 @@
 import io
 import ssl
 import urllib.error
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
+from email.message import Message
+from email.utils import format_datetime
 from types import SimpleNamespace
 
 import pytest
@@ -134,9 +136,19 @@ class TestGetArxivFeed:
         monkeypatch.setattr(arxiv_api, '_fetch_curl', fake_curl)
         return responses, calls
 
+    @pytest.fixture
+    def waits(self, monkeypatch):
+        """Seconds waited between the retries (without waiting)."""
+        waits = []
+        monkeypatch.setattr(arxiv_api.time, 'sleep', waits.append)
+        return waits
+
     @staticmethod
-    def _http_error(code: int, body: bytes = b'') -> urllib.error.HTTPError:
-        return urllib.error.HTTPError('url', code, 'error', {}, io.BytesIO(body))
+    def _http_error(code: int, body: bytes = b'', retry_after: str | None = None) -> urllib.error.HTTPError:
+        headers = Message()
+        if retry_after is not None:
+            headers['Retry-After'] = retry_after
+        return urllib.error.HTTPError('url', code, 'error', headers, io.BytesIO(body))
 
     def test_retries_until_success(self, monkeypatch, curl_calls):
         opener = self.FakeOpener([self._http_error(503), self.FakeResponse(self.FEED)])
@@ -189,6 +201,47 @@ class TestGetArxivFeed:
 
         with pytest.raises(RuntimeError, match='200'):
             _get_arxiv_feed('https://example.org')
+
+    def test_429_waits_as_long_as_asked(self, monkeypatch, curl_calls, waits):
+        opener = self.FakeOpener([self._http_error(429, retry_after='40'), self.FakeResponse(self.FEED)])
+        monkeypatch.setattr(arxiv_api, 'ARXIV_OPENER', opener)
+
+        assert _get_arxiv_feed('https://example.org').entries[0].title == 'T'
+        assert 40 in waits
+
+    def test_retry_after_is_capped(self, monkeypatch, curl_calls, waits):
+        opener = self.FakeOpener([self._http_error(429, retry_after='3600'), self.FakeResponse(self.FEED)])
+        monkeypatch.setattr(arxiv_api, 'ARXIV_OPENER', opener)
+
+        _get_arxiv_feed('https://example.org')
+
+        assert max(waits) == arxiv_api.MAX_RETRY_AFTER
+
+    def test_a_shorter_retry_after_keeps_the_backoff(self, monkeypatch, curl_calls, waits):
+        monkeypatch.setattr(arxiv_api, 'T_SLEEP', 3)
+        monkeypatch.setattr(arxiv_api, 'T_PREVIOUS_REQUEST', 0.0)
+        opener = self.FakeOpener([self._http_error(429, retry_after='1'), self.FakeResponse(self.FEED)])
+        monkeypatch.setattr(arxiv_api, 'ARXIV_OPENER', opener)
+
+        _get_arxiv_feed('https://example.org')
+
+        assert 6 in waits  # T_SLEEP * 2 for the first retry
+
+
+class TestRetryAfter:
+    def test_seconds(self):
+        assert arxiv_api._retry_after('30') == 30
+
+    def test_http_date(self):
+        date = datetime.now(tz=UTC) + timedelta(seconds=60)
+        assert 55 < arxiv_api._retry_after(format_datetime(date, usegmt=True)) <= 60
+
+    def test_past_date(self):
+        assert arxiv_api._retry_after('Wed, 21 Oct 2015 07:28:00 GMT') == 0
+
+    @pytest.mark.parametrize('value', [None, '', 'soon'])
+    def test_missing_or_invalid(self, value):
+        assert arxiv_api._retry_after(value) is None
 
 
 def test_ssl_context_does_not_need_the_certificates_of_the_system(monkeypatch, tmp_path):
