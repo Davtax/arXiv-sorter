@@ -8,7 +8,7 @@ if sys.platform.startswith('linux') and not (os.environ.get('DISPLAY') or os.env
 QtWidgets = pytest.importorskip('PySide6.QtWidgets')
 QtCore = pytest.importorskip('PySide6.QtCore')
 
-from arxiv_sorter.gui.date_picker import DatePicker  # noqa: E402
+from arxorter.gui.date_picker import DatePicker  # noqa: E402
 
 QDate = QtCore.QDate
 

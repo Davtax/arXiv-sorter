@@ -1,7 +1,7 @@
 import pytest
 
-from arxiv_sorter import cli, run_lock
-from arxiv_sorter.protocol import BUSY_EXIT_CODE
+from arxorter import cli, run_lock
+from arxorter.protocol import BUSY_EXIT_CODE
 
 
 @pytest.fixture

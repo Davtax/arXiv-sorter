@@ -1,7 +1,7 @@
 import subprocess
 import sys
 
-from arxiv_sorter.run_lock import RunLock, is_running
+from arxorter.run_lock import RunLock, is_running
 
 
 def test_only_one_run_holds_the_lock(tmp_path):
@@ -19,7 +19,7 @@ def test_only_one_run_holds_the_lock(tmp_path):
 
 def test_the_lock_is_seen_by_other_processes(tmp_path):
     path = tmp_path / 'run.lock'
-    code = ('from pathlib import Path; from arxiv_sorter.run_lock import is_running; '
+    code = ('from pathlib import Path; from arxorter.run_lock import is_running; '
             f'print(is_running(Path({str(path)!r})))')
 
     def other_process_sees_a_run() -> bool:

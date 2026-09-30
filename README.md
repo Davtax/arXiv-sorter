@@ -1,20 +1,56 @@
-[![GitHub version](https://badge.fury.io/gh/Davtax%2FarXiv-sorter.svg)](https://github.com/Davtax/arXiv-sorter/releases/latest)
+<p align="center">
+  <a href="https://github.com/Davtax/arXorter/releases/latest">
+    <img src="logo/arxorter-icon.png" alt="arXorter logo" width="180">
+  </a>
+</p>
 
-# arXiv-sorter
+<h1 align="center">arXorter</h1>
 
-Sort the daily arXiv mail list by user keywords, and output the manuscripts in a nice markdown.
+<p align="center">
+  <b>Your daily arXiv, sorted and highlighted.</b><br>
+  <sub>Download, sort and highlight the daily arXiv submissions matching your keywords and authors.</sub>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Davtax/arXorter/releases/latest"><img src="https://img.shields.io/github/v/release/Davtax/arXorter?color=FF6B1A&label=release" alt="Latest release"></a>
+  <a href="https://github.com/Davtax/arXorter/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/Davtax/arXorter/tests.yml?branch=main&label=tests" alt="Tests"></a>
+  <img src="https://img.shields.io/badge/python-3.14%2B-FFC61A" alt="Python 3.14+">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Davtax/arXorter?color=555" alt="MIT license"></a>
+</p>
+
+<p align="center">
+  <a href="#usage">Usage</a> ·
+  <a href="#keywords">Keywords</a> ·
+  <a href="#graphical-interface">Graphical interface</a> ·
+  <a href="#development">Development</a>
+</p>
+
+---
+
+Sort the daily arXiv mail list by user keywords, and output the manuscripts in a nice Markdown.
 The program is written in Python and compiled into a binary file using [PyInstaller](https://www.pyinstaller.org/).
 
-The output file is a markdown file, which is intended to be used with the [Obsidian](https://obsidian.md/) note-taking
+> [!NOTE]
+> arXorter is an independent project, not affiliated with or endorsed by arXiv or Cornell University. Thank you to
+> arXiv for use of its open access interoperability. This product was not reviewed or approved by, nor does it
+> necessarily express or reflect the policies or opinions of, arXiv. arXiv is a registered trademark of Cornell
+> University.
+
+> [!IMPORTANT]
+> This project was renamed arXorter. The versions with the former name cannot update themselves to arXorter: turn off
+> their daily run (if it is on), delete the old program and download arXorter from the
+> [latest release](https://github.com/Davtax/arXorter/releases/latest). Its settings start empty.
+
+The output file is a Markdown file, which is intended to be used with the [Obsidian](https://obsidian.md/) note-taking
 app.
 The program creates a file for each mailing list, with the named `YYYY-MM-DD.md`, where `YYYY-MM-DD` is the date of the
 mail.
-The markdown file is inside the abstracts folder, created in the same directory as the binary file.
+The Markdown file is inside the abstracts folder, created in the same directory as the binary file.
 
-In the markdown file, each entry for the manuscript contains the title, authors list, abstract, the first figure of the
+In the Markdown file, each entry for the manuscript contains the title, authors list, abstract, the first figure of the
 manuscript, a link to the manuscript, and the date of submission.
 The user can specify keywords to search for in the manuscript's title, abstract, and authors list.
-If the manuscript contains the keywords, this manuscript will be sorted at the top of the markdown file.
+If the manuscript contains the keywords, this manuscript will be sorted at the top of the Markdown file.
 Furthermore, the matching keywords will be highlighted in the title and abstract of the manuscript.
 The color code for the highlighting is the following:
 
@@ -26,27 +62,27 @@ Below the sorted manuscripts, the program will list all the manuscripts that do 
 date of submission.
 The number close to the title is the number of total manuscripts on the mailing list, excluding the ones that have been
 updated (not new), and does not contain any keywords.
-Those manuscripts are located at the bottom of the markdown file, and no images are included in the markdown file, to
+Those manuscripts are located at the bottom of the Markdown file, and no images are included in the Markdown file, to
 speed up the web scraping process.
 Usually, those manuscripts are not interesting to the user.
 
-When reading the markdown file in Obsidian, make sure to bee in the preview mode, and not in the edit mode.
+When reading the Markdown file in Obsidian, make sure to bee in the preview mode, and not in the edit mode.
 
-The images included in the markdown file are obtained via web scraping from the experimental
+The images included in the Markdown file are obtained via web scraping from the experimental
 feature [arXiv HTML](https://info.arxiv.org/about/accessible_HTML.html).
 However, not all manuscripts are automatically converted to HTML, and the program will not be able to extract the
 image.
 
 > [!IMPORTANT]  
-> Since the program relies on the name of the markdown file to search for the latest file, do not rename the markdown
+> Since the program relies on the name of the Markdown file to search for the latest file, do not rename the Markdown
 > files.
 
 ## Usage
 
 1. (Only the first time) Install Obsidian, and configure a new Obsidian vault (or use the default one).
 2. Download the zip file of the command line program for your system from the
-   [release page](https://github.com/Davtax/arXiv-sorter/releases): `arXiv-sorter-CLI-Windows.zip`,
-   `arXiv-sorter-CLI-macOS.zip` or `arXiv-sorter-CLI-Ubuntu.zip` (or the graphical interface, see
+   [release page](https://github.com/Davtax/arXorter/releases): `arXorter-CLI-Windows.zip`,
+   `arXorter-CLI-macOS.zip` or `arXorter-CLI-Ubuntu.zip` (or the graphical interface, see
    [Graphical interface](#graphical-interface)).
 3. Extract the zip file.
 4. Place the binary file in the directory where you want to save the output file.
@@ -55,21 +91,21 @@ image.
    The content of the file should be the keywords you want to search for, one keyword per line.
    If the program is run without the keyword files, the program will create the empty files.
 6. Run the binary files.
-   The program will search for the latest file in the `abstracts` folder, and output the markdown files between that
+   The program will search for the latest file in the `abstracts` folder, and output the Markdown files between that
    date and the current date.
 
 The final directory tree should look (if using default paths) something like:
 
 ```bash
-├── arXiv-sorter
+├── arXorter
 │   ├── .obsidian
 │   │   ├── snippets
-│   │   │   └── arXiv-sorter.css  
+│   │   │   └── arXorter.css  
 │   ├── abstracts
 │   │   ├── YYYYMMDD(1).md
 │   │   ├── YYYYMMDD(2).md
 │   │   └── YYYYMMDD(3).md
-│   ├── arXiv-sorter-CLI-*
+│   ├── arXorter-CLI-*
 │   ├── authors.txt
 │   ├── categories.txt
 └── └── keywords.txt
@@ -83,9 +119,9 @@ The final directory tree should look (if using default paths) something like:
 
 > [!NOTE]  
 > On Mac, when downloading a new version, an unidentified developer warning pops up.
-> To solve that, open the program once, then go to System Settings -> Privacy & Security and click Open Anyway
-> (on macOS 14 and older, Right click -> Open -> Open also works), or run
-> `xattr -d com.apple.quarantine arXiv-sorter-CLI-macOS` in its folder.
+> To solve that, open the program once, then go to System Settings → Privacy & Security and click Open Anyway
+> (on macOS 14 and older, Right click → Open → Open also works), or run
+> `xattr -d com.apple.quarantine arXorter-CLI-macOS` in its folder.
 > Once solved, the message will disappear.
 
 > [!WARNING]  
@@ -121,7 +157,7 @@ In the graphical interface, the files can be edited with these checks while typi
 manuscripts of the latest mailing list that would match (*Edit* next to the number of keywords, authors and categories).
 
 After the program is run, the authors inside the `authors.txt` file will be sorted alphabetically by the surname.
-When searching for author, the program automatically normalize the author names provided by the user, to use unicode
+When searching for author, the program automatically normalize the author names provided by the user, to use Unicode
 characters and remove accents.
 Furthermore, the program perform a case-insensitive search for the author names.
 For example, D. Fernández becomes D. Fernandez, and A. Löwdin becomes A. Lowdin.
@@ -138,12 +174,12 @@ in between, e.g., `M[^,]* +Ares` will match M. Ares, Maria Ares, M. N. Ares, but
 A list of all possible arXiv categories can be found [here](https://arxiv.org/category_taxonomy).
 If you are interested in all the groups of a category, just write the category letters in the `categories.txt` file.
 If the same manuscript is in multiple categories, the program will print that manuscript just once.
-Cross-listed manuscripts are also printed in the markdown file.
+Cross-listed manuscripts are also printed in the Markdown file.
 
 ## CSS snippets
 
-The program can make use of the CSS snippets to format the markdown file inside Obsidian.
-The CSS snippets are located in the [snippets](https://github.com/Davtax/arXiv-sorter/tree/main/snippets) folder.
+The program can make use of the CSS snippets to format the Markdown file inside Obsidian.
+The CSS snippets are located in the [snippets](https://github.com/Davtax/arXorter/tree/main/snippets) folder.
 To install the CSS snippets, copy the content of the CSS snippets to the `.obsidian/snippets` folder in the home
 directory.
 Then, open the Obsidian app, and enable the CSS snippets in the Settings/Appearance/CSS snippets option.
@@ -154,11 +190,11 @@ In the dark mode, the colors are inverted, so the highlighting is still visible.
 
 ## Figures detection
 By default, the program will download the .PDF file of the manuscript from arXiv, and extract the first figure.
-This is saved as a .PNG file in a local folder, and linked in the markdown file.
-If the markdown file is deleted, the next execution of the program will clean up the local folder with the figures.
+This is saved as a .PNG file in a local folder, and linked in the Markdown file.
+If the Markdown file is deleted, the next execution of the program will clean up the local folder with the figures.
 The detection of the figures is done via the [PDFFigures2](https://github.com/allenai/pdffigures2) library.
 PDFFigures2 is downloaded from this repository the first time (34 MB), and kept in the configuration folder of
-arXiv-sorter (the same folder as the settings of the graphical interface, see below), so it persists when the program
+arXorter (the same folder as the settings of the graphical interface, see below), so it persists when the program
 is moved or updated.
 PDFFigures2 runs on Java, which does not need to be installed: if it is not, a Java runtime
 ([Eclipse Temurin](https://adoptium.net) 21, about 50 MB) is downloaded the first time and kept in the same folder.
@@ -180,7 +216,7 @@ However, it can be entirely disabled with the `--image` flag (see below).
 
 The messages in the terminal use colors and emojis when the terminal supports them.
 The old Windows console shows emojis as empty boxes, so there they are left out (Windows Terminal shows them).
-Set the environment variable `ARXIV_SORTER_PLAIN=1` to print plain text, or `NO_COLOR=1` to only remove the colors.
+Set the environment variable `ARXORTER_PLAIN=1` to print plain text, or `NO_COLOR=1` to only remove the colors.
 
 When running the program from the terminal, you can use the following optional arguments:
 
@@ -190,15 +226,15 @@ When running the program from the terminal, you can use the following optional a
   The default value is the current directory (`./`).
 - `--abstracts` or `-a`: Specify the directory where the abstracts are located.
   The default value is the `abstracts` folder in the current directory (`/abstracts`).
-- `--final` or `-f`: Remove the final time stamp from the markdown file.
+- `--final` or `-f`: Remove the final time stamp from the Markdown file.
 - `--update` or `-u`: If there is a new version of the program in GitHub, ask to download it and replace the binary
   with it (then run the program again). Without it, new versions are only announced.
 - `--exit` or `-e`: Exit the program without the need to press `Enter` at the end.
   This option is useful if you want to run the program in a cron job, and you don't want to keep the terminal open.
-- `--separate` or `-s`: Create a separate markdown file for each manuscript.
-  The markdown file will be located in the `abstracts` folder, inside a folder with the same date as the mailing list.
+- `--separate` or `-s`: Create a separate Markdown file for each manuscript.
+  The Markdown file will be located in the `abstracts` folder, inside a folder with the same date as the mailing list.
 - `--modify` or `-m`: Do not modify the authors file (sort and remove blank lines).
-- `--image` or `-i`: Remove the images to the markdown file.
+- `--image` or `-i`: Remove the images to the Markdown file.
   The image is the first figure in the abstract.
 - `--threads` or `-t`: Number of threads used to detect the figures, and of processes that save them as images, from 1
   (default) to the number of CPUs of the system.
@@ -212,27 +248,27 @@ When running the program from the terminal, you can use the following optional a
 
 ## Graphical interface
 
-Besides the command line, arXiv-sorter can be used from a graphical interface (built with
+Besides the command line, arXorter can be used from a graphical interface (built with
 [PySide6](https://doc.qt.io/qtforpython-6/)) that works on Windows, macOS and Linux.
-Download the archive for your system from the [release page](https://github.com/Davtax/arXiv-sorter/releases):
+Download the archive for your system from the [release page](https://github.com/Davtax/arXorter/releases):
 
-- **Windows**: `arXiv-sorter-GUI-Windows.zip`. Extract `arXiv-sorter-GUI-Windows.exe` to the folder where you want to keep
+- **Windows**: `arXorter-GUI-Windows.zip`. Extract `arXorter-GUI-Windows.exe` to the folder where you want to keep
   your files, and run it.
-- **macOS**: for Apple silicon. The easiest way is to open the Terminal in the folder where you want to keep your files
+- **macOS**: for Apple Silicon. The easiest way is to open the Terminal in the folder where you want to keep your files
   and run
 
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/Davtax/arXiv-sorter/main/scripts/install_macos.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/Davtax/arXorter/main/scripts/install_macos.sh | bash
   ```
 
-  which downloads the latest `arXiv-sorter-GUI-macOS.app` there (run it again to update it). The app is not notarized
+  which downloads the latest `arXorter-GUI-macOS.app` there (run it again to update it). The app is not notarized
   by Apple, so macOS blocks it when it is downloaded with a browser; downloaded this way, it opens directly.
-  Alternatively, download `arXiv-sorter-GUI-macOS.zip`, extract `arXiv-sorter-GUI-macOS.app` and move it to that
-  folder. Then either run `xattr -dr com.apple.quarantine arXiv-sorter-GUI-macOS.app` in that folder, or open the app,
+  Alternatively, download `arXorter-GUI-macOS.zip`, extract `arXorter-GUI-macOS.app` and move it to that
+  folder. Then either run `xattr -dr com.apple.quarantine arXorter-GUI-macOS.app` in that folder, or open the app,
   go to System Settings -> Privacy & Security and click Open Anyway.
-- **Linux**: `arXiv-sorter-GUI-Ubuntu.tar.gz`, built on Ubuntu 22.04 (it runs on distributions with glibc 2.35 or
-  newer). Extract it with `tar -xzf arXiv-sorter-GUI-Ubuntu.tar.gz` to the folder where you want to keep your files,
-  and run `./arXiv-sorter-GUI-Ubuntu`.
+- **Linux**: `arXorter-GUI-Ubuntu.tar.gz`, built on Ubuntu 22.04 (it runs on distributions with glibc 2.35 or
+  newer). Extract it with `tar -xzf arXorter-GUI-Ubuntu.tar.gz` to the folder where you want to keep your files,
+  and run `./arXorter-GUI-Ubuntu`.
   Qt requires the XCB cursor library, e.g. `sudo apt install libxcb-cursor0` on Debian and Ubuntu.
 
 On Windows and Linux the program is a single file, which unpacks itself in a temporary folder each time it starts (this
@@ -240,12 +276,12 @@ takes a few seconds), and deletes it when the window is closed.
 If the temporary folder of the system does not allow running programs (e.g. `/tmp` mounted with `noexec`), choose
 another one with the `TMPDIR` environment variable.
 
-By default, the keyword files and the abstracts are next to the program (next to `arXiv-sorter-GUI-macOS.app` on macOS), and
+By default, the keyword files and the abstracts are next to the program (next to `arXorter-GUI-macOS.app` on macOS), and
 other folders can be chosen in the window.
 From the source code (see [Development](#development)), start it with
 
 ```bash
-arxiv-sorter-gui
+arxorter-gui
 ```
 
 In the window you can:
@@ -263,16 +299,16 @@ In the window you can:
   problem*).
 - Choose a light or dark theme, or follow the one of the system (*View → Theme*, or the button in the bottom right
   corner).
-- Update to new versions: when the window opens, it checks the [latest release](https://github.com/Davtax/arXiv-sorter/releases/latest)
+- Update to new versions: when the window opens, it checks the [latest release](https://github.com/Davtax/arXorter/releases/latest)
   in the background. If there is a newer one, a message offers to **Upgrade** (it downloads the new version, replaces
   the program in its folder, and opens it again) or to **Skip** it (it is not offered again when the window opens, but
   *Help → Check for updates…* still installs it). The previous version is deleted the next time the program starts.
 
 ### Daily run in the background
 
-arXiv-sorter can run every day at a given time without opening the window: *File → Run every day…*, or the ⏰ button
+arXorter can run every day at a given time without opening the window: *File → Run every day…*, or the ⏰ button
 in the bottom right corner, which shows the current time of the daily run.
-The same dialog changes the time, or removes the daily run (untick *Run arXiv-sorter every day at*).
+The same dialog changes the time, or removes the daily run (untick *Run arXorter every day at*).
 
 The daily run uses the folders and options of the window (saved when the time is chosen, when the program runs and when
 the window closes), always from the last saved abstracts, and shows a notification when it finishes: click it to open
@@ -282,22 +318,22 @@ being off).
 
 The schedule is kept by the operating system, which runs the program with `--scheduled`:
 
-- **Windows**: the task *arXiv-sorter daily run* of the Task Scheduler, while you are logged in.
-- **macOS**: the launch agent `~/Library/LaunchAgents/io.github.davtax.arxiv-sorter.daily.plist`. It runs without
+- **Windows**: the task *arXorter daily run* of the Task Scheduler, while you are logged in.
+- **macOS**: the launch agent `~/Library/LaunchAgents/io.github.davtax.arxorter.daily.plist`. It runs without
   an icon in the Dock and without taking the focus. macOS asks once to allow its notifications, and may show a
   *Background Items Added* message. If the app is moved, opening it once updates the daily run. It cannot be
   scheduled while macOS runs the app from a temporary copy (downloaded with a browser and not moved with the Finder).
-- **Linux**: the systemd user timer `arxiv-sorter-daily.timer` (`systemctl --user list-timers`). The notification is
+- **Linux**: the systemd user timer `arxorter-daily.timer` (`systemctl --user list-timers`). The notification is
   shown with `notify-send`, when available.
 
-Only one run of arXiv-sorter works at a time: if it is already running (from the window, a terminal or the daily run),
+Only one run of arXorter works at a time: if it is already running (from the window, a terminal or the daily run),
 a new run is refused, and a daily run is skipped with a notification.
 
 If you move the program to another folder, choose the time again, so the schedule starts it from its new location.
 
 The configuration is saved when the program runs and when the window closes, and restored at the next start.
-It is stored in `settings.json` (next to PDFFigures2), inside `%LOCALAPPDATA%\arXiv-sorter` on Windows,
-`~/Library/Preferences/arXiv-sorter` on macOS, and `~/.config/arXiv-sorter` on Linux.
+It is stored in `settings.json` (next to PDFFigures2), inside `%LOCALAPPDATA%\arXorter` on Windows,
+`~/Library/Preferences/arXorter` on macOS, and `~/.config/arXorter` on Linux.
 
 ## Development
 
@@ -308,15 +344,15 @@ pip install -e ".[dev]"
 ```
 
 (`pip install -r requirements-dev.txt` does the same).
-This installs the `arxiv-sorter` command (the same optional arguments apply) and the `arxiv-sorter-gui` command, which
-can also be run as `python -m arxiv_sorter` and `python -m arxiv_sorter.gui`.
+This installs the `arxorter` command (the same optional arguments apply) and the `arxorter-gui` command, which
+can also be run as `python -m arxorter` and `python -m arxorter.gui`.
 When run from Python, the relative paths are relative to the current directory, while the binaries use the directory
 where they are located.
 
 The source code follows the [src layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/):
 
 ```bash
-src/arxiv_sorter/
+src/arxorter/
 ├── __init__.py      # Version of the program
 ├── cli.py           # Command line arguments
 ├── pipeline.py      # Main workflow: request, sort and write the entries of each day
@@ -374,7 +410,7 @@ dependencies. The folder `scripts/` contains the helper scripts of the workflows
 
 Every pull request into `main` is a release, so the changes are made in `dev` (or merged into it):
 
-1. Update `__version__` in `src/arxiv_sorter/__init__.py` in `dev`.
+1. Update `__version__` in `src/arxorter/__init__.py` in `dev`.
 2. Open a pull request from `dev` into `main`. The tests run, and then the six archives are built, tested and attested.
 3. Merge it. The release workflow creates a draft release with the archives of the pull request (they are not built
    again), their checksums (`SHA256SUMS.txt`) and the notes of the changes. Review it on GitHub and publish it, which
@@ -385,5 +421,5 @@ Each archive has a signed [build provenance](https://docs.github.com/actions/sec
 that shows it was built by the workflow in the pull request of the release. Check it with
 
 ```bash
-gh attestation verify arXiv-sorter-GUI-Windows.zip --repo Davtax/arXiv-sorter
+gh attestation verify arXorter-GUI-Windows.zip --repo Davtax/arXorter
 ```

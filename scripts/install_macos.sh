@@ -1,22 +1,22 @@
 #!/bin/bash
-# Installs (or updates) the latest arXiv-sorter-GUI-macOS.app, without the Gatekeeper warning:
+# Installs (or updates) the latest arXorter-GUI-macOS.app, without the Gatekeeper warning:
 #
-#   curl -fsSL https://raw.githubusercontent.com/Davtax/arXiv-sorter/main/scripts/install_macos.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Davtax/arXorter/main/scripts/install_macos.sh | bash
 #
 # The app is not notarized by Apple (that needs a paid developer account), so macOS blocks it when it is downloaded with
 # a browser, which marks the file as quarantined. curl does not add that mark, so the app downloaded here opens directly.
 # Its ad-hoc signature is kept, and the archive is checked against the SHA256SUMS.txt of the release.
 #
 # By default the app goes to the current folder (the keyword files and the abstracts are kept next to it). Choose
-# another folder with `bash -s -- <folder>` after the pipe, or with ARXIV_SORTER_DIR=<folder>. A previous version in
+# another folder with `bash -s -- <folder>` after the pipe, or with ARXORTER_DIR=<folder>. A previous version in
 # that folder is replaced, and the files next to it are not touched.
 set -euo pipefail
 
-repo=Davtax/arXiv-sorter
-app=arXiv-sorter-GUI-macOS.app
-archive=arXiv-sorter-GUI-macOS.zip
+repo=Davtax/arXorter
+app=arXorter-GUI-macOS.app
+archive=arXorter-GUI-macOS.zip
 url="https://github.com/$repo/releases/latest/download"
-destination=${1:-${ARXIV_SORTER_DIR:-$PWD}}
+destination=${1:-${ARXORTER_DIR:-$PWD}}
 
 if [ "$(uname -s)" != Darwin ]; then
   echo "This script is for macOS. See https://github.com/$repo/releases for the other systems." >&2

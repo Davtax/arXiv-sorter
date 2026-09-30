@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from arxiv_sorter import arxiv_api
-from arxiv_sorter.arxiv_api import _get_arxiv_feed, _sort_entries, search_entries
+from arxorter import arxiv_api
+from arxorter.arxiv_api import _get_arxiv_feed, _sort_entries, search_entries
 
 # 2026-09-21 is a Monday
 MON = datetime(2026, 9, 21, 18)

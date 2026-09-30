@@ -9,7 +9,7 @@ import subprocess
 import sys
 import time
 
-from arxiv_sorter.system import kill_process_tree
+from arxorter.system import kill_process_tree
 
 T_ALIVE = 15  # seconds the window must keep running
 
@@ -17,7 +17,7 @@ T_ALIVE = 15  # seconds the window must keep running
 def main(executable: str) -> int:
     worker = subprocess.run([executable, '--worker', '--version'], capture_output=True, text=True, timeout=120)
     print(f'Worker output: {worker.stdout.strip()!r} (exit code {worker.returncode})')
-    if worker.returncode != 0 or 'arxiv-sorter' not in worker.stdout:
+    if worker.returncode != 0 or 'arxorter' not in worker.stdout:
         print(worker.stderr)
         return 1
 

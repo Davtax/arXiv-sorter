@@ -4,7 +4,7 @@ from collections.abc import Callable
 import pytest
 from feedparser import FeedParserDict
 
-from arxiv_sorter import console, log_file, run_lock
+from arxorter import console, log_file, run_lock
 
 
 def _make_entry(

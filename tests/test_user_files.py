@@ -1,4 +1,4 @@
-from arxiv_sorter.user_files import read_user_file
+from arxorter.user_files import read_user_file
 
 
 def test_missing_file_is_created_in_nested_directory(tmp_path):

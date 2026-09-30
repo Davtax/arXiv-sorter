@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from PySide6.QtGui import QImage, QImageReader
 
-from arxiv_sorter.gui import icons
+from arxorter.gui import icons
 
 ROOT = Path(__file__).parents[1]
 
@@ -83,9 +83,9 @@ class TestMakeIcons:
 
         make_icons.make_icons(new)
 
-        assert QImage(str(icon_dir / 'arxiv-sorter.png')) == QImage(str(new))
-        assert icns_images(icon_dir / 'arxiv-sorter.icns') == make_icons.ICNS_TYPES
-        ico = read_images(icon_dir / 'arxiv-sorter.ico')
+        assert QImage(str(icon_dir / 'arxorter.png')) == QImage(str(new))
+        assert icns_images(icon_dir / 'arxorter.icns') == make_icons.ICNS_TYPES
+        ico = read_images(icon_dir / 'arxorter.ico')
         assert sorted(image.width() for image in ico) == list(make_icons.ICO_SIZES)
         assert ico[0].pixelColor(8, 8).name() == '#2060c0'  # Scaled from the new image
         assert capsys.readouterr().out.count('Written') == 3
@@ -99,7 +99,7 @@ class TestMakeIcons:
 
         with pytest.raises(SystemExit, match='square and at least 1024'):
             make_icons.make_icons(new)
-        assert not (icon_dir / 'arxiv-sorter.png').exists()
+        assert not (icon_dir / 'arxorter.png').exists()
 
     def test_not_an_image(self, make_icons, icon_dir, tmp_path):
         new = tmp_path / 'new.png'

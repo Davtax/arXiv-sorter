@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from arxiv_sorter import system
+from arxorter import system
 
 
 @pytest.fixture
@@ -24,13 +24,13 @@ def test_current_directory_when_run_from_python(monkeypatch, tmp_path):
 
 
 def test_next_to_the_binary(frozen, tmp_path):
-    frozen(tmp_path / 'arXiv-sorter-Windows.exe')
+    frozen(tmp_path / 'arXorter-Windows.exe')
 
     assert system.base_dir() == tmp_path
 
 
 def test_next_to_the_macos_app_bundle(frozen, tmp_path):
-    frozen(tmp_path / 'arXiv-sorter.app' / 'Contents' / 'MacOS' / 'arXiv-sorter')
+    frozen(tmp_path / 'arXorter.app' / 'Contents' / 'MacOS' / 'arXorter')
 
     assert system.base_dir() == tmp_path
 
@@ -38,9 +38,9 @@ def test_next_to_the_macos_app_bundle(frozen, tmp_path):
 def test_home_folder_for_translocated_macos_app(frozen, tmp_path, monkeypatch):
     monkeypatch.setattr(system.Path, 'home', lambda: tmp_path / 'home')
     (tmp_path / 'home').mkdir()
-    frozen(tmp_path / 'AppTranslocation' / 'd' / 'arXiv-sorter.app' / 'Contents' / 'MacOS' / 'arXiv-sorter')
+    frozen(tmp_path / 'AppTranslocation' / 'd' / 'arXorter.app' / 'Contents' / 'MacOS' / 'arXorter')
 
-    assert system.base_dir() == tmp_path / 'home' / 'arXiv-sorter'
+    assert system.base_dir() == tmp_path / 'home' / 'arXorter'
     assert system.base_dir().is_dir()
 
 
@@ -74,10 +74,10 @@ class TestProcessTree:
 
 class TestConfigDir:
     @pytest.mark.parametrize(('platform', 'environment', 'expected'), [
-        ('win32', {'LOCALAPPDATA': 'local'}, Path('local') / 'arXiv-sorter'),
-        ('darwin', {}, Path('home') / 'Library' / 'Preferences' / 'arXiv-sorter'),
-        ('linux', {}, Path('home') / '.config' / 'arXiv-sorter'),
-        ('linux', {'XDG_CONFIG_HOME': 'xdg'}, Path('xdg') / 'arXiv-sorter'),
+        ('win32', {'LOCALAPPDATA': 'local'}, Path('local') / 'arXorter'),
+        ('darwin', {}, Path('home') / 'Library' / 'Preferences' / 'arXorter'),
+        ('linux', {}, Path('home') / '.config' / 'arXorter'),
+        ('linux', {'XDG_CONFIG_HOME': 'xdg'}, Path('xdg') / 'arXorter'),
     ])
     def test_platform_folder(self, monkeypatch, platform, environment, expected):
         monkeypatch.setattr(system.sys, 'platform', platform)
@@ -100,10 +100,10 @@ class TestConfigDir:
 
 class TestOriginalPath:
     def test_not_translocated_unchanged(self, tmp_path):
-        assert system.original_path(tmp_path / 'arXiv-sorter.app') == tmp_path / 'arXiv-sorter.app'
+        assert system.original_path(tmp_path / 'arXorter.app') == tmp_path / 'arXorter.app'
 
     def test_unknown_translocation_unchanged(self, tmp_path):
         # Not a real translocation: the Security framework does not know it (and other systems do not have it)
-        path = tmp_path / 'AppTranslocation' / 'ID' / 'd' / 'arXiv-sorter.app'
+        path = tmp_path / 'AppTranslocation' / 'ID' / 'd' / 'arXorter.app'
         path.mkdir(parents=True)
         assert system.original_path(path) == path

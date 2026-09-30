@@ -6,9 +6,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from arxiv_sorter import console, figures
-from arxiv_sorter.figures import PDFFIGURES2_PATH, detect_figure, extract_figures
-from arxiv_sorter.protocol import PROGRESS_TAG
+from arxorter import console, figures
+from arxorter.figures import PDFFIGURES2_PATH, detect_figure, extract_figures
+from arxorter.protocol import PROGRESS_TAG
 
 
 class FakePdffigures2:

@@ -1,7 +1,7 @@
 """
-Make the icon files of arXiv-sorter from a square PNG image of at least 1024 × 1024 pixels (e.g. exported from
-logo/arxiv-sorter-icon.af). The image replaces the PNG of the application icon, and the .icns (macOS app) and .ico
-(Windows executable) files next to it are made from it, all in src/arxiv_sorter/gui/app-icon.
+Make the icon files of arXorter from a square PNG image of at least 1024 × 1024 pixels (e.g. exported from
+logo/arxorter-icon.af). The image replaces the PNG of the application icon, and the .icns (macOS app) and .ico
+(Windows executable) files next to it are made from it, all in src/arxorter/gui/app-icon.
 
 Usage: python scripts/make_icons.py [path to the PNG image]
 Without an image, the icon files are made again from the current PNG.
@@ -14,7 +14,7 @@ from pathlib import Path
 from PySide6.QtCore import QBuffer, QIODevice, Qt
 from PySide6.QtGui import QImage
 
-from arxiv_sorter.gui.icons import APP_ICON_ICNS, APP_ICON_ICO, APP_ICON_PNG
+from arxorter.gui.icons import APP_ICON_ICNS, APP_ICON_ICO, APP_ICON_PNG
 
 MIN_SIZE = 1024  # pixels, the largest image of the .icns file
 ICO_SIZES = (16, 24, 32, 48, 64, 128, 256)  # Windows, up to 256 pixels

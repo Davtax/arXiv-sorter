@@ -2,9 +2,9 @@ import io
 
 import pytest
 
-from arxiv_sorter import console
-from arxiv_sorter.console import Progressbar, question
-from arxiv_sorter.protocol import LOG_TAG, PROGRESS_TAG, QUESTION_TAG, WRITTEN_TAG
+from arxorter import console
+from arxorter.console import Progressbar, question
+from arxorter.protocol import LOG_TAG, PROGRESS_TAG, QUESTION_TAG, WRITTEN_TAG
 
 
 class TestQuestion:
@@ -90,7 +90,7 @@ class TestDetectStyle:
         (True, {}, 'win32', console.Style(icons=False, colors=True)),  # Old Windows console
         (True, {'WT_SESSION': 'id'}, 'win32', console.Style(icons=True, colors=True)),  # Windows Terminal
         (False, {}, 'win32', console.Style(icons=True, colors=False)),  # Piped, e.g. to the GUI or a log file
-        (True, {'ARXIV_SORTER_PLAIN': '1'}, 'linux', console.Style(icons=False, colors=False)),
+        (True, {'ARXORTER_PLAIN': '1'}, 'linux', console.Style(icons=False, colors=False)),
     ])
     def test_terminals(self, tty, environment, platform, expected):
         assert console.detect_style(FakeStream(tty), environment, platform) == expected

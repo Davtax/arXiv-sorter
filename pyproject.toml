@@ -3,7 +3,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "arxiv-sorter"
+name = "arxorter"
 dynamic = ["version"]
 description = "Download, sort and highlight the daily arXiv submissions matching your keywords and authors."
 readme = "README.md"
@@ -24,22 +24,22 @@ dependencies = [
 dev = ["pytest", "pytest-cov", "pytest-qt", "ruff", "mypy", "types-requests", "types-pytz"]
 
 [project.scripts]
-arxiv-sorter = "arxiv_sorter.cli:main"
+arxorter = "arxorter.cli:main"
 
 [project.gui-scripts]
-arxiv-sorter-gui = "arxiv_sorter.gui:main"
+arxorter-gui = "arxorter.gui:main"
 
 [project.urls]
-Homepage = "https://github.com/Davtax/arXiv-sorter"
+Homepage = "https://github.com/Davtax/arXorter"
 
 [tool.setuptools.dynamic]
-version = { attr = "arxiv_sorter.__version__" }
+version = { attr = "arxorter.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"arxiv_sorter.gui" = ["app-icon/*"]  # The application icon
+"arxorter.gui" = ["app-icon/*"]  # The application icon
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -54,7 +54,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["arxiv_sorter"]
+source = ["arxorter"]
 branch = true
 
 [tool.coverage.report]
@@ -87,7 +87,7 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 ignore = ["SIM108"]  # ternaries are not always clearer
 
 [tool.ruff.lint.isort]
-known-first-party = ["arxiv_sorter"]
+known-first-party = ["arxorter"]
 
 [tool.ruff.format]
 quote-style = "preserve"

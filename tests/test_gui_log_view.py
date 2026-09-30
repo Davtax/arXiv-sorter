@@ -12,9 +12,9 @@ QtWidgets = pytest.importorskip('PySide6.QtWidgets')
 QtCore = pytest.importorskip('PySide6.QtCore')
 QtGui = pytest.importorskip('PySide6.QtGui')
 
-from arxiv_sorter.gui import log_view as log_view_module  # noqa: E402
-from arxiv_sorter.gui.log_view import COLORS, LogView, linkify  # noqa: E402
-from arxiv_sorter.gui.theme import dark_palette  # noqa: E402
+from arxorter.gui import log_view as log_view_module  # noqa: E402
+from arxorter.gui.log_view import COLORS, LogView, linkify  # noqa: E402
+from arxorter.gui.theme import dark_palette  # noqa: E402
 
 
 def light_palette():
@@ -24,8 +24,8 @@ def light_palette():
     for role in (palette.ColorRole.Text, palette.ColorRole.WindowText):
         palette.setColor(role, QtGui.QColor('#000000'))
     return palette
-from arxiv_sorter.gui.summary import Outcome, WrittenFile, final_message  # noqa: E402
-from arxiv_sorter.protocol import Level  # noqa: E402
+from arxorter.gui.summary import Outcome, WrittenFile, final_message  # noqa: E402
+from arxorter.protocol import Level  # noqa: E402
 
 
 @pytest.fixture(scope='module')

@@ -3,7 +3,7 @@ from datetime import datetime
 
 import pytest
 
-from arxiv_sorter.formatting import (
+from arxorter.formatting import (
     _fix_equation_inner,
     _remove_white_spaces,
     fix_entry,
@@ -122,7 +122,7 @@ class TestWriteDocument:
         text = (tmp_path / '2026-09-24.md').read_text(encoding='utf-8')
         assert [line for line in text.splitlines() if line.startswith('(')] == ['(1 / 2)', '(2 / 2)', '(1 / 1)']
         assert text.count('<img') == 1
-        assert text.rstrip().endswith('with arXiv-sorter version: 1.2.3*')
+        assert text.rstrip().endswith('with arXorter version: 1.2.3*')
 
     def test_joined_file_without_footer(self, tmp_path, entries):
         write_document(entries, datetime(2026, 9, 24), tmp_path, final=False, separate_files=False,

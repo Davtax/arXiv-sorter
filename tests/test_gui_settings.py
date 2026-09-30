@@ -1,8 +1,8 @@
 import pytest
 
-from arxiv_sorter.cli import parse_args
-from arxiv_sorter.gui import settings as settings_module
-from arxiv_sorter.gui.settings import Settings
+from arxorter.cli import parse_args
+from arxorter.gui import settings as settings_module
+from arxorter.gui.settings import Settings
 
 
 class TestSettingsFile:

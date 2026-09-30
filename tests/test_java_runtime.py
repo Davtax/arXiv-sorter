@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from arxiv_sorter import java_runtime
+from arxorter import java_runtime
 
 JAVA_NAME = 'java.exe' if sys.platform == 'win32' else 'java'
 TOP_FOLDER = 'jdk-21.0.8+9-jre'

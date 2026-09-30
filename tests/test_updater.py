@@ -9,8 +9,8 @@ import zipfile
 import pytest
 import requests
 
-from arxiv_sorter import updater
-from arxiv_sorter.updater import Release, UpdateCancelled, UpdateError
+from arxorter import updater
+from arxorter.updater import Release, UpdateCancelled, UpdateError
 
 
 class FakeResponse:
@@ -40,15 +40,15 @@ class FakeResponse:
 
 RELEASE = {
     'tag_name': 'v1.0.0',
-    'html_url': 'https://github.com/Davtax/arXiv-sorter/releases/tag/v1.0.0',
+    'html_url': 'https://github.com/Davtax/arXorter/releases/tag/v1.0.0',
     'body': 'New features',
     'assets': [
-        {'name': 'arXiv-sorter-GUI-Windows.zip', 'browser_download_url': 'https://example.org/gui-windows.zip',
+        {'name': 'arXorter-GUI-Windows.zip', 'browser_download_url': 'https://example.org/gui-windows.zip',
          'size': 3, 'digest': 'sha256:abc'},
-        {'name': 'arXiv-sorter-CLI-Windows.zip', 'browser_download_url': 'https://example.org/windows.zip'},
-        {'name': 'arXiv-sorter-CLI-Ubuntu.zip', 'browser_download_url': 'https://example.org/ubuntu.zip'},
-        {'name': 'arXiv-sorter-macOS.zip', 'browser_download_url': 'https://example.org/old-name-macos.zip'},
-        {'name': 'arXiv-sorter-GUI-Ubuntu.tar.gz', 'browser_download_url': 'https://example.org/gui-ubuntu.tar.gz'},
+        {'name': 'arXorter-CLI-Windows.zip', 'browser_download_url': 'https://example.org/windows.zip'},
+        {'name': 'arXorter-CLI-Ubuntu.zip', 'browser_download_url': 'https://example.org/ubuntu.zip'},
+        {'name': 'arXorter-macOS.zip', 'browser_download_url': 'https://example.org/old-name-macos.zip'},
+        {'name': 'arXorter-GUI-Ubuntu.tar.gz', 'browser_download_url': 'https://example.org/gui-ubuntu.tar.gz'},
     ],
 }
 
@@ -87,7 +87,7 @@ def tar_bytes(files: dict[str, bytes]) -> bytes:
     return buffer.getvalue()
 
 
-def release_for(content: bytes, asset: str = 'arXiv-sorter-GUI-Windows.zip', **kwargs) -> Release:
+def release_for(content: bytes, asset: str = 'arXorter-GUI-Windows.zip', **kwargs) -> Release:
     return Release(version='v1.0.0', url=f'https://example.org/{asset}', asset=asset, **kwargs)
 
 
@@ -121,7 +121,7 @@ class TestCheckForUpdate:
     def test_size_and_digest_of_the_asset(self, github):
         github.append(FakeResponse(json_data=RELEASE))
         release = updater.check_for_update('Windows', '0.9.0', gui=True)
-        assert (release.asset, release.size, release.digest) == ('arXiv-sorter-GUI-Windows.zip', 3, 'sha256:abc')
+        assert (release.asset, release.size, release.digest) == ('arXorter-GUI-Windows.zip', 3, 'sha256:abc')
 
     @pytest.mark.parametrize('current', ['1.0.0', '1.0.1'])
     def test_up_to_date(self, github, current):
@@ -131,7 +131,7 @@ class TestCheckForUpdate:
     def test_missing_platform_asset(self, github, capsys, verbose):
         github.append(FakeResponse(json_data=RELEASE))
         assert updater.check_for_update('macOS', '0.9.0') is None
-        assert 'No asset arXiv-sorter-CLI-macOS found' in capsys.readouterr().out
+        assert 'No asset arXorter-CLI-macOS found' in capsys.readouterr().out
 
     def test_no_internet(self, github, capsys):
         github.append(requests.ConnectionError())
@@ -176,7 +176,7 @@ class TestDownload:
         path = updater.download(release_for(content, size=len(content)), tmp_path,
                                 lambda received, total: progress.append((received, total)))
 
-        assert path == tmp_path / 'arXiv-sorter-GUI-Windows.zip'
+        assert path == tmp_path / 'arXorter-GUI-Windows.zip'
         assert path.read_bytes() == content
         assert progress[-1] == (len(content), len(content))
         assert len(progress) > 1
@@ -221,15 +221,15 @@ class TestDownload:
 
 class TestExtract:
     def test_zip(self, tmp_path):
-        archive = tmp_path / 'arXiv-sorter-GUI-Windows.zip'
-        archive.write_bytes(zip_bytes({'arXiv-sorter-GUI.exe': b'new'}))
+        archive = tmp_path / 'arXorter-GUI-Windows.zip'
+        archive.write_bytes(zip_bytes({'arXorter-GUI.exe': b'new'}))
         program = updater.extract(archive, tmp_path / 'out')
-        assert program.name == 'arXiv-sorter-GUI.exe'
+        assert program.name == 'arXorter-GUI.exe'
         assert program.read_bytes() == b'new'
 
     def test_tar(self, tmp_path):
-        archive = tmp_path / 'arXiv-sorter-GUI-Ubuntu.tar.gz'
-        archive.write_bytes(tar_bytes({'arXiv-sorter-GUI': b'new'}))
+        archive = tmp_path / 'arXorter-GUI-Ubuntu.tar.gz'
+        archive.write_bytes(tar_bytes({'arXorter-GUI': b'new'}))
         program = updater.extract(archive, tmp_path / 'out')
         assert program.read_bytes() == b'new'
         if os.name != 'nt':
@@ -256,9 +256,9 @@ class TestExtract:
 
 class TestReplace:
     def test_old_version_kept_aside(self, tmp_path):
-        installed = tmp_path / 'arXiv-sorter-GUI.exe'
+        installed = tmp_path / 'arXorter-GUI.exe'
         installed.write_bytes(b'old')
-        new = tmp_path / 'new' / 'arXiv-sorter-GUI.exe'
+        new = tmp_path / 'new' / 'arXorter-GUI.exe'
         new.parent.mkdir()
         new.write_bytes(b'new')
 
@@ -271,10 +271,10 @@ class TestReplace:
         assert not updater.old_version_path(installed).exists()
 
     def test_leftover_of_a_previous_update_replaced(self, tmp_path):
-        installed = tmp_path / 'arXiv-sorter.app'
+        installed = tmp_path / 'arXorter.app'
         (installed / 'Contents').mkdir(parents=True)
-        (tmp_path / 'arXiv-sorter.app.old' / 'Contents').mkdir(parents=True)
-        new = tmp_path / 'new' / 'arXiv-sorter.app'
+        (tmp_path / 'arXorter.app.old' / 'Contents').mkdir(parents=True)
+        new = tmp_path / 'new' / 'arXorter.app'
         (new / 'Contents').mkdir(parents=True)
         (new / 'Contents' / 'version').write_text('new')
 
@@ -283,7 +283,7 @@ class TestReplace:
         assert (installed / 'Contents' / 'version').read_text() == 'new'
 
     def test_restored_if_the_new_version_cannot_be_moved(self, tmp_path):
-        installed = tmp_path / 'arXiv-sorter-GUI'
+        installed = tmp_path / 'arXorter-GUI'
         installed.write_bytes(b'old')
 
         with pytest.raises(OSError):
@@ -292,14 +292,14 @@ class TestReplace:
         assert installed.read_bytes() == b'old'
 
     def test_remove_old_version_without_one(self, tmp_path):
-        updater.remove_old_version(tmp_path / 'arXiv-sorter-GUI')  # Nothing to remove, no error
+        updater.remove_old_version(tmp_path / 'arXorter-GUI')  # Nothing to remove, no error
 
 
 class TestInstallUpdate:
     def test_installed(self, github, tmp_path):
-        installed = tmp_path / 'arXiv-sorter-GUI.exe'
+        installed = tmp_path / 'arXorter-GUI.exe'
         installed.write_bytes(b'old')
-        content = zip_bytes({'arXiv-sorter-GUI.exe': b'new'})
+        content = zip_bytes({'arXorter-GUI.exe': b'new'})
         github.append(FakeResponse(content=content))
 
         program = updater.install_update(release_for(content, size=len(content)), installed=installed)
@@ -309,7 +309,7 @@ class TestInstallUpdate:
         assert not (tmp_path / updater.UPDATE_DIR).exists()
 
     def test_failed_download_keeps_the_installed_version(self, github, tmp_path):
-        installed = tmp_path / 'arXiv-sorter-GUI.exe'
+        installed = tmp_path / 'arXorter-GUI.exe'
         installed.write_bytes(b'old')
         github.append(requests.ConnectionError('offline'))
 
@@ -323,15 +323,15 @@ class TestInstallUpdate:
     def test_read_only_folder(self, tmp_path, monkeypatch):
         monkeypatch.setattr(updater.os, 'access', lambda path, mode: False)
         with pytest.raises(UpdateError, match='Unable to write'):
-            updater.install_update(release_for(b''), installed=tmp_path / 'arXiv-sorter-GUI')
+            updater.install_update(release_for(b''), installed=tmp_path / 'arXorter-GUI')
 
 
     def test_translocated_app_replaced_where_the_user_has_it(self, github, tmp_path, monkeypatch):
-        installed = tmp_path / 'arXiv-sorter-GUI.exe'
+        installed = tmp_path / 'arXorter-GUI.exe'
         installed.write_bytes(b'old')
         translocated = tmp_path / 'AppTranslocation' / 'ID' / 'd' / installed.name
         monkeypatch.setattr(updater, 'original_path', lambda path: installed if path == translocated else path)
-        content = zip_bytes({'arXiv-sorter-GUI.exe': b'new'})
+        content = zip_bytes({'arXorter-GUI.exe': b'new'})
         github.append(FakeResponse(content=content))
 
         program = updater.install_update(release_for(content, size=len(content)), installed=translocated)
@@ -340,14 +340,14 @@ class TestInstallUpdate:
         assert installed.read_bytes() == b'new'
 
     def test_translocated_app_of_unknown_location(self, tmp_path):
-        translocated = tmp_path / 'AppTranslocation' / 'ID' / 'd' / 'arXiv-sorter-GUI.app'
+        translocated = tmp_path / 'AppTranslocation' / 'ID' / 'd' / 'arXorter-GUI.app'
         with pytest.raises(UpdateError, match='Unable to write'):
             updater.install_update(release_for(b''), installed=translocated)
 
 
 @pytest.mark.skipif(sys.platform != 'darwin', reason='macOS quarantine')
 def test_quarantine_removed(tmp_path):
-    program = tmp_path / 'arXiv-sorter-GUI-macOS.app'
+    program = tmp_path / 'arXorter-GUI-macOS.app'
     (program / 'Contents').mkdir(parents=True)
     updater.subprocess.run(['xattr', '-w', 'com.apple.quarantine', '0081;00000000;Safari;', str(program)], check=True)
 
@@ -367,7 +367,7 @@ class TestLaunch:
     def test_binary(self, popen, tmp_path, monkeypatch):
         monkeypatch.setenv('LD_LIBRARY_PATH', '/tmp/_MEI123')
         monkeypatch.setenv('LD_LIBRARY_PATH_ORIG', '/usr/lib')
-        program = tmp_path / 'arXiv-sorter-GUI'
+        program = tmp_path / 'arXorter-GUI'
 
         updater.launch(program)
 
@@ -381,17 +381,17 @@ class TestLaunch:
     def test_library_path_of_pyinstaller_removed(self, popen, tmp_path, monkeypatch):
         monkeypatch.setenv('LD_LIBRARY_PATH', '/tmp/_MEI123')
         monkeypatch.delenv('LD_LIBRARY_PATH_ORIG', raising=False)
-        updater.launch(tmp_path / 'arXiv-sorter-GUI')
+        updater.launch(tmp_path / 'arXorter-GUI')
         assert 'LD_LIBRARY_PATH' not in popen[0][1]['env']
 
     def test_macos_app(self, popen, tmp_path):
-        updater.launch(tmp_path / 'arXiv-sorter.app')
-        assert popen[0][0] == ['open', '-n', str(tmp_path / 'arXiv-sorter.app')]
+        updater.launch(tmp_path / 'arXorter.app')
+        assert popen[0][0] == ['open', '-n', str(tmp_path / 'arXorter.app')]
 
 
 class TestDownloadAndUpdate:
     def test_exits_once_updated(self, monkeypatch, capsys):
-        monkeypatch.setattr(updater, 'install_update', lambda release: updater.Path('arXiv-sorter-Windows.exe'))
+        monkeypatch.setattr(updater, 'install_update', lambda release: updater.Path('arXorter-Windows.exe'))
         with pytest.raises(SystemExit):
             updater.download_and_update(release_for(b''))
         assert 'updated to v1.0.0' in capsys.readouterr().out
@@ -407,14 +407,14 @@ class TestDownloadAndUpdate:
 
 @pytest.mark.skipif(sys.platform != 'darwin', reason='ditto is only available on macOS')
 def test_extract_macos_app(tmp_path):
-    archive = tmp_path / 'arXiv-sorter-GUI-macOS.zip'
-    archive.write_bytes(zip_bytes({'arXiv-sorter.app/Contents/MacOS/arXiv-sorter': b'new'}))
+    archive = tmp_path / 'arXorter-GUI-macOS.zip'
+    archive.write_bytes(zip_bytes({'arXorter.app/Contents/MacOS/arXorter': b'new'}))
     program = updater.extract(archive, tmp_path / 'out')
-    assert program.name == 'arXiv-sorter.app'
+    assert program.name == 'arXorter.app'
 
 
-@pytest.mark.parametrize(('platform', 'gui', 'expected'), [('Windows', False, 'arXiv-sorter-CLI-Windows'),
-                                                            ('macOS', True, 'arXiv-sorter-GUI-macOS'),
-                                                            ('Ubuntu', False, 'arXiv-sorter-CLI-Ubuntu')])
+@pytest.mark.parametrize(('platform', 'gui', 'expected'), [('Windows', False, 'arXorter-CLI-Windows'),
+                                                            ('macOS', True, 'arXorter-GUI-macOS'),
+                                                            ('Ubuntu', False, 'arXorter-CLI-Ubuntu')])
 def test_the_assets_are_named_after_the_program_and_the_system(platform, gui, expected):
     assert updater.asset_name(platform, gui) == expected

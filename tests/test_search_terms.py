@@ -1,6 +1,6 @@
 import pytest
 
-from arxiv_sorter.search_terms import Kind, Problem, Severity, check_folder, check_lines
+from arxorter.search_terms import Kind, Problem, Severity, check_folder, check_lines
 
 
 class TestKeywords:

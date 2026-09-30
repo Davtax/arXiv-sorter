@@ -18,9 +18,9 @@ from pathlib import Path
 import pytest
 from packaging import version
 
-from arxiv_sorter import console, pipeline, updater
-from arxiv_sorter.gui import updates
-from arxiv_sorter.system import kill_process_tree
+from arxorter import console, pipeline, updater
+from arxorter.gui import updates
+from arxorter.system import kill_process_tree
 
 pytestmark = pytest.mark.network
 
@@ -48,7 +48,7 @@ def fake_installed_program(folder: Path, gui: bool, old_version: str) -> Path:
     if sys.platform == 'darwin' and gui:
         program = folder / f'{name}.app'
         (program / 'Contents' / 'MacOS').mkdir(parents=True)
-        (program / 'Contents' / 'MacOS' / 'arXiv-sorter').write_text(f'old {old_version}')
+        (program / 'Contents' / 'MacOS' / 'arXorter').write_text(f'old {old_version}')
         return program
 
     program = folder / (f'{name}.exe' if sys.platform == 'win32' else name)
