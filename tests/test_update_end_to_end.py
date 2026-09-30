@@ -18,14 +18,17 @@ from pathlib import Path
 import pytest
 from packaging import version
 
-from arxiv_sorter import console, pipeline, updater
-from arxiv_sorter.gui import updates
-from arxiv_sorter.system import kill_process_tree
+from arxorter import console, pipeline, updater
+from arxorter.gui import updates
+from arxorter.system import kill_process_tree
 
 pytestmark = pytest.mark.network
 
 T_ALIVE = 10  # seconds the launched GUI must keep running
 TIMEOUT = 120  # seconds for the new program to answer (the first start of a PyInstaller binary is slow)
+# First release named arXorter: the previous ones have no arXorter assets to update to, so the updates are skipped
+# until it is published
+FIRST_ARXORTER_VERSION = '0.4.0'
 
 
 def version_before(tag: str) -> str:
@@ -48,7 +51,7 @@ def fake_installed_program(folder: Path, gui: bool, old_version: str) -> Path:
     if sys.platform == 'darwin' and gui:
         program = folder / f'{name}.app'
         (program / 'Contents' / 'MacOS').mkdir(parents=True)
-        (program / 'Contents' / 'MacOS' / 'arXiv-sorter').write_text(f'old {old_version}')
+        (program / 'Contents' / 'MacOS' / 'arXorter').write_text(f'old {old_version}')
         return program
 
     program = folder / (f'{name}.exe' if sys.platform == 'win32' else name)
@@ -123,6 +126,9 @@ def old_version(latest, monkeypatch) -> str:
     """
     Pretend the running program is the version just before the latest release, so the update is found.
     """
+    if version.parse(latest['tag_name']) < version.parse(FIRST_ARXORTER_VERSION):
+        pytest.skip(f'The latest release ({latest["tag_name"]}) is from before the rename, and its assets are named '
+                    f'arXiv-sorter')
     old = version_before(latest['tag_name'])
     monkeypatch.setattr(pipeline, '__version__', old)
     monkeypatch.setattr(updates, '__version__', old)

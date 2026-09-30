@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import requests
 
-from arxiv_sorter import network
-from arxiv_sorter.network import get_image
+from arxorter import network
+from arxorter.network import get_image
 
 
 class TestGetUrlsAsync:

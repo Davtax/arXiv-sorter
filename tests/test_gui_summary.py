@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from arxiv_sorter.gui.search_files import SEARCH_FILES, count_terms, describe
-from arxiv_sorter.gui.summary import Outcome, WrittenFile, final_message, format_duration
+from arxorter.gui.search_files import SEARCH_FILES, count_terms, describe
+from arxorter.gui.summary import Outcome, WrittenFile, final_message, format_duration
 
 WRITTEN = [
     WrittenFile(Path('abstracts') / '2026-09-22.md', 103, 101),

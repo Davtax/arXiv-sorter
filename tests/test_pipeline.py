@@ -4,10 +4,10 @@ from datetime import datetime
 import pytest
 from feedparser import FeedParserDict
 
-from arxiv_sorter import pipeline
-from arxiv_sorter.cli import parse_args
-from arxiv_sorter.pipeline import MAX_SEARCHES, SearchFilesError, get_last_new
-from arxiv_sorter.updater import Release
+from arxorter import pipeline
+from arxorter.cli import parse_args
+from arxorter.pipeline import MAX_SEARCHES, SearchFilesError, get_last_new
+from arxorter.updater import Release
 
 
 @pytest.fixture
@@ -104,7 +104,7 @@ class TestRun:
 
 
 class TestFigureLimit:
-    """ARXIV_SORTER_MAX_FIGURES, set by the CI: at most that many PDFs are downloaded in a run."""
+    """ARXORTER_MAX_FIGURES, set by the CI: at most that many PDFs are downloaded in a run."""
 
     @pytest.fixture
     def run_with_figures(self, workspace, tmp_path, monkeypatch, make_entry):
@@ -185,8 +185,8 @@ def test_nothing_marked_when_every_entry_is_updated():
 
 
 class TestCheckUpdates:
-    RELEASE = Release(version='v9.9.9', url='https://example.org/arXiv-sorter-CLI-Windows.zip',
-                      asset='arXiv-sorter-CLI-Windows.zip', page='https://example.org/v9.9.9')
+    RELEASE = Release(version='v9.9.9', url='https://example.org/arXorter-CLI-Windows.zip',
+                      asset='arXorter-CLI-Windows.zip', page='https://example.org/v9.9.9')
 
     @pytest.fixture
     def updates(self, monkeypatch):
@@ -208,7 +208,7 @@ class TestCheckUpdates:
         monkeypatch.setattr(pipeline, 'is_frozen', lambda: frozen)
         pipeline._check_updates(parse_args(argv))
         assert not updates
-        assert 'A new version of arXiv-sorter is available: v9.9.9' in capsys.readouterr().out
+        assert 'A new version of arXorter is available: v9.9.9' in capsys.readouterr().out
 
     def test_not_checked_from_the_gui(self, monkeypatch):
         monkeypatch.setattr(pipeline, 'gui_mode', lambda: True)

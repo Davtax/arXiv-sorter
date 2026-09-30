@@ -2,10 +2,10 @@ from datetime import datetime
 
 import pytest
 
-from arxiv_sorter import preview
-from arxiv_sorter.formatting import fix_entry
-from arxiv_sorter.preview import custom_entry, fetch_latest, matching_entries, usable_terms
-from arxiv_sorter.search_terms import Kind
+from arxorter import preview
+from arxorter.formatting import fix_entry
+from arxorter.preview import custom_entry, fetch_latest, matching_entries, usable_terms
+from arxorter.search_terms import Kind
 
 
 @pytest.fixture

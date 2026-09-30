@@ -4,11 +4,11 @@ from datetime import time
 
 import pytest
 
-from arxiv_sorter import scheduler
-from arxiv_sorter.protocol import SCHEDULED_FLAG
-from arxiv_sorter.scheduler import Command
+from arxorter import scheduler
+from arxorter.protocol import SCHEDULED_FLAG
+from arxorter.scheduler import Command
 
-COMMAND = Command('C:/Program Files/arXiv-sorter/arXiv-sorter-GUI.exe', [SCHEDULED_FLAG, 'a & b'], 'C:/My <folder>')
+COMMAND = Command('C:/Program Files/arXorter/arXorter-GUI.exe', [SCHEDULED_FLAG, 'a & b'], 'C:/My <folder>')
 
 
 class TestWindows:
@@ -21,7 +21,7 @@ class TestWindows:
 
     def test_the_command_is_escaped(self):
         xml = scheduler.windows_task_xml(time(7, 5), COMMAND)
-        assert '<Command>C:/Program Files/arXiv-sorter/arXiv-sorter-GUI.exe</Command>' in xml
+        assert '<Command>C:/Program Files/arXorter/arXorter-GUI.exe</Command>' in xml
         assert f'<Arguments>{SCHEDULED_FLAG} "a &amp; b"</Arguments>' in xml
         assert '<WorkingDirectory>C:/My &lt;folder&gt;</WorkingDirectory>' in xml
         assert '<UserId>' not in xml
@@ -51,8 +51,8 @@ class TestMacOS:
 
     def test_a_moved_app_is_scheduled_again_where_it_is_now(self, tmp_path, monkeypatch):
         path = tmp_path / 'agent.plist'
-        path.write_bytes(scheduler.launchd_plist(time(6, 0), Command('/old/place/arXiv-sorter', [SCHEDULED_FLAG], '/')))
-        now = Command('/new/place/arXiv-sorter', [SCHEDULED_FLAG], '/new')
+        path.write_bytes(scheduler.launchd_plist(time(6, 0), Command('/old/place/arXorter', [SCHEDULED_FLAG], '/')))
+        now = Command('/new/place/arXorter', [SCHEDULED_FLAG], '/new')
         rescheduled = []
         monkeypatch.setattr(sys, 'platform', 'darwin')
         monkeypatch.setattr(sys, 'frozen', True, raising=False)
@@ -69,8 +69,8 @@ class TestMacOS:
 
     def test_a_translocated_app_is_not_scheduled(self, monkeypatch):
         monkeypatch.setattr(sys, 'frozen', True, raising=False)
-        monkeypatch.setattr(sys, 'executable', '/private/var/folders/x/AppTranslocation/1/d/arXiv-sorter-GUI-macOS.app/'
-                                               'Contents/MacOS/arXiv-sorter')
+        monkeypatch.setattr(sys, 'executable', '/private/var/folders/x/AppTranslocation/1/d/arXorter-GUI-macOS.app/'
+                                               'Contents/MacOS/arXorter')
         with pytest.raises(scheduler.SchedulerError, match='temporary copy'):
             scheduler.background_command()
 
@@ -83,9 +83,9 @@ class TestLinux:
         assert 'Persistent=true' in timer
 
     def test_the_command_is_quoted(self):
-        service = scheduler.systemd_units(time(8, 0), Command('/opt/arxiv sorter', ['100%'], '/home/me'))[
+        service = scheduler.systemd_units(time(8, 0), Command('/opt/my programs', ['100%'], '/home/me'))[
             f'{scheduler.SYSTEMD_UNIT}.service']
-        assert 'ExecStart="/opt/arxiv sorter" "100%%"' in service
+        assert 'ExecStart="/opt/my programs" "100%%"' in service
         assert 'WorkingDirectory=/home/me' in service
 
     def test_the_time_is_read_from_the_timer(self, tmp_path, monkeypatch):
@@ -99,9 +99,10 @@ class TestLinux:
 def test_the_background_command_runs_the_gui_in_scheduled_mode():
     command = scheduler.background_command()
     assert command.arguments[-1] == SCHEDULED_FLAG
-    assert command.arguments[:2] == ['-m', 'arxiv_sorter.gui']  # Not frozen in the tests
+    assert command.arguments[:2] == ['-m', 'arxorter.gui']  # Not frozen in the tests
 
 
 def test_failures_of_the_scheduler_are_reported(monkeypatch):
     with pytest.raises(scheduler.SchedulerError, match='Unable to run'):
-        scheduler._run(['a-program-that-does-not-exist-arxiv-sorter'])
+        scheduler._run(['a-program-that-does-not-exist-arxorter'])
+

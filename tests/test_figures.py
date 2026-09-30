@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from arxiv_sorter import figures
-from arxiv_sorter.figures import clean_previous_figures, extract_all, extract_from_json
+from arxorter import figures
+from arxorter.figures import clean_previous_figures, extract_all, extract_from_json
 
 
 class TestExtractFromJson:
@@ -118,7 +118,6 @@ class TestCheckPdffigures2:
     def jar(self, tmp_path, monkeypatch):
         path = tmp_path / 'config' / 'pdffigures2.jar'
         monkeypatch.setattr(figures, 'PDFFIGURES2_PATH', path)
-        monkeypatch.setattr(figures, 'LEGACY_PDFFIGURES2_PATH', tmp_path / 'program' / '.arXiv_sorter' / 'old.jar')
         return path
 
     def test_existing_jar_is_not_downloaded(self, jar, monkeypatch):
@@ -136,16 +135,6 @@ class TestCheckPdffigures2:
         assert jar.read_bytes() == b'jar'
         output = capsys.readouterr().out
         assert 'only needed the first time' in output and 'saved in' in output
-
-    def test_jar_of_previous_versions_is_copied(self, jar, monkeypatch, capsys):
-        figures.LEGACY_PDFFIGURES2_PATH.parent.mkdir(parents=True)
-        figures.LEGACY_PDFFIGURES2_PATH.write_bytes(b'old jar')
-        monkeypatch.setattr(figures.requests, 'get', lambda *args, **kwargs: pytest.fail('downloaded'))
-
-        assert figures.check_pdffigure2()
-        assert jar.read_bytes() == b'old jar'
-        assert figures.LEGACY_PDFFIGURES2_PATH.exists()  # Left in place, previous versions may still use it
-        assert 'copied from' in capsys.readouterr().out
 
     def test_no_partial_file_is_left(self, jar, monkeypatch):
         response = SimpleNamespace(content=b'jar', raise_for_status=lambda: None)

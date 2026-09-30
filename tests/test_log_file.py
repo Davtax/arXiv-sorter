@@ -1,6 +1,6 @@
 import pytest
 
-from arxiv_sorter import cli, console, log_file
+from arxorter import cli, console, log_file
 
 
 def test_messages_and_details_are_logged(capsys):

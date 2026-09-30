@@ -9,7 +9,7 @@ if sys.platform.startswith('linux') and not (os.environ.get('DISPLAY') or os.env
 QtWidgets = pytest.importorskip('PySide6.QtWidgets')
 QtGui = pytest.importorskip('PySide6.QtGui')
 
-from arxiv_sorter.gui.theme import apply_theme, is_dark  # noqa: E402
+from arxorter.gui.theme import apply_theme, is_dark  # noqa: E402
 
 ACTIVE, INACTIVE = QtGui.QPalette.ColorGroup.Active, QtGui.QPalette.ColorGroup.Inactive
 ROLES = (QtGui.QPalette.ColorRole.Accent, QtGui.QPalette.ColorRole.Highlight, QtGui.QPalette.ColorRole.Button)

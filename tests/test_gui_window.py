@@ -16,16 +16,16 @@ if sys.platform.startswith('linux') and not (os.environ.get('DISPLAY') or os.env
 QtCore = pytest.importorskip('PySide6.QtCore')
 pytest.importorskip('pytestqt')
 
-from arxiv_sorter import run_lock, scheduler  # noqa: E402
-from arxiv_sorter.gui import background  # noqa: E402
-from arxiv_sorter.gui import updates as updates_module  # noqa: E402
-from arxiv_sorter.gui import window as window_module  # noqa: E402
-from arxiv_sorter.gui.search_editor import SearchFilesEditor, abstract_excerpt, highlighted_html  # noqa: E402
-from arxiv_sorter.gui.summary import Outcome, WrittenFile  # noqa: E402
-from arxiv_sorter.protocol import BUSY_EXIT_CODE, LOG_TAG, PROGRESS_TAG, WRITTEN_TAG  # noqa: E402
-from arxiv_sorter.search_terms import Kind  # noqa: E402
-from arxiv_sorter.sorting import AbstractEnclosure  # noqa: E402
-from arxiv_sorter.updater import Release, UpdateError  # noqa: E402
+from arxorter import run_lock, scheduler  # noqa: E402
+from arxorter.gui import background  # noqa: E402
+from arxorter.gui import updates as updates_module  # noqa: E402
+from arxorter.gui import window as window_module  # noqa: E402
+from arxorter.gui.search_editor import SearchFilesEditor, abstract_excerpt, highlighted_html  # noqa: E402
+from arxorter.gui.summary import Outcome, WrittenFile  # noqa: E402
+from arxorter.protocol import BUSY_EXIT_CODE, LOG_TAG, PROGRESS_TAG, WRITTEN_TAG  # noqa: E402
+from arxorter.search_terms import Kind  # noqa: E402
+from arxorter.sorting import AbstractEnclosure  # noqa: E402
+from arxorter.updater import Release, UpdateError  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -90,7 +90,7 @@ def win(make_window):
 
 
 def finish(win, exit_code=0, exit_status=QtCore.QProcess.ExitStatus.NormalExit):
-    """Simulate the end of the arXiv-sorter process."""
+    """Simulate the end of the arXorter process."""
     win.process = QtCore.QProcess(win)
     win.set_running(True)
     win.process_finished(exit_code, exit_status)
@@ -221,7 +221,7 @@ class TestBackground:
         notifications = []
         monkeypatch.setattr(background.BackgroundRun, 'notify', lambda run, *message: notifications.append(message))
         run = background.BackgroundRun(window_module.Settings(keywords_dir='k', abstracts_dir='a'))
-        run.handle_line(f'{LOG_TAG}error\t⏳\tarXiv-sorter is already running')
+        run.handle_line(f'{LOG_TAG}error\t⏳\tarXorter is already running')
         run.process_finished(BUSY_EXIT_CODE, QtCore.QProcess.ExitStatus.NormalExit)
 
         assert notifications[0][0].endswith('daily run skipped')
@@ -378,8 +378,8 @@ class TestTheme:
 
 
 
-RELEASE = Release(version='v9.9.9', url='https://example.org/arXiv-sorter-GUI-Windows.zip',
-                  asset='arXiv-sorter-GUI-Windows.zip', page='https://example.org/v9.9.9', notes='New features')
+RELEASE = Release(version='v9.9.9', url='https://example.org/arXorter-GUI-Windows.zip',
+                  asset='arXorter-GUI-Windows.zip', page='https://example.org/v9.9.9', notes='New features')
 
 
 @pytest.fixture
@@ -457,7 +457,7 @@ class TestUpdates:
         assert win.update_checker is None and not offered  # Older than this version
 
     def test_installed_then_restarted(self, win, qtbot, monkeypatch, tmp_path):
-        program = tmp_path / 'arXiv-sorter-GUI.exe'
+        program = tmp_path / 'arXorter-GUI.exe'
         monkeypatch.setattr(updates_module, 'install_update', lambda release, progress: program)
         launched, quit_calls = [], []
         monkeypatch.setattr(window_module, 'launch', launched.append)
@@ -529,8 +529,8 @@ class TestSearchFilesEditor:
         assert tab.editor.textCursor().blockNumber() == 1
 
     def test_preview_uses_the_unsaved_terms(self, editor, make_entry):
-        from arxiv_sorter.formatting import fix_entry
-        from arxiv_sorter.preview import LatestSubmissions
+        from arxorter.formatting import fix_entry
+        from arxorter.preview import LatestSubmissions
 
         entries = [make_entry(arxiv_id='1v1', title='Germanium holes'), make_entry(arxiv_id='2v1', title='Other')]
         for entry in entries:
@@ -641,6 +641,22 @@ class TestDatePicker:
         qtbot.mouseClick(calendar.today_button, QtCore.Qt.MouseButton.LeftButton)
         qtbot.waitUntil(lambda: not calendar.isVisible())
         assert edit.date() == QtCore.QDate.currentDate()
+
+    def test_closing_the_calendar_leaves_no_text_cursor(self, win, qtbot, monkeypatch):
+        # Qt gives the focus back to the date edit when the calendar closes (only while the window is active, so it
+        # is simulated): the date edit drops it
+        win.custom_dates_radio.setChecked(True)
+        win.show()
+        qtbot.waitExposed(win)
+        edit = win.date_f_edit
+        dropped = []
+        monkeypatch.setattr(edit, 'hasFocus', lambda: True)
+        monkeypatch.setattr(edit, 'clearFocus', lambda: dropped.append(True))
+        edit.open_calendar()
+        calendar = edit.calendarWidget()
+        qtbot.waitUntil(calendar.isVisible)
+        calendar.choose_today()
+        qtbot.waitUntil(lambda: dropped == [True])
 
     def test_the_last_day_is_after_the_first_one(self, win):
         win.date_0_edit.setDate(QtCore.QDate(2026, 9, 1))

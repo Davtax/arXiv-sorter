@@ -20,7 +20,7 @@ env:
   PYTHON_VERSION: '3.14'
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
   # The test runs detect a single figure, instead of downloading every PDF of the mailing list from arXiv
-  ARXIV_SORTER_MAX_FIGURES: '1'
+  ARXORTER_MAX_FIGURES: '1'
 
 jobs:
   tests:
@@ -75,19 +75,19 @@ jobs:
       matrix:
         include:
           # Linux binaries only run on systems with the same or a newer glibc, so they are built on an older Ubuntu
-          # The programs are named after the system, e.g. arXiv-sorter-CLI-Windows.exe and arXiv-sorter-GUI-Windows.exe
+          # The programs are named after the system, e.g. arXorter-CLI-Windows.exe and arXorter-GUI-Windows.exe
           - os: ubuntu-22.04
             name: Ubuntu
-            gui_program: arXiv-sorter-GUI-Ubuntu
-            gui_executable: gui-dist/arXiv-sorter-GUI-Ubuntu
+            gui_program: arXorter-GUI-Ubuntu
+            gui_executable: gui-dist/arXorter-GUI-Ubuntu
           - os: windows-latest
             name: Windows
-            gui_program: arXiv-sorter-GUI-Windows.exe
-            gui_executable: gui-dist/arXiv-sorter-GUI-Windows.exe
+            gui_program: arXorter-GUI-Windows.exe
+            gui_executable: gui-dist/arXorter-GUI-Windows.exe
           - os: macos-latest
             name: macOS
-            gui_program: arXiv-sorter-GUI-macOS.app
-            gui_executable: gui-dist/arXiv-sorter-GUI-macOS.app/Contents/MacOS/arXiv-sorter
+            gui_program: arXorter-GUI-macOS.app
+            gui_executable: gui-dist/arXorter-GUI-macOS.app/Contents/MacOS/arXorter
     defaults:
       run:
         shell: bash
@@ -116,7 +116,7 @@ jobs:
         run: python run.py -v -d searches_test -f -e
 
       - name: Build the command line binary
-        run: pyinstaller --onefile --paths src -n "arXiv-sorter-CLI-${{ matrix.name }}" run.py
+        run: pyinstaller --onefile --paths src -n "arXorter-CLI-${{ matrix.name }}" run.py
 
       # With 2 threads, the figures are also extracted by other processes, which the binary starts from itself
       # Without the certificates of the Python that built it (which the users do not have), so the binary must use its own
@@ -124,23 +124,24 @@ jobs:
         env:
           SSL_CERT_FILE: /nonexistent
           SSL_CERT_DIR: /nonexistent
-        run: dist/arXiv-sorter-CLI-${{ matrix.name }} -v -d ../searches_test -f -e -t 2
+        run: dist/arXorter-CLI-${{ matrix.name }} -v -d ../searches_test -f -e -t 2
 
       - name: Upload the command line binary
         uses: actions/upload-artifact@v7
         with:
-          name: arXiv-sorter-CLI-${{ matrix.name }}
+          name: arXorter-CLI-${{ matrix.name }}
           path: dist/  # With the abstracts of the test run, compared between the systems
           if-no-files-found: error
           retention-days: 14
 
-      # GUI: a single executable (an .app bundle on macOS), see packaging/arxiv-sorter-gui.spec
-      - name: Build the GUI
-        run: pyinstaller packaging/arxiv-sorter-gui.spec --distpath gui-dist --workpath gui-build --noconfirm
-
+      # GUI: a single executable (an .app bundle on macOS), see packaging/arxorter-gui.spec
+      # Before the build, since the spec imports PySide6.QtGui, which needs libEGL
       - name: Install Qt runtime libraries
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libxcb-cursor0 libfontconfig1 libdbus-1-3
+
+      - name: Build the GUI
+        run: pyinstaller packaging/arxorter-gui.spec --distpath gui-dist --workpath gui-build --noconfirm
 
       - name: Test the GUI binary
         run: python scripts/smoke_test_gui.py "${{ matrix.gui_executable }}"
@@ -150,35 +151,35 @@ jobs:
       - name: Package the GUI (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path gui-dist/${{ matrix.gui_program }} -DestinationPath arXiv-sorter-GUI-Windows.zip
+        run: Compress-Archive -Path gui-dist/${{ matrix.gui_program }} -DestinationPath arXorter-GUI-Windows.zip
 
       - name: Package the GUI (macOS)
         if: runner.os == 'macOS'
-        run: ditto -c -k --sequesterRsrc --keepParent gui-dist/${{ matrix.gui_program }} arXiv-sorter-GUI-macOS.zip
+        run: ditto -c -k --sequesterRsrc --keepParent gui-dist/${{ matrix.gui_program }} arXorter-GUI-macOS.zip
 
       - name: Package the GUI (Linux)
         if: runner.os == 'Linux'
-        run: tar -czf arXiv-sorter-GUI-Ubuntu.tar.gz -C gui-dist ${{ matrix.gui_program }}
+        run: tar -czf arXorter-GUI-Ubuntu.tar.gz -C gui-dist ${{ matrix.gui_program }}
 
       # The command line binary is compressed on each system too, to keep its executable permission
       - name: Package the command line binary (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path dist/arXiv-sorter-CLI-Windows.exe -DestinationPath arXiv-sorter-CLI-Windows.zip
+        run: Compress-Archive -Path dist/arXorter-CLI-Windows.exe -DestinationPath arXorter-CLI-Windows.zip
 
       - name: Package the command line binary (macOS and Linux)
         if: runner.os != 'Windows'
-        run: zip -j "arXiv-sorter-CLI-${{ matrix.name }}.zip" "dist/arXiv-sorter-CLI-${{ matrix.name }}"
+        run: zip -j "arXorter-CLI-${{ matrix.name }}.zip" "dist/arXorter-CLI-${{ matrix.name }}"
 
       # Signed record that the archives were built by this workflow from this commit, checked with
-      # `gh attestation verify <file> --repo Davtax/arXiv-sorter`
+      # `gh attestation verify <file> --repo Davtax/arXorter`
       - name: Attest the build provenance
         if: env.RELEASE == 'true'
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
-            arXiv-sorter-CLI-${{ matrix.name }}.zip
-            arXiv-sorter-GUI-${{ matrix.name }}.*
+            arXorter-CLI-${{ matrix.name }}.zip
+            arXorter-GUI-${{ matrix.name }}.*
 
       # The archives of the release (downloaded by the release workflow): both programs of the system
       - name: Upload the archives
@@ -186,8 +187,8 @@ jobs:
         with:
           name: release-${{ matrix.name }}
           path: |
-            arXiv-sorter-CLI-${{ matrix.name }}.zip
-            arXiv-sorter-GUI-${{ matrix.name }}.*
+            arXorter-CLI-${{ matrix.name }}.zip
+            arXorter-GUI-${{ matrix.name }}.*
           if-no-files-found: error
           compression-level: 0  # Already compressed
           retention-days: 14
@@ -209,22 +210,22 @@ jobs:
       - name: Download the results of the command line binaries
         uses: actions/download-artifact@v8
         with:
-          pattern: arXiv-sorter-CLI-*
+          pattern: arXorter-CLI-*
           path: binaries
 
       - name: Compare the abstracts written on each system
         working-directory: binaries
         run: |
           shopt -s nullglob
-          files=(arXiv-sorter-CLI-Ubuntu/abstracts/*.md)
+          files=(arXorter-CLI-Ubuntu/abstracts/*.md)
           if [ ${#files[@]} -eq 0 ]; then
             echo "::error::No abstracts were written by the test run on Ubuntu"
             exit 1
           fi
           for file in "${files[@]}"; do
             name=$(basename "$file")
-            python ../scripts/same_files.py "$file" "arXiv-sorter-CLI-Windows/abstracts/$name" \
-              "arXiv-sorter-CLI-macOS/abstracts/$name"
+            python ../scripts/same_files.py "$file" "arXorter-CLI-Windows/abstracts/$name" \
+              "arXorter-CLI-macOS/abstracts/$name"
           done
 
       # The pull requests are built from a merge with main, so the release workflow checks that the merged commit has

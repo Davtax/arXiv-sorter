@@ -64,9 +64,9 @@ jobs:
             echo "::error::main changed after the build of the pull request, so the archives are not of the merged commit"
             exit 1
           fi
-          version=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' src/arxiv_sorter/__init__.py)
+          version=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' src/arxorter/__init__.py)
           if [ -z "$version" ]; then
-            echo "::error::No __version__ = \"...\" found in src/arxiv_sorter/__init__.py"
+            echo "::error::No __version__ = \"...\" found in src/arxorter/__init__.py"
             exit 1
           fi
           if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
@@ -82,9 +82,9 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
           TARGET: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
-          sha256sum arXiv-sorter-*.zip arXiv-sorter-*.tar.gz > SHA256SUMS.txt
+          sha256sum arXorter-*.zip arXorter-*.tar.gz > SHA256SUMS.txt
           cat SHA256SUMS.txt
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --target "$TARGET" --generate-notes \
-            --title "arXiv-sorter $TAG" \
-            arXiv-sorter-CLI-Ubuntu.zip arXiv-sorter-CLI-Windows.zip arXiv-sorter-CLI-macOS.zip \
-            arXiv-sorter-GUI-Ubuntu.tar.gz arXiv-sorter-GUI-Windows.zip arXiv-sorter-GUI-macOS.zip SHA256SUMS.txt
+            --title "arXorter $TAG" \
+            arXorter-CLI-Ubuntu.zip arXorter-CLI-Windows.zip arXorter-CLI-macOS.zip \
+            arXorter-GUI-Ubuntu.tar.gz arXorter-GUI-Windows.zip arXorter-GUI-macOS.zip SHA256SUMS.txt
