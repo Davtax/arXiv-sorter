@@ -135,12 +135,13 @@ jobs:
           retention-days: 14
 
       # GUI: a single executable (an .app bundle on macOS), see packaging/arxorter-gui.spec
-      - name: Build the GUI
-        run: pyinstaller packaging/arxorter-gui.spec --distpath gui-dist --workpath gui-build --noconfirm
-
+      # Before the build, since the spec imports PySide6.QtGui, which needs libEGL
       - name: Install Qt runtime libraries
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libxcb-cursor0 libfontconfig1 libdbus-1-3
+
+      - name: Build the GUI
+        run: pyinstaller packaging/arxorter-gui.spec --distpath gui-dist --workpath gui-build --noconfirm
 
       - name: Test the GUI binary
         run: python scripts/smoke_test_gui.py "${{ matrix.gui_executable }}"
