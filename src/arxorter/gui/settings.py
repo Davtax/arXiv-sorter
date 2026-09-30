@@ -23,7 +23,6 @@ class Settings:
 
     images: bool = True  # --image removes them
     threads: int = 1  # To detect the figures, limited to the CPUs of the system when loaded
-    final_date: bool = True  # --final removes it
     separate: bool = False
     sort_authors: bool = True  # --modify disables it
     update: bool = False
@@ -79,8 +78,6 @@ class Settings:
             args += ['--threads', str(self.threads)]
         else:
             args.append('--image')
-        if not self.final_date:
-            args.append('--final')
         if self.separate:
             args.append('--separate')
         if not self.sort_authors:

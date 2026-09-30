@@ -50,13 +50,14 @@ class TestCliArgs:
         assert args.date0 is None and args.datef is None
 
     def test_every_option_is_translated(self):
-        settings = Settings(keywords_dir='k', abstracts_dir='a', images=False, final_date=False, separate=True,
+        settings = Settings(keywords_dir='k', abstracts_dir='a', images=False, separate=True,
                             sort_authors=False, update=True, verbose=True,
                             custom_dates=True, date_0='2026-09-01', date_f='2026-09-10')
 
         args = parse_args(settings.to_cli_args())
 
-        assert not (args.image or args.final or args.modify)
+        assert args.final  # The timestamp is always added
+        assert not (args.image or args.modify)
         assert args.separate and args.update and args.verbose
         assert (args.date0, args.datef) == ('20260901', '20260910')
 

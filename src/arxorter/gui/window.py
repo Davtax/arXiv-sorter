@@ -478,8 +478,6 @@ class MainWindow(QMainWindow):
         self.images_check.setToolTip('Download the PDFs and extract their first figure (Java is downloaded the first '
                                      'time if it is not installed). Slower, and arXiv may limit the downloads (untick '
                                      'for --image)')
-        self.final_date_check = QCheckBox('Add a timestamp at the end of the Markdown file')
-        self.final_date_check.setToolTip('Untick for --final')
         self.separate_check = QCheckBox('Create a separate file for each submission')
         self.separate_check.setToolTip('A folder per mailing list, with a Markdown file per submission (--separate)')
         self.sort_authors_check = QCheckBox('Sort authors.txt and remove its blank lines')
@@ -506,8 +504,7 @@ class MainWindow(QMainWindow):
 
         box.addWidget(self.images_check)
         box.addLayout(threads_row)
-        for check in (self.final_date_check, self.separate_check, self.sort_authors_check,
-                      self.verbose_check):
+        for check in (self.separate_check, self.sort_authors_check, self.verbose_check):
             box.addWidget(check)
         box.addStretch()
 
@@ -714,9 +711,9 @@ class MainWindow(QMainWindow):
     def current_settings(self) -> Settings:
         return Settings(keywords_dir=self.keywords_selector.path(), abstracts_dir=self.abstracts_selector.path(),
                         images=self.images_check.isChecked(), threads=self.threads_spin.value(),
-                        final_date=self.final_date_check.isChecked(), separate=self.separate_check.isChecked(),
-                        sort_authors=self.sort_authors_check.isChecked(), update=False,
-                        verbose=self.verbose_check.isChecked(), custom_dates=self.custom_dates_radio.isChecked(),
+                        separate=self.separate_check.isChecked(), sort_authors=self.sort_authors_check.isChecked(),
+                        update=False, verbose=self.verbose_check.isChecked(),
+                        custom_dates=self.custom_dates_radio.isChecked(),
                         date_0=self.date_0_edit.date().toString(Qt.DateFormat.ISODate),
                         date_f=self.date_f_edit.date().toString(Qt.DateFormat.ISODate), theme=self.theme,
                         skipped_version=self.skipped_version,
@@ -730,7 +727,6 @@ class MainWindow(QMainWindow):
         self.images_check.setChecked(settings.images)
         self.threads_spin.setValue(settings.threads)
         self._update_threads_enabled()
-        self.final_date_check.setChecked(settings.final_date)
         self.separate_check.setChecked(settings.separate)
         self.sort_authors_check.setChecked(settings.sort_authors)
         self.verbose_check.setChecked(settings.verbose)
@@ -981,8 +977,8 @@ class MainWindow(QMainWindow):
         self.stop_button.setEnabled(running)
         for selector in (self.keywords_selector, self.abstracts_selector):
             selector.set_editable(not running)
-        for widget in (self.auto_dates_radio, self.custom_dates_radio, self.images_check, self.final_date_check,
-                       self.separate_check, self.sort_authors_check, self.verbose_check, *self.edit_buttons):
+        for widget in (self.auto_dates_radio, self.custom_dates_radio, self.images_check, self.separate_check,
+                       self.sort_authors_check, self.verbose_check, *self.edit_buttons):
             widget.setEnabled(not running)
         self._update_threads_enabled()
         self._update_dates_enabled()
