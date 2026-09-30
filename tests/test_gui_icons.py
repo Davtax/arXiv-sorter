@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from PySide6.QtGui import QImage, QImageReader
+from PySide6.QtGui import QColor, QImage, QImageReader
 
 from arxorter.gui import icons
 
@@ -89,6 +89,34 @@ class TestMakeIcons:
         assert sorted(image.width() for image in ico) == list(make_icons.ICO_SIZES)
         assert ico[0].pixelColor(8, 8).name() == '#2060c0'  # Scaled from the new image
         assert capsys.readouterr().out.count('Written') == 3
+
+    def test_macos_icon_is_on_a_white_squircle(self, make_icons, icon_dir, tmp_path):
+        new = tmp_path / 'new.png'
+        image = QImage(1024, 1024, QImage.Format.Format_ARGB32)
+        image.fill(0)  # Transparent, with a blue rectangle in the middle
+        for x in range(400, 600):
+            for y in range(450, 550):
+                image.setPixelColor(x, y, QColor('#2060c0'))
+        image.save(str(new))
+
+        make_icons.make_icons(new)
+
+        data = (icon_dir / 'arxorter.icns').read_bytes()
+        start = data.index(b'ic10') + 8
+        icon = QImage.fromData(data[start:start + struct.unpack('>I', data[start - 4:start])[0] - 8], 'PNG')
+        assert icon.pixelColor(10, 10).alpha() == 0  # Outside the squircle
+        assert icon.pixelColor(512, 130).name() == '#ffffff'  # Inside the squircle, around the image
+        assert icon.pixelColor(512, 512).name() == '#2060c0'  # The visible part of the image, enlarged
+        assert icon.pixelColor(200, 512).name() == '#2060c0'
+        assert QImage(str(icon_dir / 'arxorter.png')).pixelColor(200, 512).alpha() == 0  # Only on macOS
+
+    def test_visible_rect(self, make_icons):
+        image = QImage(64, 64, QImage.Format.Format_ARGB32)
+        image.fill(0)
+        assert make_icons.visible_rect(image) == image.rect()  # Nothing visible
+        image.setPixelColor(10, 20, QColor('red'))
+        image.setPixelColor(30, 5, QColor('red'))
+        assert make_icons.visible_rect(image).getCoords() == (10, 5, 30, 20)
 
     @pytest.mark.parametrize('width, height', [(512, 512), (1024, 800)])
     def test_image_too_small_or_not_square(self, make_icons, icon_dir, tmp_path, width, height):
