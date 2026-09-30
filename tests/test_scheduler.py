@@ -1,4 +1,5 @@
 import plistlib
+import sys
 from datetime import time
 
 import pytest
@@ -47,6 +48,31 @@ class TestMacOS:
         assert scheduler._launchd_time() is None
         path.write_bytes(scheduler.launchd_plist(time(6, 0), COMMAND))
         assert scheduler._launchd_time() == time(6, 0)
+
+    def test_a_moved_app_is_scheduled_again_where_it_is_now(self, tmp_path, monkeypatch):
+        path = tmp_path / 'agent.plist'
+        path.write_bytes(scheduler.launchd_plist(time(6, 0), Command('/old/place/arXiv-sorter', [SCHEDULED_FLAG], '/')))
+        now = Command('/new/place/arXiv-sorter', [SCHEDULED_FLAG], '/new')
+        rescheduled = []
+        monkeypatch.setattr(sys, 'platform', 'darwin')
+        monkeypatch.setattr(sys, 'frozen', True, raising=False)
+        monkeypatch.setattr(scheduler, 'launchd_plist_path', lambda: path)
+        monkeypatch.setattr(scheduler, 'background_command', lambda: now)
+        monkeypatch.setattr(scheduler, '_launchd_schedule', lambda at, command: rescheduled.append((at, command)))
+
+        scheduler.follow_program()
+        assert rescheduled == [(time(6, 0), now)]
+
+        path.write_bytes(scheduler.launchd_plist(time(6, 0), now))
+        scheduler.follow_program()
+        assert len(rescheduled) == 1  # Already there
+
+    def test_a_translocated_app_is_not_scheduled(self, monkeypatch):
+        monkeypatch.setattr(sys, 'frozen', True, raising=False)
+        monkeypatch.setattr(sys, 'executable', '/private/var/folders/x/AppTranslocation/1/d/arXiv-sorter-GUI-macOS.app/'
+                                               'Contents/MacOS/arXiv-sorter')
+        with pytest.raises(scheduler.SchedulerError, match='temporary copy'):
+            scheduler.background_command()
 
 
 class TestLinux:

@@ -113,6 +113,19 @@ class TestRunning:
         assert len(opened) == 1
 
 
+    def test_folders_can_be_opened_but_not_changed_during_a_run(self, win):
+        win.process = QtCore.QProcess(win)
+        win.set_running(True)
+        for selector in (win.keywords_selector, win.abstracts_selector):
+            assert selector.open_button.isEnabled()
+            assert not selector.line_edit.isEnabled()
+            assert not selector.browse_button.isEnabled()
+
+        win.process_finished(0, QtCore.QProcess.ExitStatus.NormalExit)
+        assert win.abstracts_selector.line_edit.isEnabled()
+        assert win.abstracts_selector.browse_button.isEnabled()
+
+
 class TestSchedule:
     @pytest.fixture
     def choose(self, monkeypatch):
@@ -603,3 +616,48 @@ def test_abstract_excerpt():
 
 def test_outcome_enum_is_used(win):
     assert Outcome.FINISHED.value == 'finished'
+
+
+class TestDatePicker:
+    def test_both_calendars_shade_the_chosen_range(self, win):
+        start, end = QtCore.QDate(2026, 9, 7), QtCore.QDate(2026, 9, 18)
+        win.date_0_edit.setDate(start)
+        win.date_f_edit.setDate(end)
+        for edit in (win.date_0_edit, win.date_f_edit):
+            calendar = edit.calendarWidget()
+            assert (calendar.range_start, calendar.range_end) == (start, end)
+
+    def test_today_closes_the_popup_with_the_date(self, win, qtbot):
+        win.custom_dates_radio.setChecked(True)
+        win.date_f_edit.setDate(QtCore.QDate.currentDate().addDays(-10))
+        win.show()
+        qtbot.waitExposed(win)
+        edit = win.date_f_edit
+        # A click on the arrow opens the calendar popup
+        arrow = QtCore.QPoint(edit.width() - 8, edit.height() // 2)
+        qtbot.mouseClick(edit, QtCore.Qt.MouseButton.LeftButton, pos=arrow)
+        calendar = edit.calendarWidget()
+        qtbot.waitUntil(calendar.isVisible)
+        qtbot.mouseClick(calendar.today_button, QtCore.Qt.MouseButton.LeftButton)
+        qtbot.waitUntil(lambda: not calendar.isVisible())
+        assert edit.date() == QtCore.QDate.currentDate()
+
+    def test_the_last_day_is_after_the_first_one(self, win):
+        win.date_0_edit.setDate(QtCore.QDate(2026, 9, 1))
+        win.date_f_edit.setDate(QtCore.QDate(2026, 9, 10))
+        win.date_0_edit.setDate(QtCore.QDate(2026, 9, 14))  # After the last day, which moves to the next day
+        assert win.date_f_edit.minimumDate() == QtCore.QDate(2026, 9, 15)
+        assert win.date_f_edit.date() == QtCore.QDate(2026, 9, 15)
+        assert win.date_0_edit.maximumDate() < QtCore.QDate.currentDate()
+
+    def test_choosing_the_first_day_opens_the_calendar_of_the_last_one(self, win, qtbot):
+        win.custom_dates_radio.setChecked(True)
+        win.show()
+        qtbot.waitExposed(win)
+        win.date_0_edit.open_calendar()
+        start_calendar, end_calendar = win.date_0_edit.calendarWidget(), win.date_f_edit.calendarWidget()
+        qtbot.waitUntil(start_calendar.isVisible)
+        start_calendar.choose_today()  # As a click on a day
+        qtbot.waitUntil(end_calendar.isVisible)
+        assert not start_calendar.isVisible()
+        assert end_calendar.chooses == 'end'

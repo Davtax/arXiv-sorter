@@ -1,3 +1,4 @@
+import html
 import os
 import sys
 from pathlib import Path
@@ -8,8 +9,10 @@ import pytest
 if sys.platform.startswith('linux') and not (os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY')):
     os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 QtWidgets = pytest.importorskip('PySide6.QtWidgets')
+QtCore = pytest.importorskip('PySide6.QtCore')
 QtGui = pytest.importorskip('PySide6.QtGui')
 
+from arxiv_sorter.gui import log_view as log_view_module  # noqa: E402
 from arxiv_sorter.gui.log_view import COLORS, LogView, linkify  # noqa: E402
 from arxiv_sorter.gui.theme import dark_palette  # noqa: E402
 
@@ -37,6 +40,37 @@ class TestLinkify:
     def test_links_without_trailing_punctuation(self):
         assert linkify('Install it from https://adoptium.net.') == (
             'Install it from <a href="https://adoptium.net">https://adoptium.net</a>.')
+
+
+class TestPathLinks:
+    def test_path_with_spaces_without_the_rest_of_the_sentence(self, tmp_path):
+        folder = tmp_path / 'my abstracts'
+        folder.mkdir()
+
+        result = linkify(f'Abstracts are saved in {folder}. Done')
+
+        assert result.startswith('Abstracts are saved in <a href="')
+        assert result.endswith(f'>{html.escape(str(folder))}</a>. Done')
+
+    def test_path_in_quotes(self, tmp_path):
+        script = tmp_path / 'run.py'
+        script.touch()
+
+        assert f'>{html.escape(str(script))}</a>&quot;, line 12' in linkify(f'File "{script}", line 12, in main')
+
+    def test_paths_that_do_not_exist_are_not_links(self, tmp_path):
+        assert '<a' not in linkify(f'Missing {tmp_path / "nothing here"} and 3 / 4 and and/or')
+
+    def test_programs_open_their_folder(self, monkeypatch, tmp_path):
+        opened = []
+        monkeypatch.setattr(log_view_module.QDesktopServices, 'openUrl', opened.append)
+        program = tmp_path / 'python.exe'
+        note = tmp_path / '2026-09-22.md'
+
+        LogView.open_link(QtCore.QUrl.fromLocalFile(str(program)))
+        LogView.open_link(QtCore.QUrl.fromLocalFile(str(note)))
+
+        assert [Path(url.toLocalFile()) for url in opened] == [tmp_path, note]
 
 
 class TestLogView:
@@ -74,6 +108,13 @@ class TestLogView:
         view.redraw()
 
         assert 'old' not in view.toPlainText()
+
+    def test_paths_in_the_output_are_links(self, app, tmp_path):
+        view = LogView()
+
+        view.add_plain(f'  File "{tmp_path}", line 1')
+
+        assert Path(tmp_path).as_posix() in view.toHtml()
 
     def test_summary_links_the_files(self, app, tmp_path):
         view = LogView()

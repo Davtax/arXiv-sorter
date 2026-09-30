@@ -87,7 +87,7 @@ jobs:
           - os: macos-latest
             name: macOS
             gui_program: arXiv-sorter-GUI-macOS.app
-            gui_executable: gui-dist/arXiv-sorter-GUI-macOS.app/Contents/MacOS/arXiv-sorter-GUI-macOS
+            gui_executable: gui-dist/arXiv-sorter-GUI-macOS.app/Contents/MacOS/arXiv-sorter
     defaults:
       run:
         shell: bash

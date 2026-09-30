@@ -2,6 +2,7 @@
 Main window of the GUI. arXiv-sorter itself runs in a separate process, whose messages are shown in the window.
 """
 import codecs
+import contextlib
 import os
 import sys
 import time
@@ -10,7 +11,19 @@ from datetime import date, datetime
 from datetime import time as time_of_day
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QDate, QEvent, QProcess, QProcessEnvironment, QSize, Qt, QTimer, QUrl
+from PySide6.QtCore import (
+    QByteArray,
+    QDate,
+    QEvent,
+    QPoint,
+    QPointF,
+    QProcess,
+    QProcessEnvironment,
+    QSize,
+    Qt,
+    QTimer,
+    QUrl,
+)
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -19,6 +32,7 @@ from PySide6.QtGui import (
     QDesktopServices,
     QFont,
     QKeySequence,
+    QMouseEvent,
     QPaintEvent,
     QPalette,
 )
@@ -51,6 +65,7 @@ from PySide6.QtWidgets import (
 )
 
 from arxiv_sorter import __version__, scheduler
+from arxiv_sorter.gui.date_picker import DatePicker
 from arxiv_sorter.gui.icons import app_icon, run_icon, stop_icon
 from arxiv_sorter.gui.log_view import COLORS, LogView, is_dark
 from arxiv_sorter.gui.schedule import ScheduleDialog, describe_schedule
@@ -218,6 +233,26 @@ class DateEdit(QDateEdit):
             combo_box.state &= ~QStyle.StateFlag.State_Enabled
         QStylePainter(self).drawComplexControl(QStyle.ComplexControl.CC_ComboBox, combo_box)
 
+    def open_calendar(self):
+        """
+        Open the calendar popup, as a click on the arrow does (QDateEdit has no function for it), so it is positioned
+        and connected by Qt.
+        """
+        if not self.isEnabled() or not self.calendarPopup() or self.calendarWidget().isVisible():
+            return
+        option = QStyleOptionComboBox()
+        option.initFrom(self)
+        option.editable = True
+        option.subControls = QStyle.SubControl.SC_All
+        arrow = self.style().subControlRect(QStyle.ComplexControl.CC_ComboBox, option,
+                                            QStyle.SubControl.SC_ComboBoxArrow, self)
+        position = QPointF(arrow.center() if arrow.isValid() else QPoint(self.width() - 8, self.height() // 2))
+        for kind in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease):
+            event = QMouseEvent(kind, position, self.mapToGlobal(position), Qt.MouseButton.LeftButton,
+                                Qt.MouseButton.LeftButton if kind == QEvent.Type.MouseButtonPress
+                                else Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier)
+            QApplication.sendEvent(self, event)
+
 
 class PathSelector(QWidget):
     """
@@ -230,24 +265,31 @@ class PathSelector(QWidget):
 
         self.line_edit = QLineEdit()
         self.line_edit.setClearButtonEnabled(True)
-        browse_button = QPushButton('Browse…')
-        browse_button.setToolTip('Choose the folder')
-        browse_button.clicked.connect(self.browse)
-        open_button = QPushButton() if MACOS else QToolButton()
-        open_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
+        self.browse_button = QPushButton('Browse…')
+        self.browse_button.setToolTip('Choose the folder')
+        self.browse_button.clicked.connect(self.browse)
+        self.open_button = QPushButton() if MACOS else QToolButton()
+        self.open_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
         if MACOS:  # Only as wide as the icon, instead of the minimum width of the push buttons
-            open_button.setFixedWidth(48)
-        open_button.setToolTip('Open the folder in the file manager')
-        open_button.clicked.connect(self.open_folder)
+            self.open_button.setFixedWidth(48)
+        self.open_button.setToolTip('Open the folder in the file manager')
+        self.open_button.clicked.connect(self.open_folder)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.line_edit, stretch=1)
-        layout.addWidget(browse_button)
-        layout.addWidget(open_button)
+        layout.addWidget(self.browse_button)
+        layout.addWidget(self.open_button)
 
     def path(self) -> str:
         return self.line_edit.text().strip()
+
+    def set_editable(self, editable: bool):
+        """
+        Allow changing the folder or not. It can always be opened in the file manager, e.g. during a run.
+        """
+        self.line_edit.setEnabled(editable)
+        self.browse_button.setEnabled(editable)
 
     def set_path(self, path: str):
         self.line_edit.setText(path)
@@ -364,10 +406,21 @@ class MainWindow(QMainWindow):
 
         today = QDate.currentDate()
         self.date_0_edit = self._date_edit(today.addDays(-7))
+        self.date_0_edit.setMaximumDate(today.addDays(-1))  # The range ends on a later day
         self.date_0_edit.setToolTip('First mailing list to request (--date0)')
         self.date_f_edit = self._date_edit(today)
         self.date_f_edit.setToolTip('Submissions are requested until the arXiv deadline (14:00 ET) of this day, so its '
                                     'own mailing list is not included (--datef)')
+
+        for edit in (self.date_0_edit, self.date_f_edit):  # Both calendars shade the range between the two dates
+            edit.dateChanged.connect(self._update_date_range)
+        self._update_date_range()
+        # As in the date pickers of booking websites: once the first day is chosen, the calendar of the last one opens,
+        # and hovering a day previews the range
+        start_calendar, end_calendar = self.date_0_edit.calendarWidget(), self.date_f_edit.calendarWidget()
+        if isinstance(start_calendar, DatePicker) and isinstance(end_calendar, DatePicker):
+            start_calendar.chooses, end_calendar.chooses = 'start', 'end'
+            start_calendar.clicked.connect(lambda _date: QTimer.singleShot(0, self.date_f_edit.open_calendar))
 
         grid.addWidget(self.auto_dates_radio, 0, 0, 1, 4)
         grid.addWidget(hint_label('Continues after the last mailing list saved in the abstracts folder.'), 1, 0, 1, 4)
@@ -389,6 +442,7 @@ class MainWindow(QMainWindow):
     def _date_edit(value: QDate) -> DateEdit:
         edit = DateEdit(value)
         edit.setCalendarPopup(True)
+        edit.setCalendarWidget(DatePicker())
         edit.setDisplayFormat(DATE_FORMAT)
         edit.setMaximumDate(QDate.currentDate())
         if MACOS:
@@ -591,6 +645,8 @@ class MainWindow(QMainWindow):
             self.schedule_button = schedule_button
         self.schedule_button.setToolTip('Run arXiv-sorter every day in the background, change the time, or stop it')
         self.schedule_button.clicked.connect(self.edit_schedule)
+        with contextlib.suppress(scheduler.SchedulerError):  # Shown as it is, and can be scheduled from the dialog
+            scheduler.follow_program()
         self.refresh_schedule()
 
         self.statusBar().addPermanentWidget(self.elapsed_label)
@@ -619,6 +675,15 @@ class MainWindow(QMainWindow):
         enabled = self.images_check.isChecked() and self.run_button.isEnabled()
         self.threads_spin.setEnabled(enabled)
         self.threads_label.setEnabled(enabled)
+
+    def _update_date_range(self, *_):
+        # The last day comes after the first one (a later first day moves it): the days before cannot be chosen
+        self.date_f_edit.setMinimumDate(self.date_0_edit.date().addDays(1))
+        start, end = self.date_0_edit.date(), self.date_f_edit.date()
+        for edit in (self.date_0_edit, self.date_f_edit):
+            calendar = edit.calendarWidget()
+            if isinstance(calendar, DatePicker):
+                calendar.set_range(start, end)
 
     def _update_dates_enabled(self):
         # The dates (and their labels) only matter for a custom range, and cannot change during a run
@@ -898,9 +963,10 @@ class MainWindow(QMainWindow):
     def set_running(self, running: bool):
         self.run_button.setEnabled(not running)
         self.stop_button.setEnabled(running)
-        for widget in (self.keywords_selector, self.abstracts_selector, self.auto_dates_radio, self.custom_dates_radio,
-                       self.images_check, self.final_date_check, self.separate_check, self.sort_authors_check,
-                       self.verbose_check, *self.edit_buttons):
+        for selector in (self.keywords_selector, self.abstracts_selector):
+            selector.set_editable(not running)
+        for widget in (self.auto_dates_radio, self.custom_dates_radio, self.images_check, self.final_date_check,
+                       self.separate_check, self.sort_authors_check, self.verbose_check, *self.edit_buttons):
             widget.setEnabled(not running)
         self._update_threads_enabled()
         self._update_dates_enabled()
