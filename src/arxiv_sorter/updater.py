@@ -25,7 +25,7 @@ from packaging import version
 from arxiv_sorter import console
 from arxiv_sorter.console import timing_message
 from arxiv_sorter.dates import current_utc_timestamp
-from arxiv_sorter.system import installed_path
+from arxiv_sorter.system import installed_path, is_translocated, original_path
 
 URL = 'https://api.github.com/repos/Davtax/arXiv-sorter/releases/latest'
 TIMEOUT = 10  # seconds
@@ -214,6 +214,16 @@ def extract(archive: Path, folder: Path) -> Path:
     return program
 
 
+def remove_quarantine(program: Path):
+    """
+    Remove the quarantine flag of macOS from the new program, if it has one, so it is not translocated when started
+    (the user already accepted to run the program).
+    """
+    if sys.platform == 'darwin':
+        with contextlib.suppress(OSError):
+            subprocess.run(['xattr', '-dr', 'com.apple.quarantine', str(program)], capture_output=True)
+
+
 def old_version_path(installed: Path) -> Path:
     return installed.with_name(installed.name + OLD_SUFFIX)
 
@@ -253,9 +263,9 @@ def install_update(release: Release, progress: Progress | None = None, installed
     """
     Download the release and replace the installed program with it. Returns the path of the new program.
     """
-    installed = installed or installed_path()
+    installed = original_path(installed or installed_path())  # A translocated app is replaced where the user has it
     folder = installed.parent
-    if 'AppTranslocation' in folder.parts or not os.access(folder, os.W_OK):
+    if is_translocated(folder) or not os.access(folder, os.W_OK):
         raise UpdateError(f'Unable to write in {folder}. Move {installed.name} to a folder of yours (e.g. '
                           'Applications on macOS) and try again, or download the new version from GitHub.')
 
@@ -265,6 +275,7 @@ def install_update(release: Release, progress: Progress | None = None, installed
         staging.mkdir()
         archive = download(release, staging, progress)
         new = extract(archive, staging / 'extracted')
+        remove_quarantine(new)
         replace(installed, new)
     except OSError as error:
         raise UpdateError(f'Unable to install the new version in {folder}: {error}') from error

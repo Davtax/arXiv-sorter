@@ -55,6 +55,54 @@ def installed_path() -> Path:
     return next((parent for parent in executable.parents if parent.suffix == '.app'), executable)
 
 
+def is_translocated(path: Path) -> bool:
+    """
+    Whether macOS runs the app from a random read-only location (App Translocation), which it does for a quarantined
+    app (e.g. just downloaded) that the user has not moved.
+    """
+    return 'AppTranslocation' in path.parts
+
+
+def original_path(path: Path) -> Path:
+    """
+    Where a translocated app really is (the path the user sees in the Finder), found with the Security framework. The
+    path is returned unchanged if it is not translocated, or the original location is not known.
+    """
+    if sys.platform != 'darwin' or not is_translocated(path):
+        return path
+
+    import ctypes  # Only needed here, on macOS
+
+    try:
+        core = ctypes.CDLL('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation')
+        security = ctypes.CDLL('/System/Library/Frameworks/Security.framework/Security')
+    except OSError:
+        return path
+
+    core.CFURLCreateFromFileSystemRepresentation.restype = ctypes.c_void_p
+    core.CFURLCreateFromFileSystemRepresentation.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_long,
+                                                             ctypes.c_bool]
+    core.CFURLGetFileSystemRepresentation.restype = ctypes.c_bool
+    core.CFURLGetFileSystemRepresentation.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_char_p, ctypes.c_long]
+    core.CFRelease.argtypes = [ctypes.c_void_p]
+    security.SecTranslocateCreateOriginalPathForURL.restype = ctypes.c_void_p
+    security.SecTranslocateCreateOriginalPathForURL.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+
+    encoded = os.fsencode(path)
+    url = core.CFURLCreateFromFileSystemRepresentation(None, encoded, len(encoded), path.is_dir())
+    if not url:
+        return path
+    original = security.SecTranslocateCreateOriginalPathForURL(url, None)
+    core.CFRelease(url)
+    if not original:
+        return path
+
+    buffer = ctypes.create_string_buffer(4096)
+    found = core.CFURLGetFileSystemRepresentation(original, True, buffer, len(buffer))
+    core.CFRelease(original)
+    return Path(os.fsdecode(buffer.value)) if found else path
+
+
 def base_dir() -> Path:
     """
     Directory where the user files are by default: next to the binary, or the current directory when run from Python.
@@ -71,7 +119,7 @@ def base_dir() -> Path:
         return installed.parent
 
     folder = installed.parent
-    if 'AppTranslocation' not in folder.parts and os.access(folder, os.W_OK):
+    if not is_translocated(folder) and os.access(folder, os.W_OK):
         return folder
 
     fallback = Path.home() / 'arXiv-sorter'

@@ -96,3 +96,14 @@ class TestConfigDir:
         location = qt_core.QStandardPaths.StandardLocation.AppConfigLocation
 
         assert Path(qt_core.QStandardPaths.writableLocation(location)) == system.config_dir()
+
+
+class TestOriginalPath:
+    def test_not_translocated_unchanged(self, tmp_path):
+        assert system.original_path(tmp_path / 'arXiv-sorter.app') == tmp_path / 'arXiv-sorter.app'
+
+    def test_unknown_translocation_unchanged(self, tmp_path):
+        # Not a real translocation: the Security framework does not know it (and other systems do not have it)
+        path = tmp_path / 'AppTranslocation' / 'ID' / 'd' / 'arXiv-sorter.app'
+        path.mkdir(parents=True)
+        assert system.original_path(path) == path
