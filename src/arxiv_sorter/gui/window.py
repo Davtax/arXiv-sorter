@@ -2,6 +2,7 @@
 Main window of the GUI. arXiv-sorter itself runs in a separate process, whose messages are shown in the window.
 """
 import codecs
+import contextlib
 import os
 import sys
 import time
@@ -591,6 +592,8 @@ class MainWindow(QMainWindow):
             self.schedule_button = schedule_button
         self.schedule_button.setToolTip('Run arXiv-sorter every day in the background, change the time, or stop it')
         self.schedule_button.clicked.connect(self.edit_schedule)
+        with contextlib.suppress(scheduler.SchedulerError):  # Shown as it is, and can be scheduled from the dialog
+            scheduler.follow_program()
         self.refresh_schedule()
 
         self.statusBar().addPermanentWidget(self.elapsed_label)

@@ -5,8 +5,9 @@
 # a temporary folder when it starts, and the command line program it launches (the GUI binary runs itself with --worker)
 # reuses that folder.
 # macOS: an .app bundle, arXiv-sorter-GUI-macOS.app, which the Finder already shows as a single file (PyInstaller
-# deprecates single file bundles).
-# The names end with the system, like the command line binaries (arXiv-sorter-CLI-<system>) and the release assets.
+# deprecates single file bundles). The executable inside is just arXiv-sorter, the name of its processes (e.g. in the
+# Activity Monitor).
+# The file names end with the system, like the command line binaries (arXiv-sorter-CLI-<system>) and the release assets.
 import sys
 from pathlib import Path
 
@@ -64,7 +65,7 @@ a = Analysis(
 pyz = PYZ(a.pure)
 
 options = dict(
-    name=EXE_NAME,
+    name=NAME if sys.platform == 'darwin' else EXE_NAME,  # Only the bundle has the system in its name on macOS
     console=False,  # No terminal window (Windows) and a proper application (macOS)
     icon=icon,
     version=windows_version_info() if sys.platform == 'win32' else None,

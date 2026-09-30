@@ -84,7 +84,8 @@ The final directory tree should look (if using default paths) something like:
 > [!NOTE]  
 > On Mac, when downloading a new version, an unidentified developer warning pops up.
 > To solve that, open the program once, then go to System Settings -> Privacy & Security and click Open Anyway
-> (on macOS 14 and older, Right click -> Open -> Open also works).
+> (on macOS 14 and older, Right click -> Open -> Open also works), or run
+> `xattr -d com.apple.quarantine arXiv-sorter-CLI-macOS` in its folder.
 > Once solved, the message will disappear.
 
 > [!WARNING]  
@@ -217,9 +218,18 @@ Download the archive for your system from the [release page](https://github.com/
 
 - **Windows**: `arXiv-sorter-GUI-Windows.zip`. Extract `arXiv-sorter-GUI-Windows.exe` to the folder where you want to keep
   your files, and run it.
-- **macOS**: `arXiv-sorter-GUI-macOS.zip`, for Apple silicon. Extract `arXiv-sorter-GUI-macOS.app` and move it to the folder
-  where you want to keep your files. Since the app is not notarized by Apple, macOS blocks it the first time: open
-  it, then go to System Settings -> Privacy & Security and click Open Anyway.
+- **macOS**: for Apple silicon. The easiest way is to open the Terminal in the folder where you want to keep your files
+  and run
+
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/Davtax/arXiv-sorter/main/scripts/install_macos.sh | bash
+  ```
+
+  which downloads the latest `arXiv-sorter-GUI-macOS.app` there (run it again to update it). The app is not notarized
+  by Apple, so macOS blocks it when it is downloaded with a browser; downloaded this way, it opens directly.
+  Alternatively, download `arXiv-sorter-GUI-macOS.zip`, extract `arXiv-sorter-GUI-macOS.app` and move it to that
+  folder. Then either run `xattr -dr com.apple.quarantine arXiv-sorter-GUI-macOS.app` in that folder, or open the app,
+  go to System Settings -> Privacy & Security and click Open Anyway.
 - **Linux**: `arXiv-sorter-GUI-Ubuntu.tar.gz`, built on Ubuntu 22.04 (it runs on distributions with glibc 2.35 or
   newer). Extract it with `tar -xzf arXiv-sorter-GUI-Ubuntu.tar.gz` to the folder where you want to keep your files,
   and run `./arXiv-sorter-GUI-Ubuntu`.
@@ -273,7 +283,10 @@ being off).
 The schedule is kept by the operating system, which runs the program with `--scheduled`:
 
 - **Windows**: the task *arXiv-sorter daily run* of the Task Scheduler, while you are logged in.
-- **macOS**: the launch agent `~/Library/LaunchAgents/io.github.davtax.arxiv-sorter.daily.plist`.
+- **macOS**: the launch agent `~/Library/LaunchAgents/io.github.davtax.arxiv-sorter.daily.plist`. It runs without
+  an icon in the Dock and without taking the focus. macOS asks once to allow its notifications, and may show a
+  *Background Items Added* message. If the app is moved, opening it once updates the daily run. It cannot be
+  scheduled while macOS runs the app from a temporary copy (downloaded with a browser and not moved with the Finder).
 - **Linux**: the systemd user timer `arxiv-sorter-daily.timer` (`systemctl --user list-timers`). The notification is
   shown with `notify-send`, when available.
 

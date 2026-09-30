@@ -2,6 +2,7 @@
 Scheduled run of arXiv-sorter (see arxiv_sorter.scheduler): no window, the settings saved by the window, and a
 notification at the end. Clicking the notification opens the latest file written, or the log when the run failed.
 """
+import ctypes
 import os
 import shutil
 import subprocess
@@ -20,6 +21,7 @@ from arxiv_sorter.log_file import latest_log
 from arxiv_sorter.protocol import BUSY_EXIT_CODE, LOG_TAG, WRITTEN_TAG, Level
 from arxiv_sorter.system import APP_NAME, NO_WINDOW, base_dir
 
+ACCESSORY_POLICY = 1  # NSApplicationActivationPolicyAccessory
 NOTIFICATION_SECONDS = 20  # The notification can be clicked while the program waits, then it exits
 
 
@@ -134,11 +136,35 @@ class BackgroundRun(QObject):
         QApplication.quit()
 
 
+def hide_from_dock():
+    """
+    On macOS, run as an accessory app: without an icon in the Dock nor a menu bar of its own, only the icon of the
+    notification in the status bar. Qt has no function for it, so it is set with the Objective-C runtime. Nothing
+    happens if it fails: the run is the same, with the icon in the Dock.
+    """
+    if sys.platform != 'darwin':
+        return
+    # Started by launchd, not by the Finder: Qt would make it a regular app, and bring it to the front
+    os.environ['QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM'] = '1'
+    try:
+        objc = ctypes.cdll.LoadLibrary('/usr/lib/libobjc.dylib')
+        objc.objc_getClass.restype = ctypes.c_void_p
+        objc.sel_registerName.restype = ctypes.c_void_p
+        send = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)(('objc_msgSend', objc))
+        set_policy = ctypes.CFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_long)(
+            ('objc_msgSend', objc))
+        application = send(objc.objc_getClass(b'NSApplication'), objc.sel_registerName(b'sharedApplication'))
+        set_policy(application, objc.sel_registerName(b'setActivationPolicy:'), ACCESSORY_POLICY)
+    except (OSError, AttributeError):
+        pass
+
+
 def run_scheduled() -> int:
     if sys.platform.startswith('linux') and not (os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY')):
         os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')  # Started by systemd without a display
 
     set_windows_app_id()  # The notification comes from arXiv-sorter, not from Python
+    hide_from_dock()
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setApplicationVersion(__version__)

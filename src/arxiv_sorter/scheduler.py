@@ -50,6 +50,11 @@ def background_command() -> Command:
     the package importable from the working directory, even if it is not installed.
     """
     if is_frozen():
+        if 'AppTranslocation' in Path(sys.executable).parts:
+            # macOS runs a quarantined app from a random folder, removed when it quits: the daily run would not find it
+            raise SchedulerError('macOS runs arXiv-sorter from a temporary copy, since it was downloaded with a '
+                                 'browser. Move the app to another folder with the Finder (or run xattr -dr '
+                                 'com.apple.quarantine on it), open it again and then choose the daily run.')
         return Command(sys.executable, [SCHEDULED_FLAG], str(base_dir()))
 
     python = Path(sys.executable)
@@ -82,6 +87,25 @@ def schedule(at: time, command: Command | None = None):
         _launchd_schedule(at, command)
     else:
         _systemd_schedule(at, command)
+
+
+def follow_program():
+    """
+    Update the daily run when the app was moved since it was scheduled (macOS), so it does not start a program that is
+    no longer there. It is called when the window opens: the app is found again where it is now. From Python, the
+    program is the interpreter, which does not move.
+    """
+    if sys.platform != 'darwin' or not is_frozen():
+        return  # The Windows task and the systemd service keep the path too, but are not checked yet
+    at = _launchd_time()
+    if at is None:
+        return
+    try:
+        command = background_command()
+    except SchedulerError:
+        return  # Translocated copy: keep the agent of the program in its real folder
+    if _launchd_arguments() != [command.program, *command.arguments]:
+        _launchd_schedule(at, command)
 
 
 def unschedule():
@@ -207,6 +231,13 @@ def parse_launchd_time(content: bytes) -> time | None:
         interval = plistlib.loads(content)['StartCalendarInterval']
         return time(interval['Hour'], interval['Minute'])
     except (plistlib.InvalidFileException, ValueError, KeyError, TypeError):
+        return None
+
+
+def _launchd_arguments() -> list[str] | None:
+    try:
+        return plistlib.loads(launchd_plist_path().read_bytes())['ProgramArguments']
+    except (OSError, plistlib.InvalidFileException, ValueError, KeyError, TypeError):
         return None
 
 
