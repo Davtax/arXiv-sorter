@@ -95,9 +95,11 @@ def test_the_range_continues_into_the_next_month_shown(date_edit):
         point = (QtCore.QPointF(rect.center().x(), rect.top() + rect.height() * 0.2) * image.devicePixelRatio())
         return image.pixelColor(point.toPoint())  # Above the digits
 
-    assert color_of(QDate(2026, 9, 2)) != base  # Shaded
-    assert color_of(QDate(2026, 9, 3)) == picker.palette().color(QtGui.QPalette.ColorRole.Accent)  # Last day
-    assert color_of(QDate(2026, 9, 5)) == base  # After the range
+    # Compared in 8 bits, like the pixels (the system colors of macOS are in floating point)
+    accent = picker.palette().color(QtGui.QPalette.ColorRole.Accent)
+    assert color_of(QDate(2026, 9, 2)).rgb() != base.rgb()  # Shaded
+    assert color_of(QDate(2026, 9, 3)).rgb() == accent.rgb()  # Last day
+    assert color_of(QDate(2026, 9, 5)).rgb() == base.rgb()  # After the range
     picker.hide()
 
 
