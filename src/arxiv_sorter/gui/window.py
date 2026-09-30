@@ -11,7 +11,19 @@ from datetime import date, datetime
 from datetime import time as time_of_day
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QDate, QEvent, QProcess, QProcessEnvironment, QSize, Qt, QTimer, QUrl
+from PySide6.QtCore import (
+    QByteArray,
+    QDate,
+    QEvent,
+    QPoint,
+    QPointF,
+    QProcess,
+    QProcessEnvironment,
+    QSize,
+    Qt,
+    QTimer,
+    QUrl,
+)
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -20,6 +32,7 @@ from PySide6.QtGui import (
     QDesktopServices,
     QFont,
     QKeySequence,
+    QMouseEvent,
     QPaintEvent,
     QPalette,
 )
@@ -52,6 +65,7 @@ from PySide6.QtWidgets import (
 )
 
 from arxiv_sorter import __version__, scheduler
+from arxiv_sorter.gui.date_picker import DatePicker
 from arxiv_sorter.gui.icons import app_icon, run_icon, stop_icon
 from arxiv_sorter.gui.log_view import COLORS, LogView, is_dark
 from arxiv_sorter.gui.schedule import ScheduleDialog, describe_schedule
@@ -219,6 +233,26 @@ class DateEdit(QDateEdit):
             combo_box.state &= ~QStyle.StateFlag.State_Enabled
         QStylePainter(self).drawComplexControl(QStyle.ComplexControl.CC_ComboBox, combo_box)
 
+    def open_calendar(self):
+        """
+        Open the calendar popup, as a click on the arrow does (QDateEdit has no function for it), so it is positioned
+        and connected by Qt.
+        """
+        if not self.isEnabled() or not self.calendarPopup() or self.calendarWidget().isVisible():
+            return
+        option = QStyleOptionComboBox()
+        option.initFrom(self)
+        option.editable = True
+        option.subControls = QStyle.SubControl.SC_All
+        arrow = self.style().subControlRect(QStyle.ComplexControl.CC_ComboBox, option,
+                                            QStyle.SubControl.SC_ComboBoxArrow, self)
+        position = QPointF(arrow.center() if arrow.isValid() else QPoint(self.width() - 8, self.height() // 2))
+        for kind in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease):
+            event = QMouseEvent(kind, position, self.mapToGlobal(position), Qt.MouseButton.LeftButton,
+                                Qt.MouseButton.LeftButton if kind == QEvent.Type.MouseButtonPress
+                                else Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier)
+            QApplication.sendEvent(self, event)
+
 
 class PathSelector(QWidget):
     """
@@ -365,10 +399,21 @@ class MainWindow(QMainWindow):
 
         today = QDate.currentDate()
         self.date_0_edit = self._date_edit(today.addDays(-7))
+        self.date_0_edit.setMaximumDate(today.addDays(-1))  # The range ends on a later day
         self.date_0_edit.setToolTip('First mailing list to request (--date0)')
         self.date_f_edit = self._date_edit(today)
         self.date_f_edit.setToolTip('Submissions are requested until the arXiv deadline (14:00 ET) of this day, so its '
                                     'own mailing list is not included (--datef)')
+
+        for edit in (self.date_0_edit, self.date_f_edit):  # Both calendars shade the range between the two dates
+            edit.dateChanged.connect(self._update_date_range)
+        self._update_date_range()
+        # As in the date pickers of booking websites: once the first day is chosen, the calendar of the last one opens,
+        # and hovering a day previews the range
+        start_calendar, end_calendar = self.date_0_edit.calendarWidget(), self.date_f_edit.calendarWidget()
+        if isinstance(start_calendar, DatePicker) and isinstance(end_calendar, DatePicker):
+            start_calendar.chooses, end_calendar.chooses = 'start', 'end'
+            start_calendar.clicked.connect(lambda _date: QTimer.singleShot(0, self.date_f_edit.open_calendar))
 
         grid.addWidget(self.auto_dates_radio, 0, 0, 1, 4)
         grid.addWidget(hint_label('Continues after the last mailing list saved in the abstracts folder.'), 1, 0, 1, 4)
@@ -390,6 +435,7 @@ class MainWindow(QMainWindow):
     def _date_edit(value: QDate) -> DateEdit:
         edit = DateEdit(value)
         edit.setCalendarPopup(True)
+        edit.setCalendarWidget(DatePicker())
         edit.setDisplayFormat(DATE_FORMAT)
         edit.setMaximumDate(QDate.currentDate())
         if MACOS:
@@ -622,6 +668,15 @@ class MainWindow(QMainWindow):
         enabled = self.images_check.isChecked() and self.run_button.isEnabled()
         self.threads_spin.setEnabled(enabled)
         self.threads_label.setEnabled(enabled)
+
+    def _update_date_range(self, *_):
+        # The last day comes after the first one (a later first day moves it): the days before cannot be chosen
+        self.date_f_edit.setMinimumDate(self.date_0_edit.date().addDays(1))
+        start, end = self.date_0_edit.date(), self.date_f_edit.date()
+        for edit in (self.date_0_edit, self.date_f_edit):
+            calendar = edit.calendarWidget()
+            if isinstance(calendar, DatePicker):
+                calendar.set_range(start, end)
 
     def _update_dates_enabled(self):
         # The dates (and their labels) only matter for a custom range, and cannot change during a run
