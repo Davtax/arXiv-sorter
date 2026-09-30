@@ -26,6 +26,9 @@ pytestmark = pytest.mark.network
 
 T_ALIVE = 10  # seconds the launched GUI must keep running
 TIMEOUT = 120  # seconds for the new program to answer (the first start of a PyInstaller binary is slow)
+# First release named arXorter: the previous ones have no arXorter assets to update to, so the updates are skipped
+# until it is published
+FIRST_ARXORTER_VERSION = '0.4.0'
 
 
 def version_before(tag: str) -> str:
@@ -123,6 +126,9 @@ def old_version(latest, monkeypatch) -> str:
     """
     Pretend the running program is the version just before the latest release, so the update is found.
     """
+    if version.parse(latest['tag_name']) < version.parse(FIRST_ARXORTER_VERSION):
+        pytest.skip(f'The latest release ({latest["tag_name"]}) is from before the rename, and its assets are named '
+                    f'arXiv-sorter')
     old = version_before(latest['tag_name'])
     monkeypatch.setattr(pipeline, '__version__', old)
     monkeypatch.setattr(updates, '__version__', old)
