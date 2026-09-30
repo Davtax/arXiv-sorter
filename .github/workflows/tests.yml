@@ -71,7 +71,9 @@ jobs:
       - name: Compare the version with the one in main
         run: |
           git fetch --depth=1 origin main
-          git show origin/main:src/arxorter/__init__.py > "$RUNNER_TEMP/main_init.py"
+          # main keeps the package as arxiv_sorter until the rename to arxorter is merged
+          git show origin/main:src/arxorter/__init__.py > "$RUNNER_TEMP/main_init.py" 2> /dev/null ||
+            git show origin/main:src/arxiv_sorter/__init__.py > "$RUNNER_TEMP/main_init.py"
           python scripts/version_bumped.py "$RUNNER_TEMP/main_init.py" src/arxorter/__init__.py
 
   test:
