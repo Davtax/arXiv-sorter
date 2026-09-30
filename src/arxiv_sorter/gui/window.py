@@ -265,24 +265,31 @@ class PathSelector(QWidget):
 
         self.line_edit = QLineEdit()
         self.line_edit.setClearButtonEnabled(True)
-        browse_button = QPushButton('Browse…')
-        browse_button.setToolTip('Choose the folder')
-        browse_button.clicked.connect(self.browse)
-        open_button = QPushButton() if MACOS else QToolButton()
-        open_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
+        self.browse_button = QPushButton('Browse…')
+        self.browse_button.setToolTip('Choose the folder')
+        self.browse_button.clicked.connect(self.browse)
+        self.open_button = QPushButton() if MACOS else QToolButton()
+        self.open_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
         if MACOS:  # Only as wide as the icon, instead of the minimum width of the push buttons
-            open_button.setFixedWidth(48)
-        open_button.setToolTip('Open the folder in the file manager')
-        open_button.clicked.connect(self.open_folder)
+            self.open_button.setFixedWidth(48)
+        self.open_button.setToolTip('Open the folder in the file manager')
+        self.open_button.clicked.connect(self.open_folder)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.line_edit, stretch=1)
-        layout.addWidget(browse_button)
-        layout.addWidget(open_button)
+        layout.addWidget(self.browse_button)
+        layout.addWidget(self.open_button)
 
     def path(self) -> str:
         return self.line_edit.text().strip()
+
+    def set_editable(self, editable: bool):
+        """
+        Allow changing the folder or not. It can always be opened in the file manager, e.g. during a run.
+        """
+        self.line_edit.setEnabled(editable)
+        self.browse_button.setEnabled(editable)
 
     def set_path(self, path: str):
         self.line_edit.setText(path)
@@ -956,9 +963,10 @@ class MainWindow(QMainWindow):
     def set_running(self, running: bool):
         self.run_button.setEnabled(not running)
         self.stop_button.setEnabled(running)
-        for widget in (self.keywords_selector, self.abstracts_selector, self.auto_dates_radio, self.custom_dates_radio,
-                       self.images_check, self.final_date_check, self.separate_check, self.sort_authors_check,
-                       self.verbose_check, *self.edit_buttons):
+        for selector in (self.keywords_selector, self.abstracts_selector):
+            selector.set_editable(not running)
+        for widget in (self.auto_dates_radio, self.custom_dates_radio, self.images_check, self.final_date_check,
+                       self.separate_check, self.sort_authors_check, self.verbose_check, *self.edit_buttons):
             widget.setEnabled(not running)
         self._update_threads_enabled()
         self._update_dates_enabled()

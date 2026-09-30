@@ -113,6 +113,19 @@ class TestRunning:
         assert len(opened) == 1
 
 
+    def test_folders_can_be_opened_but_not_changed_during_a_run(self, win):
+        win.process = QtCore.QProcess(win)
+        win.set_running(True)
+        for selector in (win.keywords_selector, win.abstracts_selector):
+            assert selector.open_button.isEnabled()
+            assert not selector.line_edit.isEnabled()
+            assert not selector.browse_button.isEnabled()
+
+        win.process_finished(0, QtCore.QProcess.ExitStatus.NormalExit)
+        assert win.abstracts_selector.line_edit.isEnabled()
+        assert win.abstracts_selector.browse_button.isEnabled()
+
+
 class TestSchedule:
     @pytest.fixture
     def choose(self, monkeypatch):
