@@ -326,6 +326,37 @@ class TestInstallUpdate:
             updater.install_update(release_for(b''), installed=tmp_path / 'arXiv-sorter-GUI')
 
 
+    def test_translocated_app_replaced_where_the_user_has_it(self, github, tmp_path, monkeypatch):
+        installed = tmp_path / 'arXiv-sorter-GUI.exe'
+        installed.write_bytes(b'old')
+        translocated = tmp_path / 'AppTranslocation' / 'ID' / 'd' / installed.name
+        monkeypatch.setattr(updater, 'original_path', lambda path: installed if path == translocated else path)
+        content = zip_bytes({'arXiv-sorter-GUI.exe': b'new'})
+        github.append(FakeResponse(content=content))
+
+        program = updater.install_update(release_for(content, size=len(content)), installed=translocated)
+
+        assert program == installed
+        assert installed.read_bytes() == b'new'
+
+    def test_translocated_app_of_unknown_location(self, tmp_path):
+        translocated = tmp_path / 'AppTranslocation' / 'ID' / 'd' / 'arXiv-sorter-GUI.app'
+        with pytest.raises(UpdateError, match='Unable to write'):
+            updater.install_update(release_for(b''), installed=translocated)
+
+
+@pytest.mark.skipif(sys.platform != 'darwin', reason='macOS quarantine')
+def test_quarantine_removed(tmp_path):
+    program = tmp_path / 'arXiv-sorter-GUI-macOS.app'
+    (program / 'Contents').mkdir(parents=True)
+    updater.subprocess.run(['xattr', '-w', 'com.apple.quarantine', '0081;00000000;Safari;', str(program)], check=True)
+
+    updater.remove_quarantine(program)
+
+    result = updater.subprocess.run(['xattr', str(program)], capture_output=True, text=True)
+    assert 'com.apple.quarantine' not in result.stdout
+
+
 class TestLaunch:
     @pytest.fixture
     def popen(self, monkeypatch):

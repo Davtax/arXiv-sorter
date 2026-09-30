@@ -45,6 +45,10 @@ addopts = "-ra --strict-markers -m 'not network'"
 markers = [
     "network: tests that reach the real arXiv / GitHub servers (deselect with -m 'not network')",
 ]
+filterwarnings = [
+    # Raised by the SWIG bindings of PyMuPDF on Python 3.14 when imported, harmless
+    "ignore:builtin type .* has no __module__ attribute:DeprecationWarning",
+]
 
 [tool.coverage.run]
 source = ["arxiv_sorter"]
