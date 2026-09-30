@@ -14,6 +14,7 @@ from pathlib import Path
 from packaging.version import Version
 
 from arxiv_sorter import __version__
+from arxiv_sorter.gui.icons import APP_ICON_ICNS, APP_ICON_ICO, APP_ICON_PNG
 from arxiv_sorter.updater import asset_name, get_system_name
 
 ROOT = Path(SPECPATH).parent
@@ -21,10 +22,9 @@ NAME = 'arXiv-sorter'
 EXE_NAME = asset_name(get_system_name(), gui=True)  # e.g. arXiv-sorter-GUI-Windows
 BUNDLE_ID = 'io.github.davtax.arxiv-sorter'
 
-# Optional icons, exported from logo/arxiv-sorter-icon.af (Linux desktops take the icon from a .desktop file instead)
-ICON_FILES = {'win32': ROOT / 'logo' / 'arxiv-sorter.ico', 'darwin': ROOT / 'logo' / 'arxiv-sorter.icns'}
-icon_file = ICON_FILES.get(sys.platform)
-icon = str(icon_file) if icon_file is not None and icon_file.is_file() else None
+# Icon of the program file, and the image of the application icon used by the GUI (see arxiv_sorter/gui/icons.py). Linux
+# desktops take the icon from a .desktop file instead
+icon = {'win32': str(APP_ICON_ICO), 'darwin': str(APP_ICON_ICNS)}.get(sys.platform)
 
 
 def windows_version_info():
@@ -60,6 +60,7 @@ def windows_version_info():
 a = Analysis(
     [str(ROOT / 'gui.py')],
     pathex=[str(ROOT / 'src')],
+    datas=[(str(APP_ICON_PNG), 'arxiv_sorter/gui/app-icon')],
     excludes=['tkinter'],
 )
 pyz = PYZ(a.pure)

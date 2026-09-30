@@ -1255,7 +1255,8 @@ def start_gui() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setApplicationVersion(__version__)
-    app.setWindowIcon(app_icon())
+    if not (sys.platform == 'darwin' and is_frozen()):  # The Dock shows the icon of the app, as the Finder does
+        app.setWindowIcon(app_icon())
 
     if is_frozen():
         remove_old_version()  # Left by the last update

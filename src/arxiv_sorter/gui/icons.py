@@ -1,18 +1,26 @@
 """
-Icons of the GUI, drawn at run time: the application icon (until an icon file is added in logo/), and the colored
-icons of the Run and Stop buttons. Qt draws them greyed out when the buttons are disabled.
+Icons of the GUI: the application icon, and the colored icons of the Run and Stop buttons (drawn at run time, Qt draws
+them greyed out when the buttons are disabled).
+
+The application icon is in the files of APP_ICON_DIR: the PNG image for the windows, the Dock, the taskbar and the
+notifications, and the icon files of the program (.icns for the macOS app, .ico for the Windows executable). To change
+it, replace them, or make them from a new image with scripts/make_icons.py.
 """
 from collections.abc import Callable
+from pathlib import Path
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap, QPolygonF
+from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap, QPolygonF
 
-APP_ICON_TEXT = 'aXs'
-ARXIV_RED = QColor('#b31b1b')
+APP_ICON_DIR = Path(__file__).parent / 'app-icon'  # Also in the PyInstaller builds, and in the installed package
+APP_ICON_PNG = APP_ICON_DIR / 'arxiv-sorter.png'
+APP_ICON_ICNS = APP_ICON_DIR / 'arxiv-sorter.icns'
+APP_ICON_ICO = APP_ICON_DIR / 'arxiv-sorter.ico'
+
 RUN_GREEN = QColor('#2ea043')
 STOP_RED = QColor('#d93025')
 
-SIZES = (16, 24, 32, 48, 64, 128, 256)
+SIZES = (16, 24, 32, 48)
 
 
 def _draw_icon(draw: Callable[[QPainter, int], None], sizes: tuple[int, ...] = SIZES) -> QIcon:
@@ -30,20 +38,7 @@ def _draw_icon(draw: Callable[[QPainter, int], None], sizes: tuple[int, ...] = S
 
 
 def app_icon() -> QIcon:
-    def draw(painter: QPainter, size: int):
-        painter.setBrush(ARXIV_RED)
-        radius = size * 0.22
-        painter.drawRoundedRect(QRectF(0, 0, size, size), radius, radius)
-
-        font = QFont()
-        font.setBold(True)
-        font.setPixelSize(max(int(size * 0.4), 6))
-        font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 92)  # Three letters fit in the small sizes
-        painter.setFont(font)
-        painter.setPen(Qt.GlobalColor.white)
-        painter.drawText(QRectF(0, 0, size, size * 0.96), Qt.AlignmentFlag.AlignCenter, APP_ICON_TEXT)
-
-    return _draw_icon(draw)
+    return QIcon(str(APP_ICON_PNG))
 
 
 def run_icon() -> QIcon:
@@ -56,7 +51,7 @@ def run_icon() -> QIcon:
         painter.drawPolygon(QPolygonF([QPointF(size * 0.22, size * 0.12), QPointF(size * 0.88, size * 0.5),
                                        QPointF(size * 0.22, size * 0.88)]))
 
-    return _draw_icon(draw, SIZES[:4])
+    return _draw_icon(draw)
 
 
 def stop_icon() -> QIcon:
@@ -68,4 +63,4 @@ def stop_icon() -> QIcon:
         radius = size * 0.12
         painter.drawRoundedRect(QRectF(size * 0.18, size * 0.18, size * 0.64, size * 0.64), radius, radius)
 
-    return _draw_icon(draw, SIZES[:4])
+    return _draw_icon(draw)

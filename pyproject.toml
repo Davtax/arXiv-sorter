@@ -38,6 +38,9 @@ version = { attr = "arxiv_sorter.__version__" }
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"arxiv_sorter.gui" = ["app-icon/*"]  # The application icon
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
