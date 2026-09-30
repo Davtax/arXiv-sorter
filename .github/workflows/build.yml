@@ -119,7 +119,11 @@ jobs:
         run: pyinstaller --onefile --paths src -n "arXiv-sorter-CLI-${{ matrix.name }}" run.py
 
       # With 2 threads, the figures are also extracted by other processes, which the binary starts from itself
+      # Without the certificates of the Python that built it (which the users do not have), so the binary must use its own
       - name: Run the command line binary
+        env:
+          SSL_CERT_FILE: /nonexistent
+          SSL_CERT_DIR: /nonexistent
         run: dist/arXiv-sorter-CLI-${{ matrix.name }} -v -d ../searches_test -f -e -t 2
 
       - name: Upload the command line binary

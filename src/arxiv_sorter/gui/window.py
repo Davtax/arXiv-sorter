@@ -11,7 +11,17 @@ from datetime import time as time_of_day
 from pathlib import Path
 
 from PySide6.QtCore import QByteArray, QDate, QEvent, QProcess, QProcessEnvironment, QSize, Qt, QTimer, QUrl
-from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QColor, QDesktopServices, QFont, QKeySequence, QPalette
+from PySide6.QtGui import (
+    QAction,
+    QActionGroup,
+    QCloseEvent,
+    QColor,
+    QDesktopServices,
+    QFont,
+    QKeySequence,
+    QPaintEvent,
+    QPalette,
+)
 from PySide6.QtWidgets import (
     QAbstractButton,
     QApplication,
@@ -32,6 +42,9 @@ from PySide6.QtWidgets import (
     QRadioButton,
     QSpinBox,
     QStyle,
+    QStyleOptionComboBox,
+    QStyleOptionSpinBox,
+    QStylePainter,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -179,6 +192,31 @@ def hint_label(text: str) -> QLabel:
     font.setPointSizeF(font.pointSizeF() * 0.9)
     label.setFont(font)
     return label
+
+
+class DateEdit(QDateEdit):
+    """
+    Date edit with a calendar popup. On macOS, the style draws a misplaced blue rectangle around it while it has the
+    focus (also after a date is chosen in the calendar), so it is painted as QDateEdit does, but without the focus.
+    """
+
+    def paintEvent(self, event: QPaintEvent):
+        if not MACOS or not self.calendarPopup():
+            super().paintEvent(event)
+            return
+
+        spin_box = QStyleOptionSpinBox()
+        self.initStyleOption(spin_box)
+        combo_box = QStyleOptionComboBox()
+        combo_box.initFrom(self)
+        combo_box.editable = True
+        combo_box.frame = spin_box.frame
+        combo_box.subControls = spin_box.subControls
+        combo_box.activeSubControls = spin_box.activeSubControls
+        combo_box.state = spin_box.state & ~QStyle.StateFlag.State_HasFocus
+        if self.isReadOnly():
+            combo_box.state &= ~QStyle.StateFlag.State_Enabled
+        QStylePainter(self).drawComplexControl(QStyle.ComplexControl.CC_ComboBox, combo_box)
 
 
 class PathSelector(QWidget):
@@ -348,8 +386,8 @@ class MainWindow(QMainWindow):
         return group
 
     @staticmethod
-    def _date_edit(value: QDate) -> QDateEdit:
-        edit = QDateEdit(value)
+    def _date_edit(value: QDate) -> DateEdit:
+        edit = DateEdit(value)
         edit.setCalendarPopup(True)
         edit.setDisplayFormat(DATE_FORMAT)
         edit.setMaximumDate(QDate.currentDate())

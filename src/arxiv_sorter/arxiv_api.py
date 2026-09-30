@@ -1,9 +1,11 @@
+import ssl
 import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
 from subprocess import TimeoutExpired, run
 
+import certifi
 import feedparser
 import pytz
 
@@ -17,7 +19,18 @@ N_MAX = 1000  # Maximum number of entries per request
 T_SLEEP = 3  # seconds between requests
 T_PREVIOUS_REQUEST = 0.0  # UTC seconds from the previous request
 
-ARXIV_OPENER = urllib.request.build_opener()
+
+def _ssl_context() -> ssl.SSLContext:
+    """
+    Verify the certificates with the ones of certifi (as requests does), not the default ones of OpenSSL: in the
+    binaries, OpenSSL looks for them in the folder of the Python that built it (e.g.
+    /Library/Frameworks/Python.framework/Versions/3.14/etc/openssl on macOS), which does not exist on the users'
+    systems.
+    """
+    return ssl.create_default_context(cafile=certifi.where())
+
+
+ARXIV_OPENER = urllib.request.build_opener(urllib.request.HTTPSHandler(context=_ssl_context()))
 ARXIV_HEADERS = {"User-Agent": f"arxiv-sorter/{__version__}", "Accept": "application/atom+xml", }
 N_RETRIES = 3
 TIMEOUT = 30  # seconds

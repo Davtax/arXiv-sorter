@@ -83,6 +83,7 @@ else:
         bundle_identifier=BUNDLE_ID,
         version=__version__,
         info_plist={
+            'CFBundleName': NAME,  # In the menu bar, instead of the name of the bundle
             'CFBundleDisplayName': NAME,
             'CFBundleShortVersionString': __version__,
             'CFBundleVersion': __version__,
