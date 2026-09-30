@@ -642,6 +642,22 @@ class TestDatePicker:
         qtbot.waitUntil(lambda: not calendar.isVisible())
         assert edit.date() == QtCore.QDate.currentDate()
 
+    def test_closing_the_calendar_leaves_no_text_cursor(self, win, qtbot, monkeypatch):
+        # Qt gives the focus back to the date edit when the calendar closes (only while the window is active, so it
+        # is simulated): the date edit drops it
+        win.custom_dates_radio.setChecked(True)
+        win.show()
+        qtbot.waitExposed(win)
+        edit = win.date_f_edit
+        dropped = []
+        monkeypatch.setattr(edit, 'hasFocus', lambda: True)
+        monkeypatch.setattr(edit, 'clearFocus', lambda: dropped.append(True))
+        edit.open_calendar()
+        calendar = edit.calendarWidget()
+        qtbot.waitUntil(calendar.isVisible)
+        calendar.choose_today()
+        qtbot.waitUntil(lambda: dropped == [True])
+
     def test_the_last_day_is_after_the_first_one(self, win):
         win.date_0_edit.setDate(QtCore.QDate(2026, 9, 1))
         win.date_f_edit.setDate(QtCore.QDate(2026, 9, 10))

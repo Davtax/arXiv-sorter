@@ -5,7 +5,7 @@ to today. The weekends are muted, since the mailing lists are dated from Monday 
 palette, so it follows the theme and the style of every system.
 """
 from PySide6.QtCore import QDate, QEvent, QLocale, QPoint, QRect, QRectF, QSize, Qt, Signal
-from PySide6.QtGui import QAction, QColor, QFont, QPainter, QPainterPath, QPalette, QPen, QTextCharFormat
+from PySide6.QtGui import QAction, QColor, QFont, QPainter, QPalette, QPen, QTextCharFormat
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCalendarWidget,
@@ -42,6 +42,16 @@ def muted(color: QColor, alpha: int = 110) -> QColor:
     color = QColor(color)
     color.setAlpha(alpha)
     return color
+
+
+def blended(color: QColor, background: QColor, alpha: int) -> QColor:
+    """
+    Opaque color of the color with the opacity (of 255) on the background.
+    """
+    weight = alpha / 255
+    return QColor.fromRgbF(*(weight * top + (1 - weight) * bottom for top, bottom in
+                             zip((color.redF(), color.greenF(), color.blueF()),
+                                 (background.redF(), background.greenF(), background.blueF()), strict=True)))
 
 
 class DatePicker(QCalendarWidget):
@@ -264,35 +274,40 @@ class DatePicker(QCalendarWidget):
         today = date == QDate.currentDate()
         hovered = date == self.hovered and enabled
         # Both ends of the range are filled (the first one too in the calendar of the last one, where it cannot be
-        # chosen), except the hovered day, which only previews one
+        # chosen), except the hovered day, which only previews one. The days of the previous and next months, in the
+        # first and last rows, are drawn as the others, so a range across months continues to its end
         start, end = self.shown_range()
         if start.isValid() and end.isValid():
-            selected = this_month and date in (start, end) and not hovered
+            selected = date in (start, end) and not hovered
         else:
-            selected = this_month and date == self.selectedDate()
+            selected = date == self.selectedDate()
 
         painter.save()
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.fillRect(rect, palette.brush(QPalette.ColorRole.Base))
+        # The rectangles are drawn without antialiasing, so the cells meet on a whole device pixel: otherwise, with a
+        # fractional scale of the display, the edge between two cells of the range is blended twice and shows a line
+        base = palette.color(QPalette.ColorRole.Base)
+        painter.fillRect(rect, base)
 
         size = min(rect.width(), rect.height()) - 4
         circle = QRectF(0, 0, size, size)
         circle.moveCenter(QRectF(rect).center())
 
-        if this_month and self.in_range(date):
+        if self.in_range(date):
+            # Opaque, since the band and its rounded end overlap
+            shade = blended(accent, base, RANGE_ALPHA)
             band = QRectF(rect.left(), circle.top(), rect.width(), circle.height())
             if date == start or date.dayOfWeek() == self.firstDayOfWeek().value:
                 band.setLeft(circle.center().x())
             if date == end or date.addDays(1).dayOfWeek() == self.firstDayOfWeek().value:
                 band.setRight(circle.center().x())
-            shape = QPainterPath()
-            shape.addRect(band)
+            painter.fillRect(band, shade)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             if band.width() < rect.width():  # Rounded end of the band
-                cap = QPainterPath()
-                cap.addEllipse(circle)
-                shape = shape.united(cap)
-            painter.fillPath(shape, muted(accent, RANGE_ALPHA))
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(shade)
+                painter.drawEllipse(circle)
 
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         if selected:
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(accent if self.isEnabled() else muted(accent))

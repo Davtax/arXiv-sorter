@@ -7,6 +7,7 @@ if sys.platform.startswith('linux') and not (os.environ.get('DISPLAY') or os.env
     os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 QtWidgets = pytest.importorskip('PySide6.QtWidgets')
 QtCore = pytest.importorskip('PySide6.QtCore')
+QtGui = pytest.importorskip('PySide6.QtGui')
 
 from arxorter.gui.date_picker import DatePicker  # noqa: E402
 
@@ -75,6 +76,29 @@ def test_the_cells_are_painted(date_edit):
     picker.set_range(QDate(2026, 9, 15), QDate(2026, 9, 22))
     picker.resize(picker.sizeHint())
     assert not picker.grab().isNull()
+
+
+def test_the_range_continues_into_the_next_month_shown(date_edit):
+    picker = date_edit.calendarWidget()
+    picker.setCurrentPage(2026, 8)  # The last row ends with 1 to 6 September
+    picker.set_range(QDate(2026, 8, 4), QDate(2026, 9, 3))
+    picker.resize(picker.sizeHint())
+    picker.show()
+    image = picker.view.viewport().grab().toImage()
+    base = picker.palette().color(QtGui.QPalette.ColorRole.Base)
+
+    def color_of(date: QDate) -> QtGui.QColor:
+        model = picker.view.model()
+        rect = next(picker.view.visualRect(model.index(row, column)) for row in range(model.rowCount())
+                    for column in range(model.columnCount())
+                    if picker.date_at(picker.view.visualRect(model.index(row, column)).center()) == date)
+        point = (QtCore.QPointF(rect.center().x(), rect.top() + rect.height() * 0.2) * image.devicePixelRatio())
+        return image.pixelColor(point.toPoint())  # Above the digits
+
+    assert color_of(QDate(2026, 9, 2)) != base  # Shaded
+    assert color_of(QDate(2026, 9, 3)) == picker.palette().color(QtGui.QPalette.ColorRole.Accent)  # Last day
+    assert color_of(QDate(2026, 9, 5)) == base  # After the range
+    picker.hide()
 
 
 def test_hovering_a_day_previews_the_range(date_edit):

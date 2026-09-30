@@ -39,6 +39,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QAbstractButton,
     QApplication,
+    QCalendarWidget,
     QCheckBox,
     QDateEdit,
     QFileDialog,
@@ -214,6 +215,21 @@ class DateEdit(QDateEdit):
     Date edit with a calendar popup. On macOS, the style draws a misplaced blue rectangle around it while it has the
     focus (also after a date is chosen in the calendar), so it is painted as QDateEdit does, but without the focus.
     """
+
+    def setCalendarWidget(self, calendar: QCalendarWidget):  # noqa: N802 (Qt name)
+        super().setCalendarWidget(calendar)
+        calendar.installEventFilter(self)
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802 (Qt name)
+        # When the calendar closes, Qt gives the focus back to the date edit, which shows the text cursor in it. The
+        # focus is removed after Qt, so no text cursor is left after choosing a date (typing one is still possible)
+        if watched is self.calendarWidget() and event.type() == QEvent.Type.Hide:
+            QTimer.singleShot(0, self._drop_focus)
+        return super().eventFilter(watched, event)
+
+    def _drop_focus(self):
+        if self.hasFocus() and not self.calendarWidget().isVisible():
+            self.clearFocus()
 
     def paintEvent(self, event: QPaintEvent):
         if not MACOS or not self.calendarPopup():
