@@ -1,4 +1,5 @@
 import io
+import ssl
 import urllib.error
 from datetime import datetime
 from types import SimpleNamespace
@@ -188,6 +189,17 @@ class TestGetArxivFeed:
 
         with pytest.raises(RuntimeError, match='200'):
             _get_arxiv_feed('https://example.org')
+
+
+def test_ssl_context_does_not_need_the_certificates_of_the_system(monkeypatch, tmp_path):
+    # As in the binaries on the users' systems, where the default certificates of OpenSSL do not exist
+    monkeypatch.setenv('SSL_CERT_FILE', str(tmp_path / 'missing.pem'))
+    monkeypatch.setenv('SSL_CERT_DIR', str(tmp_path / 'missing'))
+
+    context = arxiv_api._ssl_context()
+
+    assert context.verify_mode == ssl.CERT_REQUIRED
+    assert context.cert_store_stats()['x509_ca'] > 0
 
 
 class TestFetchCurl:

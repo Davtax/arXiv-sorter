@@ -13,6 +13,7 @@ dependencies = [
     "feedparser",
     "unidecode",
     "requests",
+    "certifi",  # Certificates of the arXiv requests, also used by requests
     "packaging",
     "pytz",
     "pymupdf",
