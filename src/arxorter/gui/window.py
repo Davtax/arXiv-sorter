@@ -379,6 +379,11 @@ class MainWindow(QMainWindow):
         style_section(group)
         form = expanding_form(group)
 
+        self.abstracts_selector = PathSelector('Select the folder for the abstracts')
+        self.abstracts_selector.setToolTip('Folder where the Markdown files are saved, e.g. inside your Obsidian '
+                                           'vault (--abstracts)')
+        form.addRow('Abstracts:', self.abstracts_selector)
+
         self.keywords_selector = PathSelector('Select the folder with the search files')
         self.keywords_selector.setToolTip('Folder with keywords.txt, authors.txt and categories.txt (--directory)')
         self.keywords_selector.line_edit.textChanged.connect(lambda: self.search_files_timer.start())
@@ -400,11 +405,6 @@ class MainWindow(QMainWindow):
             files_row.addSpacing(12)
         files_row.addStretch()
         form.addRow('', files_row)
-
-        self.abstracts_selector = PathSelector('Select the folder for the abstracts')
-        self.abstracts_selector.setToolTip('Folder where the Markdown files are saved, e.g. inside your Obsidian '
-                                           'vault (--abstracts)')
-        form.addRow('Abstracts:', self.abstracts_selector)
 
         return group
 
