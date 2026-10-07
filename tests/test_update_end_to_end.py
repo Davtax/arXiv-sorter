@@ -6,6 +6,7 @@ The updates go through the same code as the programs: the update step of the com
 checker and installer of the GUI. They download the real release assets (tens of MB), so they only run with
 `pytest -m network`.
 """
+import contextlib
 import os
 import plistlib
 import subprocess
@@ -284,6 +285,14 @@ def running_pids(program: Path) -> list[int]:
         result = subprocess.run(['tasklist', '/FI', f'IMAGENAME eq {name}', '/FO', 'CSV', '/NH'], capture_output=True,
                                 text=True)
         return [int(line.split('","')[1]) for line in result.stdout.splitlines() if line.startswith(f'"{name}"')]
+
+    if sys.platform == 'linux':  # Not ps, which writes the non-ASCII characters of the path as ? in the C locale
+        pids = []
+        for process in Path('/proc').iterdir():
+            with contextlib.suppress(OSError):  # Not a process, finished, or of another user
+                if process.name.isdigit() and (process / 'exe').resolve(strict=True) == executable(program).resolve():
+                    pids.append(int(process.name))
+        return pids
 
     # Compared in the same Unicode form: macOS may write the non-ASCII characters of the path decomposed
     target = unicodedata.normalize('NFC', str(executable(program)))
